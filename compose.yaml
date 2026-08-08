@@ -1,0 +1,45 @@
+services:
+  app:
+    image: serversideup/php:8.4-cli-alpine
+    user: root
+    working_dir: /app
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - vendor:/app/vendor
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "composer install --no-interaction --prefer-dist && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000"
+
+  vite:
+    image: node:24-alpine
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    command: sh -c "npm ci && npm run dev"
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: syntix
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d syntix"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  node_modules:
+  postgres_data:
+  vendor:
