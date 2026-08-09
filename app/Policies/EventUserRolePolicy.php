@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Enums\EventRole;
-use App\Enums\PlatformCapability;
 use App\Models\Event;
 use App\Models\EventUserRole;
 use App\Models\User;
@@ -22,16 +21,12 @@ class EventUserRolePolicy
             return false;
         }
 
-        $isFirstAdmin = $role === EventRole::Admin
-            && ! $event->hasActiveAdmin()
-            && $actor->hasActivePlatformCapability(PlatformCapability::EventCreator);
-
-        return $isFirstAdmin || $actor->hasActiveEventRole($event, EventRole::Admin);
+        return $role !== EventRole::Admin && $actor->hasAdminAccess($event);
     }
 
     public function revoke(User $actor, EventUserRole $membership): bool
     {
         return $membership->isActive()
-            && $actor->hasActiveEventRole($membership->event_id, EventRole::Admin);
+            && $actor->hasAdminAccess($membership->event_id);
     }
 }

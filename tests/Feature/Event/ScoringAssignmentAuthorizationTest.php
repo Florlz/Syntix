@@ -6,7 +6,7 @@ use App\Actions\Assignments\GrantScoringAssignment;
 use App\Actions\Assignments\RevokeScoringAssignment;
 use App\Actions\Events\CreateEvent;
 use App\Actions\Events\GrantEventRole;
-use App\Actions\Identity\BootstrapEventCreator;
+use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Enums\EventRole;
 use App\Enums\ScoringAssignmentScope;
 use App\Models\Competition;
@@ -134,7 +134,6 @@ class ScoringAssignmentAuthorizationTest extends TestCase
     {
         $creator = $this->bootstrapCreator();
         $event = (new CreateEvent)->handle($creator, ['name' => 'SIKLAB 2026']);
-        (new GrantEventRole)->handle($creator, $event, $creator, EventRole::Admin);
         $tabulator = User::factory()->create(['email' => 'tabulator@example.com']);
         (new GrantEventRole)->handle($creator, $event, $tabulator, EventRole::Tabulator);
 
@@ -155,8 +154,8 @@ class ScoringAssignmentAuthorizationTest extends TestCase
 
     private function bootstrapCreator(): User
     {
-        return (new BootstrapEventCreator)->handle([
-            'name' => 'Platform Creator',
+        return (new BootstrapGlobalAdmin)->handle([
+            'name' => 'Global Admin',
             'email' => 'creator-'.uniqid().'@example.com',
             'password' => 'a-secure-bootstrap-password',
         ]);

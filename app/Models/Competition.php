@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['event_id', 'name', 'slug'])]
 class Competition extends Model
@@ -23,6 +24,25 @@ class Competition extends Model
     public function divisions(): HasMany
     {
         return $this->hasMany(Division::class, 'competition_id');
+    }
+
+    public function coverImages(): HasMany
+    {
+        return $this->hasMany(CompetitionCoverImage::class);
+    }
+
+    public function draftCoverImage(): HasOne
+    {
+        return $this->hasOne(CompetitionCoverImage::class)
+            ->where('state', 'draft')
+            ->latestOfMany('revision');
+    }
+
+    public function publishedCoverImage(): HasOne
+    {
+        return $this->hasOne(CompetitionCoverImage::class)
+            ->where('state', 'published')
+            ->latestOfMany('revision');
     }
 
     public function eventId(): ?int

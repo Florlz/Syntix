@@ -3,7 +3,6 @@
 namespace App\Actions\Identity;
 
 use App\Enums\AuditAction;
-use App\Enums\EventRole;
 use App\Models\Event;
 use App\Models\User;
 use App\Models\UserInvitation;
@@ -23,8 +22,8 @@ final class ProvisionUser
      */
     public function handle(User $actor, Event $event, array $attributes): array
     {
-        if (! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can provision a user.');
+        if (! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can provision a user.');
         }
 
         return DB::transaction(function () use ($actor, $event, $attributes): array {

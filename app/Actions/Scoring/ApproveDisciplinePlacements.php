@@ -4,7 +4,6 @@ namespace App\Actions\Scoring;
 
 use App\Enums\AuditAction;
 use App\Enums\DisciplineResultState;
-use App\Enums\EventRole;
 use App\Models\Discipline;
 use App\Models\DisciplinePlacement;
 use App\Models\DivisionSubPoint;
@@ -25,8 +24,8 @@ final class ApproveDisciplinePlacements
         $discipline->loadMissing('division.competition.event');
         $event = $discipline->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can approve discipline placements.');
+        if ($event === null || ! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can approve discipline placements.');
         }
 
         return DB::transaction(function () use ($actor, $discipline, $items, $event): array {

@@ -2,10 +2,8 @@
 
 namespace App\Actions\Events;
 
-use App\Enums\AccountState;
 use App\Enums\AuditAction;
 use App\Enums\EventRole;
-use App\Enums\PlatformCapability;
 use App\Models\Event;
 use App\Models\EventUserRole;
 use App\Models\User;
@@ -26,6 +24,10 @@ final class GrantEventRole
     ): EventUserRole {
         $role = $role instanceof EventRole ? $role : EventRole::from($role);
 
+        if ($role === EventRole::Admin) {
+            throw new \DomainException('Event Admin is retired; grant Judge or Tabulator instead.');
+        }
+
         return DB::transaction(function () use ($actor, $event, $target, $role, $reason): EventUserRole {
             $actor = User::query()->whereKey($actor->getKey())->lockForUpdate()->firstOrFail();
             $event = Event::query()->whereKey($event->getKey())->lockForUpdate()->firstOrFail();
@@ -35,23 +37,8 @@ final class GrantEventRole
                 throw new AuthorizationException('Active users and non-archived events are required for role grants.');
             }
 
-            $hasAdmin = $event->userRoles()
-                ->where('role', EventRole::Admin->value)
-                ->whereNull('revoked_at')
-                ->whereHas('user', function ($query): void {
-                    $query->where('account_state', AccountState::Active->value);
-                })
-                ->lockForUpdate()
-                ->exists();
-            $isEventAdmin = $actor->hasActiveEventRole($event, EventRole::Admin);
-            $isFirstAdminGrant = $role === EventRole::Admin
-                && ! $hasAdmin
-                && $actor->hasActivePlatformCapability(PlatformCapability::EventCreator);
-
-            if (! $isEventAdmin && ! $isFirstAdminGrant) {
-                throw new AuthorizationException(
-                    'An active event Admin is required, except for the first Admin grant by an event creator.'
-                );
+            if (! $actor->hasAdminAccess($event)) {
+                throw new AuthorizationException('The active Global Admin is required to grant Event Roles.');
             }
 
             $duplicate = EventUserRole::query()

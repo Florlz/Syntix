@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\EventRole;
 use App\Enums\ResultSubmissionState;
 use App\Models\ResultSubmission;
 use App\Models\User;
@@ -16,7 +15,7 @@ class ResultSubmissionPolicy
 
         return $event !== null
             && $actor->isActive()
-            && ($actor->hasActiveEventRole($event, EventRole::Admin)
+            && ($actor->hasAdminAccess($event)
                 || ($submission->submitted_by === $actor->getKey()
                     && $actor->canScoreContest($submission->contest)));
     }
@@ -28,7 +27,7 @@ class ResultSubmissionPolicy
 
         return $event !== null
             && $submission->submissionState() === ResultSubmissionState::Submitted
-            && $actor->hasActiveEventRole($event, EventRole::Admin);
+            && $actor->hasAdminAccess($event);
     }
 
     public function reject(User $actor, ResultSubmission $submission): bool

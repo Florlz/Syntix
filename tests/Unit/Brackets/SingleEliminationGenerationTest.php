@@ -5,11 +5,9 @@ namespace Tests\Unit\Brackets;
 use App\Actions\Brackets\GenerateSingleEliminationBracket;
 use App\Actions\Brackets\PublishBracket;
 use App\Actions\Events\CreateEvent;
-use App\Actions\Events\GrantEventRole;
-use App\Actions\Identity\BootstrapEventCreator;
+use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Actions\Scoring\ActivateRuleVersion;
 use App\Enums\CompetitionFormat;
-use App\Enums\EventRole;
 use App\Enums\ParticipantMode;
 use App\Enums\ScoringFamily;
 use App\Enums\TournamentState;
@@ -74,15 +72,12 @@ class SingleEliminationGenerationTest extends TestCase
     /** @return array{admin: User, division: Division, entries: Collection<int, Entry>} */
     private function context(int $entryCount): array
     {
-        $creator = (new BootstrapEventCreator)->handle([
-            'name' => 'Platform Creator',
+        $admin = (new BootstrapGlobalAdmin)->handle([
+            'name' => 'Global Admin',
             'email' => 'creator-'.uniqid().'@example.com',
             'password' => 'secure-bootstrap-password',
         ]);
-        $event = (new CreateEvent)->handle($creator, ['name' => 'SIKLAB '.uniqid()]);
-        $admin = User::factory()->create(['email' => 'admin-'.uniqid().'@example.com']);
-        (new GrantEventRole)->handle($creator, $event, $admin, EventRole::Admin);
-        $delegation = EventDelegation::factory()->create(['event_id' => $event->getKey()]);
+        $event = (new CreateEvent)->handle($admin, ['name' => 'SIKLAB '.uniqid()]);
         $competition = Competition::factory()->create(['event_id' => $event->getKey()]);
         $division = Division::factory()->create(['competition_id' => $competition->getKey()]);
 
@@ -123,6 +118,7 @@ class SingleEliminationGenerationTest extends TestCase
 
         $entries = collect();
         for ($index = 1; $index <= $entryCount; $index++) {
+            $delegation = EventDelegation::factory()->create(['event_id' => $event->getKey()]);
             $entries->push(Entry::create([
                 'competition_division_id' => $division->getKey(),
                 'event_delegation_id' => $delegation->getKey(),

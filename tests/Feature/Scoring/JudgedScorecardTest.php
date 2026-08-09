@@ -5,7 +5,7 @@ namespace Tests\Feature\Scoring;
 use App\Actions\Assignments\GrantScoringAssignment;
 use App\Actions\Events\CreateEvent;
 use App\Actions\Events\GrantEventRole;
-use App\Actions\Identity\BootstrapEventCreator;
+use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Actions\Scoring\ActivateRuleVersion;
 use App\Actions\Scoring\SaveJudgeScorecard;
 use App\Actions\Scoring\SubmitJudgeScorecard;
@@ -133,15 +133,13 @@ class JudgedScorecardTest extends TestCase
     /** @return array{admin: User, event: Event, judge: User, scorecard: EntryScorecard, criteria: list<ScoringCriterion>} */
     private function context(bool $assign = true): array
     {
-        $creator = (new BootstrapEventCreator)->handle([
-            'name' => 'Platform Creator',
+        $admin = (new BootstrapGlobalAdmin)->handle([
+            'name' => 'Global Admin',
             'email' => 'creator-'.uniqid().'@example.com',
             'password' => 'secure-bootstrap-password',
         ]);
-        $event = (new CreateEvent)->handle($creator, ['name' => 'SIKLAB '.uniqid()]);
-        $admin = User::factory()->create(['email' => 'admin-'.uniqid().'@example.com']);
+        $event = (new CreateEvent)->handle($admin, ['name' => 'SIKLAB '.uniqid()]);
         $judge = User::factory()->create(['email' => 'judge-'.uniqid().'@example.com']);
-        (new GrantEventRole)->handle($creator, $event, $admin, EventRole::Admin);
         (new GrantEventRole)->handle($admin, $event, $judge, EventRole::Judge);
         $delegation = EventDelegation::factory()->create(['event_id' => $event->getKey()]);
         $competition = Competition::factory()->create(['event_id' => $event->getKey()]);

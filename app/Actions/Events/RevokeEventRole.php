@@ -3,7 +3,6 @@
 namespace App\Actions\Events;
 
 use App\Enums\AuditAction;
-use App\Enums\EventRole;
 use App\Models\Event;
 use App\Models\EventUserRole;
 use App\Models\User;
@@ -26,8 +25,8 @@ final class RevokeEventRole
             $membership = EventUserRole::query()->whereKey($membership->getKey())->lockForUpdate()->firstOrFail();
             $event = Event::query()->whereKey($membership->event_id)->lockForUpdate()->firstOrFail();
 
-            if (! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-                throw new AuthorizationException('An active event Admin is required to revoke an event role.');
+            if (! $actor->hasAdminAccess($event)) {
+                throw new AuthorizationException('The active Global Admin is required to revoke an Event Role.');
             }
 
             if (! $membership->isActive()) {

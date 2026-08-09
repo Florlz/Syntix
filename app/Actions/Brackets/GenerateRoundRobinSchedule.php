@@ -7,7 +7,6 @@ use App\Enums\BracketNodeType;
 use App\Enums\BracketVersionState;
 use App\Enums\CompetitionFormat;
 use App\Enums\EntryStatus;
-use App\Enums\EventRole;
 use App\Enums\RuleVersionState;
 use App\Enums\TournamentState;
 use App\Models\Contest;
@@ -25,16 +24,16 @@ final class GenerateRoundRobinSchedule
     /**
      * @param  list<int>  $drawOrder
      */
-    public function handle(User $actor, Division $division, array $drawOrder): Tournament
+    public function handle(User $actor, Division $division, array $drawOrder, string $source = 'manual_draw'): Tournament
     {
         $division->loadMissing('competition.event');
         $event = $division->competition?->event;
 
-        if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can generate a round-robin schedule.');
+        if ($event === null || ! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can generate a round-robin schedule.');
         }
 
-        return DB::transaction(function () use ($actor, $division, $drawOrder, $event): Tournament {
+        return DB::transaction(function () use ($actor, $division, $drawOrder, $source, $event): Tournament {
             $division = Division::query()->whereKey($division->getKey())->lockForUpdate()->firstOrFail();
             $division->load('competition.event');
             $version = $division->ruleVersions()
@@ -74,7 +73,7 @@ final class GenerateRoundRobinSchedule
             ]);
             $tournament->drawRecords()->create([
                 'draw_order' => $drawOrder,
-                'source' => 'admin_draw_order',
+                'source' => $source,
                 'confirmed_by' => $actor->getKey(),
                 'confirmed_at' => now(),
             ]);

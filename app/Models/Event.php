@@ -2,8 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\AccountState;
-use App\Enums\EventRole;
 use App\Enums\EventState;
 use Database\Factories\EventFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -78,12 +76,9 @@ class Event extends Model
 
     public function hasActiveAdmin(): bool
     {
-        return $this->userRoles()
-            ->where('role', EventRole::Admin->value)
-            ->whereNull('revoked_at')
-            ->whereHas('user', function ($query): void {
-                $query->where('account_state', AccountState::Active->value);
-            })
+        return User::query()
+            ->active()
+            ->where('is_global_admin', true)
             ->exists();
     }
 

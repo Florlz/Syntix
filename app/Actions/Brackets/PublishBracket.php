@@ -4,11 +4,11 @@ namespace App\Actions\Brackets;
 
 use App\Enums\AuditAction;
 use App\Enums\BracketVersionState;
-use App\Enums\EventRole;
 use App\Enums\TournamentState;
 use App\Models\BracketVersion;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\BracketAutoResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -21,8 +21,8 @@ final class PublishBracket
         $bracket->loadMissing('tournament.division.competition.event');
         $event = $bracket->tournament?->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can publish a bracket.');
+        if ($event === null || ! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can publish a bracket.');
         }
 
         return DB::transaction(function () use ($actor, $bracket, $event): BracketVersion {
@@ -30,6 +30,19 @@ final class PublishBracket
 
             if ($bracket->versionState() !== BracketVersionState::Preview) {
                 throw new \DomainException('Only a bracket preview can be published.');
+            }
+
+            (new BracketAutoResolver)->resolve($bracket);
+
+            $hasPlayableContest = $bracket->nodes()
+                ->where('state', 'pending')
+                ->whereNotNull('contest_id')
+                ->with('slots')
+                ->get()
+                ->contains(fn ($node): bool => $node->slots->whereNotNull('entry_id')->count() === 2);
+
+            if (! $hasPlayableContest) {
+                throw new \DomainException('The bracket preview does not contain a playable contest.');
             }
 
             $bracket->update([

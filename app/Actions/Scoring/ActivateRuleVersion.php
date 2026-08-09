@@ -3,7 +3,6 @@
 namespace App\Actions\Scoring;
 
 use App\Enums\AuditAction;
-use App\Enums\EventRole;
 use App\Enums\RuleVersionState;
 use App\Models\CompetitionRuleVersion;
 use App\Models\User;
@@ -25,8 +24,8 @@ final class ActivateRuleVersion
             $version->load('division.competition.event');
             $event = $version->division?->competition?->event;
 
-            if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-                throw new AuthorizationException('Only an event Admin can activate a rule version.');
+            if ($event === null || ! $actor->hasAdminAccess($event)) {
+                throw new AuthorizationException('Only the active Global Admin can activate a rule version.');
             }
 
             if ($version->lifecycleState() !== RuleVersionState::Draft) {

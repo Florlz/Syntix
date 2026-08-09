@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\EventRole;
 use App\Models\Event;
 use App\Models\User;
 
@@ -40,12 +39,9 @@ class UserPolicy
         }
 
         if ($event !== null) {
-            return $actor->hasActiveEventRole($event, EventRole::Admin);
+            return $actor->hasAdminAccess($event);
         }
 
-        return $actor->eventRoles()
-            ->where('role', EventRole::Admin->value)
-            ->whereNull('revoked_at')
-            ->exists();
+        return $actor->hasAnyAdminAccess();
     }
 }

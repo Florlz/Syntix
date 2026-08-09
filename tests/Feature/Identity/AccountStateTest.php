@@ -3,16 +3,17 @@
 namespace Tests\Feature\Identity;
 
 use App\Actions\Events\CreateEvent;
-use App\Actions\Events\GrantEventRole;
 use App\Actions\Identity\BootstrapEventCreator;
+use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Actions\Identity\DisableUser;
 use App\Actions\Identity\EnableUser;
 use App\Actions\Identity\GrantPlatformCapability;
 use App\Actions\Identity\RevokePlatformCapability;
 use App\Enums\AccountState;
-use App\Enums\EventRole;
 use App\Enums\PlatformCapability;
+use App\Models\PlatformCapabilityGrant;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -21,38 +22,35 @@ class AccountStateTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_bootstrap_is_one_time_and_grants_only_event_creator(): void
+    public function test_legacy_bootstrap_alias_creates_the_single_global_admin_without_legacy_capabilities(): void
     {
         $user = (new BootstrapEventCreator)->handle([
-            'name' => 'Platform Creator',
-            'email' => 'creator@example.com',
+            'name' => 'Global Admin',
+            'email' => 'admin@example.com',
             'password' => 'a-secure-bootstrap-password',
         ], 'test deployment');
 
-        $this->assertTrue($user->isActive());
-        $this->assertTrue($user->hasActivePlatformCapability(PlatformCapability::EventCreator));
+        $this->assertTrue($user->isGlobalAdmin());
+        $this->assertFalse($user->hasActivePlatformCapability(PlatformCapability::EventCreator));
         $this->assertCount(0, $user->eventRoles);
         $this->assertDatabaseHas('audit_logs', [
-            'action' => 'event_creator.bootstrapped',
+            'action' => 'global_admin.bootstrapped',
             'actor_id' => null,
             'target_id' => (string) $user->getKey(),
         ]);
 
         $this->expectException(\DomainException::class);
-
-        (new BootstrapEventCreator)->handle([
-            'name' => 'Second Creator',
+        (new BootstrapGlobalAdmin)->handle([
+            'name' => 'Second Global Admin',
             'email' => 'second@example.com',
             'password' => 'another-secure-password',
         ]);
     }
 
-    public function test_disabling_an_account_revokes_sessions_and_blocks_login(): void
+    public function test_global_admin_can_disable_a_worker_revoke_sessions_and_restore_the_account(): void
     {
-        $creator = $this->bootstrapCreator();
-        $event = (new CreateEvent)->handle($creator, ['name' => 'SIKLAB 2026']);
-        (new GrantEventRole)->handle($creator, $event, $creator, EventRole::Admin);
-
+        $admin = $this->bootstrapAdmin();
+        $event = (new CreateEvent)->handle($admin, ['name' => 'SIKLAB 2026']);
         $target = User::factory()->create([
             'email' => 'disabled@example.com',
             'password' => 'password',
@@ -65,57 +63,63 @@ class AccountStateTest extends TestCase
             'last_activity' => now()->timestamp,
         ]);
 
-        $disabled = (new DisableUser)->handle($creator, $target, 'No longer assigned to SIKLAB operations', $event);
+        $disabled = (new DisableUser)->handle($admin, $target, 'No longer assigned to SIKLAB operations', $event);
 
         $this->assertSame(AccountState::Disabled, $disabled->accountState());
         $this->assertDatabaseMissing('sessions', ['id' => 'disabled-session']);
         $this->assertNull($disabled->fresh()->remember_token);
 
-        $this->post('/login', [
-            'email' => 'disabled@example.com',
-            'password' => 'password',
-        ]);
-
+        $this->post('/login', ['email' => 'disabled@example.com', 'password' => 'password']);
         $this->assertGuest();
 
-        $enabled = (new EnableUser)->handle($creator, $disabled->fresh(), $event);
-
+        $enabled = (new EnableUser)->handle($admin, $disabled->fresh(), $event);
         $this->assertSame(AccountState::Active, $enabled->accountState());
     }
 
-    public function test_last_active_event_creator_cannot_be_revoked_or_disabled(): void
+    public function test_the_global_admin_cannot_be_disabled(): void
     {
-        $creator = $this->bootstrapCreator();
-        $event = (new CreateEvent)->handle($creator, ['name' => 'SIKLAB 2026']);
-        (new GrantEventRole)->handle($creator, $event, $creator, EventRole::Admin);
-
-        $creatorGrant = $creator->platformCapabilities()->active()->first();
+        $admin = $this->bootstrapAdmin();
 
         $this->expectException(\DomainException::class);
-        (new RevokePlatformCapability)->handle($creator, $creatorGrant, 'Replacing the platform creator');
+        $this->expectExceptionMessage('sole Global Admin');
+
+        (new DisableUser)->handle($admin, $admin, 'Invalid replacement attempt');
     }
 
-    public function test_last_creator_can_be_replaced_before_the_original_is_revoked(): void
+    public function test_legacy_event_creator_grants_authorize_nothing_and_can_be_revoked_by_global_admin(): void
     {
-        $creator = $this->bootstrapCreator();
-        $event = (new CreateEvent)->handle($creator, ['name' => 'SIKLAB 2026']);
-        (new GrantEventRole)->handle($creator, $event, $creator, EventRole::Admin);
-        $replacement = User::factory()->create(['email' => 'replacement@example.com']);
+        $admin = $this->bootstrapAdmin();
+        $legacyUser = User::factory()->create();
+        $grant = PlatformCapabilityGrant::create([
+            'user_id' => $legacyUser->getKey(),
+            'capability' => PlatformCapability::EventCreator,
+            'granted_by' => $admin->getKey(),
+            'granted_at' => now(),
+            'reason' => 'Legacy fixture',
+        ]);
 
-        (new GrantPlatformCapability)->handle($creator, $replacement, PlatformCapability::EventCreator);
-        $creatorGrant = $creator->fresh()->platformCapabilities()->active()->firstOrFail();
+        $this->assertTrue($legacyUser->hasActivePlatformCapability(PlatformCapability::EventCreator));
+        $this->assertFalse($legacyUser->hasAnyAdminAccess());
 
-        (new RevokePlatformCapability)->handle($creator, $creatorGrant, 'Replacing the platform creator');
+        try {
+            (new CreateEvent)->handle($legacyUser, ['name' => 'Unauthorized Event']);
+            $this->fail('The legacy capability unexpectedly authorized event creation.');
+        } catch (AuthorizationException) {
+            $this->assertDatabaseMissing('events', ['name' => 'Unauthorized Event']);
+        }
 
-        $this->assertFalse($creator->fresh()->hasActivePlatformCapability(PlatformCapability::EventCreator));
-        $this->assertTrue($replacement->fresh()->hasActivePlatformCapability(PlatformCapability::EventCreator));
+        (new RevokePlatformCapability)->handle($admin, $grant, 'Retiring legacy access');
+        $this->assertFalse($legacyUser->fresh()->hasActivePlatformCapability(PlatformCapability::EventCreator));
+
+        $this->expectException(\DomainException::class);
+        (new GrantPlatformCapability)->handle($admin, $legacyUser, PlatformCapability::EventCreator);
     }
 
-    private function bootstrapCreator(): User
+    private function bootstrapAdmin(): User
     {
-        return (new BootstrapEventCreator)->handle([
-            'name' => 'Platform Creator',
-            'email' => 'creator-'.uniqid().'@example.com',
+        return (new BootstrapGlobalAdmin)->handle([
+            'name' => 'Global Admin',
+            'email' => 'admin-'.uniqid().'@example.com',
             'password' => 'a-secure-bootstrap-password',
         ]);
     }

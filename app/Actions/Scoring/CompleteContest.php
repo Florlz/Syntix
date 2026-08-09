@@ -7,6 +7,7 @@ use App\Enums\ContestState;
 use App\Models\Contest;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\SportOutcomeResolver;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -34,9 +35,11 @@ final class CompleteContest
                 throw new \DomainException('The contest revision is stale.');
             }
 
+            $resolvedPayload = (new SportOutcomeResolver)->resolve($contest, $payload);
+
             $contest->update([
                 'state' => ContestState::Completed,
-                'result_payload' => $payload,
+                'result_payload' => $resolvedPayload,
                 'completed_at' => now(),
                 'completed_by' => $actor->getKey(),
                 'revision' => $expectedRevision + 1,

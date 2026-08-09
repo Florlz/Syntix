@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Security;
 
+use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Models\Event;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,5 +32,31 @@ class ResponseCacheTest extends TestCase
         $response->assertOk();
         $this->assertNotSame('private, no-store', $response->headers->get('Cache-Control'));
         $response->assertInertia(fn ($page) => $page->where('flash.setup_url', null));
+    }
+
+    public function test_public_landing_does_not_receive_authenticated_private_headers(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertOk();
+        $this->assertNotSame('private, no-store', $response->headers->get('Cache-Control'));
+        $response->assertInertia(fn ($page) => $page->where('flash.setup_url', null));
+    }
+
+    public function test_registration_desk_is_private_and_not_stored(): void
+    {
+        $admin = (new BootstrapGlobalAdmin)->handle([
+            'name' => 'Global Admin',
+            'email' => 'cache-admin@example.test',
+            'password' => 'secure-password',
+        ]);
+        $event = Event::factory()->create(['created_by' => $admin->getKey()]);
+
+        $response = $this->actingAs($admin)->get(route('admin.registrations.index', $event));
+
+        $response->assertOk();
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('private', (string) $response->headers->get('Cache-Control'));
+        $response->assertHeader('Pragma', 'no-cache');
     }
 }

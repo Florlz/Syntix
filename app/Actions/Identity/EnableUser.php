@@ -4,7 +4,6 @@ namespace App\Actions\Identity;
 
 use App\Enums\AccountState;
 use App\Enums\AuditAction;
-use App\Enums\EventRole;
 use App\Models\Event;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -21,16 +20,12 @@ final class EnableUser
             $actor = User::query()->whereKey($actor->getKey())->lockForUpdate()->firstOrFail();
             $target = User::query()->whereKey($target->getKey())->lockForUpdate()->firstOrFail();
 
-            $adminQuery = $actor->eventRoles()
-                ->where('role', EventRole::Admin->value)
-                ->whereNull('revoked_at');
+            $hasAdminAccess = $event === null
+                ? $actor->hasAnyAdminAccess()
+                : $actor->hasAdminAccess($event);
 
-            if ($event !== null) {
-                $adminQuery->where('event_id', $event->getKey());
-            }
-
-            if (! $actor->isActive() || ! $adminQuery->exists()) {
-                throw new AuthorizationException('An active event Admin is required to enable an account.');
+            if (! $actor->isActive() || ! $hasAdminAccess) {
+                throw new AuthorizationException('The active Global Admin is required to enable an account.');
             }
 
             if ($target->isActive()) {

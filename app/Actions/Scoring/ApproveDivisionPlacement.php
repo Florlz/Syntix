@@ -4,7 +4,6 @@ namespace App\Actions\Scoring;
 
 use App\Enums\AuditAction;
 use App\Enums\DivisionPlacementState;
-use App\Enums\EventRole;
 use App\Enums\LedgerEntryType;
 use App\Enums\RuleVersionState;
 use App\Models\DivisionPlacement;
@@ -23,8 +22,8 @@ final class ApproveDivisionPlacement
         $placement->loadMissing('division.competition.event');
         $event = $placement->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can approve a Division Placement.');
+        if ($event === null || ! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can approve a Division Placement.');
         }
 
         return DB::transaction(function () use ($actor, $placement, $reason, $event): DivisionPlacement {

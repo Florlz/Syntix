@@ -5,7 +5,7 @@ namespace Tests\Feature\Scoring;
 use App\Actions\Assignments\GrantScoringAssignment;
 use App\Actions\Events\CreateEvent;
 use App\Actions\Events\GrantEventRole;
-use App\Actions\Identity\BootstrapEventCreator;
+use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Actions\Scoring\ActivateRuleVersion;
 use App\Actions\Scoring\ApproveContestOutcome;
 use App\Actions\Scoring\ApproveDivisionPlacement;
@@ -115,18 +115,17 @@ class ResultApprovalTest extends TestCase
      */
     private function context(bool $criteria = false): array
     {
-        $creator = (new BootstrapEventCreator)->handle([
-            'name' => 'Platform Creator',
+        $admin = (new BootstrapGlobalAdmin)->handle([
+            'name' => 'Global Admin',
             'email' => 'creator-'.uniqid().'@example.com',
             'password' => 'secure-bootstrap-password',
         ]);
-        $event = (new CreateEvent)->handle($creator, ['name' => 'SIKLAB '.uniqid()]);
-        $admin = User::factory()->create(['email' => 'admin-'.uniqid().'@example.com']);
+        $event = (new CreateEvent)->handle($admin, ['name' => 'SIKLAB '.uniqid()]);
         $tabulator = User::factory()->create(['email' => 'tabulator-'.uniqid().'@example.com']);
-        (new GrantEventRole)->handle($creator, $event, $admin, EventRole::Admin);
         (new GrantEventRole)->handle($admin, $event, $tabulator, EventRole::Tabulator);
 
         $delegation = EventDelegation::factory()->create(['event_id' => $event->getKey()]);
+        $opponentDelegation = EventDelegation::factory()->create(['event_id' => $event->getKey()]);
         $competition = Competition::factory()->create(['event_id' => $event->getKey(), 'name' => 'Basketball']);
         $division = Division::factory()->create([
             'competition_id' => $competition->getKey(),
@@ -169,6 +168,7 @@ class ResultApprovalTest extends TestCase
             'participation_configuration' => ['policy' => 'institutional'],
             'publication_configuration' => ['live' => true],
             'approval_configuration' => ['admin_required' => true],
+            'scoring_configuration' => ['outcome_profile' => 'team_total'],
             'source_status' => 'verified',
             'created_by' => $admin->getKey(),
         ]);
@@ -186,6 +186,14 @@ class ResultApprovalTest extends TestCase
             'status' => 'active',
         ]);
         $contest->entries()->create(['entry_id' => $entry->getKey(), 'slot' => 1]);
+        $opponent = Entry::create([
+            'competition_division_id' => $division->getKey(),
+            'event_delegation_id' => $opponentDelegation->getKey(),
+            'name' => 'Opponent Men',
+            'entry_mode' => ParticipantMode::Team,
+            'status' => 'active',
+        ]);
+        $contest->entries()->create(['entry_id' => $opponent->getKey(), 'slot' => 2]);
         (new GrantScoringAssignment)->handle(
             $admin,
             $event,

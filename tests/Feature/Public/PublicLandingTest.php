@@ -5,16 +5,21 @@ namespace Tests\Feature\Public;
 use App\Enums\BracketVersionState;
 use App\Enums\CompetitionFormat;
 use App\Enums\ContestState;
+use App\Enums\DivisionPlacementState;
 use App\Enums\EventState;
+use App\Enums\LedgerEntryType;
 use App\Enums\ParticipantMode;
 use App\Enums\TournamentState;
 use App\Models\Competition;
 use App\Models\CompetitionRuleVersion;
 use App\Models\Contest;
 use App\Models\Division;
+use App\Models\DivisionPlacement;
+use App\Models\DivisionPlacementItem;
 use App\Models\Entry;
 use App\Models\Event;
 use App\Models\EventDelegation;
+use App\Models\ScoreLedgerEntry;
 use App\Models\Tournament;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -40,8 +45,8 @@ class PublicLandingTest extends TestCase
             'state' => EventState::Live,
             'starts_at' => now(),
         ]);
-        $first = $this->liveContest($event, 'Basketball', 'Men', 'Court A', ['home' => 44, 'away' => 40, 'private' => 'hidden']);
-        $second = $this->liveContest($event, 'Volleyball', 'Women', 'Court B', ['home' => 2, 'away' => 1, 'phase' => 'Set 3']);
+        $first = $this->liveContest($event, 'Basketball', 'Men', 'Court A', ['home' => 44, 'away' => 40, 'period' => 'Q4', 'private' => 'hidden']);
+        $second = $this->liveContest($event, 'Volleyball', 'Women', 'Court B', ['home' => 2, 'away' => 1, 'set' => 3, 'phase' => 'Set 3']);
         $this->liveContest($older, 'Earlier Competition', 'Earlier Division', 'Excluded contest', ['home' => 99, 'away' => 0]);
 
         $response = $this->get('/');
@@ -53,11 +58,14 @@ class PublicLandingTest extends TestCase
             ->where('featured_event.slug', 'current-siklab')
             ->where('featured_contest.id', (string) $second->getKey())
             ->where('featured_contest.sides.0.label', 'HOME-'.$second->getKey())
+            ->where('featured_contest.live.set', 3)
             ->missing('featured_contest.sides.0.entry')
             ->has('live_contests', 1)
             ->where('live_contests.0.id', (string) $first->getKey())
             ->where('live_contests.0.live.home', 44)
+            ->where('live_contests.0.live.period', 'Q4')
             ->missing('live_contests.0.live.private')
+            ->where('snapshot_at', fn ($value) => is_string($value))
             ->where('auth.user', null)
             ->where('flash.setup_url', null));
         $this->assertStringNotContainsString('Private Home Entry', json_encode($response->viewData('page')));
@@ -129,7 +137,121 @@ class PublicLandingTest extends TestCase
                 ->where('featured_event', null)
                 ->where('featured_contest', null)
                 ->has('live_contests', 0)
-                ->has('competitions', 0));
+                ->has('competitions', 0)
+                ->has('leaderboard', 0)
+                ->where('snapshot_at', fn ($value) => is_string($value)));
+    }
+
+    public function test_landing_exposes_signed_leaderboard_totals_without_ranks_or_private_entry_data(): void
+    {
+        $event = Event::factory()->create([
+            'slug' => 'standings-landing',
+            'state' => EventState::Live,
+            'starts_at' => now(),
+        ]);
+        $competition = Competition::factory()->create(['event_id' => $event->getKey()]);
+        $division = Division::factory()->create(['competition_id' => $competition->getKey()]);
+        $creator = User::factory()->create();
+        $version = CompetitionRuleVersion::create([
+            'competition_division_id' => $division->getKey(),
+            'version' => 1,
+            'lifecycle_state' => 'frozen',
+            'is_governing' => true,
+            'format' => CompetitionFormat::SingleElimination,
+            'participant_mode' => ParticipantMode::Team,
+            'created_by' => $creator->getKey(),
+        ]);
+        $placement = DivisionPlacement::create([
+            'competition_division_id' => $division->getKey(),
+            'competition_rule_version_id' => $version->getKey(),
+            'state' => DivisionPlacementState::Approved->value,
+            'approved_by' => $creator->getKey(),
+            'approved_at' => now(),
+        ]);
+
+        $totals = [
+            ['name' => 'Alpha Delegation', 'abbreviation' => 'ALP', 'amount' => '35.0000'],
+            ['name' => 'Bravo Delegation', 'abbreviation' => 'BRV', 'amount' => '20.0000'],
+            ['name' => 'Charlie Delegation', 'abbreviation' => 'CHR', 'amount' => '20.0000'],
+            ['name' => 'Delta Delegation', 'abbreviation' => 'DLT', 'amount' => '10.0000'],
+        ];
+
+        foreach ($totals as $index => $total) {
+            $delegation = EventDelegation::factory()->create([
+                'event_id' => $event->getKey(),
+                'name' => $total['name'],
+                'abbreviation' => $total['abbreviation'],
+            ]);
+            $entry = Entry::create([
+                'competition_division_id' => $division->getKey(),
+                'event_delegation_id' => $delegation->getKey(),
+                'name' => 'Private Entry '.$total['name'],
+                'entry_mode' => ParticipantMode::Team,
+                'status' => 'active',
+            ]);
+            $item = DivisionPlacementItem::create([
+                'division_placement_id' => $placement->getKey(),
+                'entry_id' => $entry->getKey(),
+                'event_delegation_id' => $delegation->getKey(),
+                'rank' => $index + 1,
+                'placement_key' => 'rank-'.($index + 1),
+                'championship_points' => $total['amount'],
+                'participation_eligible' => true,
+            ]);
+
+            ScoreLedgerEntry::create([
+                'event_id' => $event->getKey(),
+                'event_delegation_id' => $delegation->getKey(),
+                'division_placement_id' => $placement->getKey(),
+                'division_placement_item_id' => $item->getKey(),
+                'entry_type' => LedgerEntryType::Award->value,
+                'amount' => $total['amount'],
+                'source_key' => 'landing-award-'.$index,
+                'source_revision' => 1,
+                'created_by' => $creator->getKey(),
+                'committed_at' => now(),
+            ]);
+
+            if ($index === 0) {
+                ScoreLedgerEntry::create([
+                    'event_id' => $event->getKey(),
+                    'event_delegation_id' => $delegation->getKey(),
+                    'division_placement_id' => $placement->getKey(),
+                    'division_placement_item_id' => $item->getKey(),
+                    'entry_type' => LedgerEntryType::Reversal->value,
+                    'amount' => '-5.0000',
+                    'source_key' => 'landing-reversal-'.$index,
+                    'source_revision' => 2,
+                    'created_by' => $creator->getKey(),
+                    'committed_at' => now(),
+                ]);
+            }
+        }
+
+        $response = $this->get('/');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('leaderboard', 4)
+            ->where('leaderboard.0.name', 'Alpha Delegation')
+            ->where('leaderboard.0.total', fn ($value) => is_string($value) && (float) $value === 30.0)
+            ->where('leaderboard.1.name', 'Bravo Delegation')
+            ->where('leaderboard.1.total', fn ($value) => is_string($value) && (float) $value === 20.0)
+            ->where('leaderboard.2.name', 'Charlie Delegation')
+            ->where('leaderboard.2.total', fn ($value) => is_string($value) && (float) $value === 20.0)
+            ->where('leaderboard.3.name', 'Delta Delegation')
+            ->where('leaderboard.3.total', fn ($value) => is_string($value) && (float) $value === 10.0)
+            ->missing('leaderboard.0.rank')
+            ->missing('leaderboard.1.rank')
+            ->missing('leaderboard.2.rank')
+            ->missing('leaderboard.3.rank'));
+
+        $page = json_encode($response->viewData('page'));
+        $this->assertIsString($page);
+        $this->assertStringNotContainsString('Private Entry Alpha Delegation', $page);
+        $this->assertStringNotContainsString('Private Entry Bravo Delegation', $page);
+        $this->assertStringNotContainsString('Private Entry Charlie Delegation', $page);
+        $this->assertStringNotContainsString('Private Entry Delta Delegation', $page);
     }
 
     public function test_authenticated_staff_gets_dashboard_navigation_without_private_flash_or_errors(): void
