@@ -132,7 +132,7 @@ class AutomaticTournamentScoringTest extends TestCase
                 'event_delegation_id' => $delegation->getKey(),
                 'name' => $name,
                 'entry_mode' => ParticipantMode::Team,
-                'status' => 'active',
+                'status' => 'locked',
             ]));
         }
 

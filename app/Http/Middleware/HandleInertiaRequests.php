@@ -49,7 +49,14 @@ class HandleInertiaRequests extends Middleware
         $globalAdmin = $user?->isGlobalAdmin() ?? false;
 
         if ($activeEvent === null && $globalAdmin) {
-            $activeEvent = Event::query()->latest('created_at')->first();
+            $routeEvent = $request->route('event');
+            $requestedEventId = $routeEvent instanceof Event
+                ? $routeEvent->getKey()
+                : $request->integer('event');
+            $activeEvent = $requestedEventId
+                ? Event::query()->find($requestedEventId)
+                : null;
+            $activeEvent ??= Event::query()->latest('created_at')->first();
         }
 
         $roles = $activeEvent === null

@@ -22,7 +22,10 @@ final class Siklab2025Programme
     public static function sports(): array
     {
         return [
-            self::sport('Basketball', ['Men', 'Women'], 'single_elimination', 'major', 15, 'team_total', 'Proposal pp. 10–11'),
+            self::sport('Basketball', ['Men', 'Women'], 'single_elimination', 'major', 15, 'team_total', 'Proposal pp. 10–11', rosterRoleLimits: [
+                'student_coach' => 1,
+                'faculty_coach' => 2,
+            ]),
             self::sport('Volleyball', ['Men', 'Women'], 'single_elimination', 'major', 15, 'best_of_sets', 'Proposal pp. 10, 12', [
                 'target_wins' => 2,
                 'set_targets' => [20, 20, 15],
@@ -205,8 +208,9 @@ final class Siklab2025Programme
         array $configuration = [],
         string $sourceStatus = 'verified',
         ?string $blocker = null,
+        array $rosterRoleLimits = [],
     ): array {
-        return compact('name', 'divisions', 'format', 'template', 'maxRosterSize', 'outcomeProfile', 'sourceReference', 'configuration', 'sourceStatus', 'blocker') + [
+        return compact('name', 'divisions', 'format', 'template', 'maxRosterSize', 'outcomeProfile', 'sourceReference', 'configuration', 'sourceStatus', 'blocker', 'rosterRoleLimits') + [
             'participant_mode' => 'team',
         ];
     }

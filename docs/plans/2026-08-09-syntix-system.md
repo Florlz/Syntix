@@ -1,6 +1,6 @@
 # SYNTIX System Implementation Plan
 
-**Status:** Tasks 1–7 implemented and verified; Registration Desk planned
+**Status:** Tasks 1–8 implemented and verified
 
 **Goal:** Deliver a proposal-backed SIKLAB administration system with one
 platform-wide Global Admin, department-based teams, event-scoped Judge and
@@ -458,7 +458,7 @@ completed successfully.
 
 ## Task 8: Deliver the Global Admin Registration Desk
 
-**Status:** Approved and pending implementation.
+**Status:** Implemented and verified on 2026-08-09.
 
 **Deliverable:** one Event-selected workspace where the sole Global Admin can
 create and edit Participants, manage Division Entries and roster memberships,
@@ -499,27 +499,27 @@ or official records.
 - Authorization impact: only the active Global Admin may read or mutate the
   desk. Judge, Tabulator, disabled, unrelated, and anonymous users are denied.
 
-- [ ] Add failing feature tests for Global Admin access, cross-Event denial,
+- [x] Add failing feature tests for Global Admin access, cross-Event denial,
   participant creation/edit/deactivation, normalized duplicate student number,
   private-field exclusion, and no student account creation.
-- [ ] Add failing tests for Entry/Delegation containment, duplicate membership,
+- [x] Add failing tests for Entry/Delegation containment, duplicate membership,
   Basketball's 15-athlete limit, coach-role limits, individual/pair/relay
   membership, eligibility states, required reasons, and transaction rollback.
-- [ ] Add failing lifecycle tests for direct pre-lock editing, draw-readiness
+- [x] Add failing lifecycle tests for direct pre-lock editing, draw-readiness
   updates, locked Entry protection, pre-publication unlock/redraw requirements,
   and post-publication withdrawal/correction preservation.
-- [ ] Add the additive uniqueness/index migration and transactional registration
+- [x] Add the additive uniqueness/index migration and transactional registration
   actions with audit records.
-- [ ] Add Global-Admin-only policies, nested routes, explicit allow-listed DTOs,
+- [x] Add Global-Admin-only policies, nested routes, explicit allow-listed DTOs,
   validation responses, and private/no-store cache behavior.
-- [ ] Build the searchable Registration Desk with Delegation, Competition,
+- [x] Build the searchable Registration Desk with Delegation, Competition,
   Division, Entry mode, roster status, and eligibility filters in URL state.
-- [ ] Build focused create/edit forms, roster and eligibility controls, inline
+- [x] Build focused create/edit forms, roster and eligibility controls, inline
   blockers, loading/empty/error/stale states, mobile stacked records, keyboard
   focus, and explicit lifecycle-safe confirmations.
-- [ ] Add registration readiness to the dashboard rail and operational
+- [x] Add registration readiness to the dashboard rail and operational
   navigation without exposing private roster data outside the desk.
-- [ ] Run focused Admin/security tests, the full suite, Pint, production build,
+- [x] Run focused Admin/security tests, the full suite, Pint, production build,
   and `git diff --check`; then record the new verification evidence here.
 
 **Verification:**
@@ -536,6 +536,14 @@ git diff --check
 participants and rosters within proposal limits; all cross-Event, scorer,
 public, duplicate, over-limit, locked, and history-destroying mutations are
 denied without partial writes or private-data leakage.
+
+**Verification evidence (2026-08-09):** migration `000017` applied to the
+development PostgreSQL database; 96 tests and 819 assertions passed; Pint
+checked 256 PHP files; the Vite/PWA production build and `git diff --check`
+completed successfully. The post-implementation Web Interface Guidelines
+review found no P1 issues; validation announcement/focus, large-list
+containment, deep-linked working selection, control names/autocomplete, hover
+feedback, and placeholder copy were corrected before the final run.
 
 ## Deferred system roadmap
 

@@ -30,6 +30,7 @@ class RandomTournamentTest extends TestCase
             ->divisions()
             ->where('slug', 'men')
             ->firstOrFail();
+        $division->entries()->update(['status' => 'locked']);
         $generate = new GenerateRandomTournament;
         $command = (string) Str::uuid();
 
@@ -72,6 +73,7 @@ class RandomTournamentTest extends TestCase
             ->divisions()
             ->where('slug', 'women')
             ->firstOrFail();
+        $division->entries()->update(['status' => 'locked']);
 
         $tournament = (new GenerateRandomTournament)->handle($admin, $division, (string) Str::uuid());
         $bracket = $tournament->bracketVersions()->firstOrFail();

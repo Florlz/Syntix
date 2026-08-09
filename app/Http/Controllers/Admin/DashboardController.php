@@ -51,6 +51,8 @@ class DashboardController extends Controller
 
         $event->load([
             'delegations.ledgerEntries',
+            'participants.rosterMembers',
+            'participants.eligibilityRecords',
             'competitions.divisions.governingRuleVersion.criteria',
             'competitions.divisions.entries.delegation',
             'competitions.divisions.tournaments.drawRecords',
@@ -121,7 +123,7 @@ class DashboardController extends Controller
                         'draw_order' => $drawOrder,
                     ],
                     'can_draw' => $drawFormat
-                        && $division->entries->isNotEmpty()
+                        && $division->entries->contains(fn ($entry): bool => $entry->entryStatus()->value === 'locked')
                         && $blockers === []
                         && in_array($rule?->lifecycleState(), [RuleVersionState::ActivatedEditable, RuleVersionState::Frozen], true),
                     'standings' => $activeTournament === null ? [] : $standings->forDivision($division)->all(),
@@ -178,6 +180,8 @@ class DashboardController extends Controller
         $drawDivisions = $programme->where('can_draw', true);
         $generatedDraws = $drawDivisions->whereNotNull('tournament')->count();
         $approvedPlacements = $event->competitions->flatMap->divisions->flatMap->placements->where('state', 'approved')->count();
+        $activeParticipants = $event->participants->where('is_active', true);
+        $eligibleRegistrations = $event->participants->flatMap->eligibilityRecords->where('status', 'eligible')->count();
 
         return Inertia::render('Dashboard', [
             ...$this->emptyPayload(true),
@@ -199,6 +203,7 @@ class DashboardController extends Controller
             'readiness' => [
                 ['key' => 'event', 'label' => 'Event', 'complete' => true, 'detail' => $event->eventState()->value],
                 ['key' => 'programme', 'label' => 'Programme', 'complete' => $programme->isNotEmpty(), 'detail' => $programme->count().' divisions'],
+                ['key' => 'registrations', 'label' => 'Registrations', 'complete' => $activeParticipants->isNotEmpty() && $eligibleRegistrations > 0, 'detail' => $activeParticipants->count().' participants · '.$eligibleRegistrations.' eligible'],
                 ['key' => 'assignments', 'label' => 'Assignments', 'complete' => $people->isNotEmpty(), 'detail' => $people->count().' scorers'],
                 ['key' => 'draws', 'label' => 'Draws', 'complete' => $drawDivisions->isNotEmpty() && $generatedDraws === $drawDivisions->count(), 'detail' => $generatedDraws.'/'.$drawDivisions->count()],
                 ['key' => 'live', 'label' => 'Live', 'complete' => $event->eventState()->value === 'live', 'detail' => $liveContests->count().' live'],

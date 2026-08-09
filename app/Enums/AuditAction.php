@@ -48,4 +48,11 @@ enum AuditAction: string
     case CompetitionCoverUploaded = 'competition_cover.uploaded';
     case CompetitionCoverPublished = 'competition_cover.published';
     case CompetitionCoverWithdrawn = 'competition_cover.withdrawn';
+    case ParticipantCreated = 'participant.created';
+    case ParticipantUpdated = 'participant.updated';
+    case EntryCreated = 'entry.created';
+    case EntryUpdated = 'entry.updated';
+    case EntryStatusChanged = 'entry.status_changed';
+    case RosterMembershipSaved = 'roster_membership.saved';
+    case EligibilitySet = 'eligibility.set';
 }

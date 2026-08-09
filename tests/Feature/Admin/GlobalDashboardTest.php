@@ -33,7 +33,8 @@ class GlobalDashboardTest extends TestCase
                 ->has('teams', 7)
                 ->has('programme', 42)
                 ->where('programme.0.source_reference', fn ($value): bool => is_string($value) && $value !== '')
-                ->has('readiness', 6));
+                ->has('readiness', 7)
+                ->where('readiness.2.key', 'registrations'));
     }
 
     public function test_judge_dashboard_contains_only_the_judges_event_and_exact_assignment(): void

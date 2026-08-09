@@ -17,13 +17,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'given_name',
     'family_name',
     'student_number',
+    'student_number_normalized',
     'email',
     'phone',
     'private_notes',
     'is_active',
     'created_by',
 ])]
-#[Hidden(['student_number', 'email', 'phone', 'private_notes'])]
+#[Hidden(['student_number', 'student_number_normalized', 'email', 'phone', 'private_notes'])]
 class Participant extends Model
 {
     /** @use HasFactory<ParticipantFactory> */

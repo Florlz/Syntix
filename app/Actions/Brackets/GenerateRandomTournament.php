@@ -79,14 +79,14 @@ final class GenerateRandomTournament
             }
 
             $eligibleIds = $division->entries()
-                ->whereIn('status', [EntryStatus::Active->value, EntryStatus::Locked->value])
+                ->where('status', EntryStatus::Locked->value)
                 ->orderBy('id')
                 ->pluck('id')
                 ->map(fn ($id): int => (int) $id)
                 ->all();
 
             if ($eligibleIds === []) {
-                throw new \DomainException('A random draw requires at least one active or locked entry.');
+                throw new \DomainException('A random draw requires at least one eligibility-checked, locked Entry.');
             }
 
             $seed = bin2hex(random_bytes(32));

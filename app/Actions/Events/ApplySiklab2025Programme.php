@@ -121,6 +121,7 @@ final class ApplySiklab2025Programme
                 'format' => CompetitionFormat::from((string) $sport['format']),
                 'participant_mode' => ParticipantMode::from((string) $sport['participant_mode']),
                 'max_roster_size' => $sport['maxRosterSize'] ?? $sport['max_roster_size'] ?? null,
+                'roster_role_limits' => $sport['rosterRoleLimits'] ?? [],
                 'source_reference' => $sport['sourceReference'] ?? $sport['source_reference'],
                 'source_status' => $sport['sourceStatus'] ?? $sport['source_status'],
                 'scoring_configuration' => [
@@ -243,9 +244,15 @@ final class ApplySiklab2025Programme
                 'format' => $definition['format'],
                 'participant_mode' => $definition['participant_mode'],
                 'min_roster_size' => 1,
-                'max_roster_size' => $definition['max_roster_size'] ?? 1,
+                'max_roster_size' => $definition['max_roster_size'] ?? match ($definition['participant_mode']) {
+                    ParticipantMode::Individual => 1,
+                    ParticipantMode::Pair => 2,
+                    ParticipantMode::Relay => 4,
+                    ParticipantMode::Team, ParticipantMode::Mixed => null,
+                },
                 'entries_per_delegation' => 1,
                 'participant_competition_limit' => 2,
+                'roster_role_limits' => $definition['roster_role_limits'] ?? [],
                 'criteria_calculation_mode' => $definition['scoring_family'] === ScoringFamily::CriteriaBased
                     ? CriterionNumberMeaning::PercentageWeight
                     : null,

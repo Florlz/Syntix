@@ -5,7 +5,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 
 export default function AuthenticatedLayout({ header, children }) {
-    const user = usePage().props.auth.user;
+    const { user, global_admin: globalAdmin, active_event: activeEvent } = usePage().props.auth;
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
@@ -30,6 +30,11 @@ export default function AuthenticatedLayout({ header, children }) {
                                 <Link href={route('dashboard')} className={`rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a21f] ${route().current('dashboard') ? 'bg-white/15 text-white' : 'text-white/65 hover:bg-white/10 hover:text-white'}`}>
                                     Dashboard
                                 </Link>
+                                {globalAdmin && activeEvent ? (
+                                    <Link href={route('admin.registrations.index', activeEvent.id)} className={`ms-1 rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a21f] ${route().current('admin.registrations.*') || route().current('admin.participants.*') || route().current('admin.entries.*') || route().current('admin.entry-members.*') || route().current('admin.eligibility.*') ? 'bg-white/15 text-white' : 'text-white/65 hover:bg-white/10 hover:text-white'}`}>
+                                        Registrations
+                                    </Link>
+                                ) : null}
                             </div>
                         </div>
 
@@ -132,6 +137,7 @@ export default function AuthenticatedLayout({ header, children }) {
                 >
                     <div className="space-y-1 px-4 pb-3 pt-2">
                         <Link href={route('dashboard')} className="block rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white">Dashboard</Link>
+                        {globalAdmin && activeEvent ? <Link href={route('admin.registrations.index', activeEvent.id)} className="block rounded-lg px-3 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white">Registrations</Link> : null}
                     </div>
 
                     <div className="border-t border-white/10 pb-1 pt-4">
