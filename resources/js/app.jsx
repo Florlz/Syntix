@@ -1,11 +1,32 @@
 import '../css/app.css';
-import './bootstrap';
 
 import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
+import { registerSW } from 'virtual:pwa-register';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Syntix';
+
+if (import.meta.env.PROD) {
+    registerSW({ immediate: true });
+} else if ('serviceWorker' in navigator) {
+    navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) =>
+            Promise.all(registrations.map((registration) => registration.unregister())),
+        );
+
+    caches.keys().then((keys) =>
+        Promise.all(
+            keys
+                .filter(
+                    (key) =>
+                        key.startsWith('syntix-') || key.startsWith('workbox-'),
+                )
+                .map((key) => caches.delete(key)),
+        ),
+    );
+}
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
