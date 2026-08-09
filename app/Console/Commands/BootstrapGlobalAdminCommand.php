@@ -2,19 +2,19 @@
 
 namespace App\Console\Commands;
 
-use App\Actions\Identity\BootstrapEventCreator;
+use App\Actions\Identity\BootstrapGlobalAdmin;
 use Illuminate\Console\Command;
 
-class BootstrapEventCreatorCommand extends Command
+class BootstrapGlobalAdminCommand extends Command
 {
-    protected $signature = 'syntix:bootstrap-event-creator
+    protected $signature = 'syntix:bootstrap-global-admin
         {--name= : Institutional name}
         {--email= : Institutional email}
-        {--password= : One-time password used for initial secure setup}';
+        {--password= : Initial password}';
 
-    protected $description = 'Create the one-time platform event_creator account without creating an event role';
+    protected $description = 'Create the sole platform-wide Global Admin account';
 
-    public function handle(BootstrapEventCreator $bootstrap): int
+    public function handle(BootstrapGlobalAdmin $bootstrap): int
     {
         $name = trim((string) ($this->option('name') ?: $this->ask('Institutional name')));
         $email = trim((string) ($this->option('email') ?: $this->ask('Institutional email')));
@@ -32,7 +32,7 @@ class BootstrapEventCreatorCommand extends Command
             'password' => $password,
         ], 'artisan bootstrap command');
 
-        $this->info("Bootstrapped event creator {$user->email}. No event role was granted.");
+        $this->info("Global Admin {$user->email} is ready.");
 
         return self::SUCCESS;
     }

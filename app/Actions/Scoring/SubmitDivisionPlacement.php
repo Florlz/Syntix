@@ -4,7 +4,6 @@ namespace App\Actions\Scoring;
 
 use App\Enums\AuditAction;
 use App\Enums\DivisionPlacementState;
-use App\Enums\EventRole;
 use App\Enums\RuleVersionState;
 use App\Models\Division;
 use App\Models\DivisionPlacement;
@@ -26,8 +25,8 @@ final class SubmitDivisionPlacement
         $division->loadMissing('competition.event');
         $event = $division->competition?->event;
 
-        if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can submit a Division Placement.');
+        if ($event === null || ! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can submit a Division Placement.');
         }
 
         if ($items === []) {

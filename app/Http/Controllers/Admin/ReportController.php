@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\EventRole;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Services\StandingCalculator;
@@ -14,8 +13,8 @@ class ReportController extends Controller
 {
     public function championship(Request $request, Event $event, StandingCalculator $standings): StreamedResponse
     {
-        if (! $request->user()->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can download private reports.');
+        if (! $request->user()->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can download private reports.');
         }
 
         $rows = $standings->forEvent($event);

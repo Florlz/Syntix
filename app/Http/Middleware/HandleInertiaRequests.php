@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Enums\EventRole;
+use App\Models\Event;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -45,6 +46,12 @@ class HandleInertiaRequests extends Middleware
             ->latest('granted_at')
             ->first();
         $activeEvent = $activeRole?->event;
+        $globalAdmin = $user?->isGlobalAdmin() ?? false;
+
+        if ($activeEvent === null && $globalAdmin) {
+            $activeEvent = Event::query()->latest('created_at')->first();
+        }
+
         $roles = $activeEvent === null
             ? []
             : $user->eventRoles()
@@ -54,6 +61,7 @@ class HandleInertiaRequests extends Middleware
                 ->map(fn (EventRole|string $role): string => $role instanceof EventRole ? $role->value : (string) $role)
                 ->values()
                 ->all();
+
         $platformCapabilities = $user?->platformCapabilities()
             ->active()
             ->get()
@@ -76,9 +84,11 @@ class HandleInertiaRequests extends Middleware
                     'roles' => $roles,
                 ],
                 'platform_capabilities' => $platformCapabilities,
+                'global_admin' => $globalAdmin,
                 'capabilities' => array_values(array_unique([
                     ...$platformCapabilities,
                     ...$roles,
+                    ...($globalAdmin ? ['global_admin'] : []),
                 ])),
             ],
             'flash' => $public || $user === null ? [

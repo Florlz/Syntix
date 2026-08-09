@@ -32,4 +32,13 @@ class ResponseCacheTest extends TestCase
         $this->assertNotSame('private, no-store', $response->headers->get('Cache-Control'));
         $response->assertInertia(fn ($page) => $page->where('flash.setup_url', null));
     }
+
+    public function test_public_landing_does_not_receive_authenticated_private_headers(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertOk();
+        $this->assertNotSame('private, no-store', $response->headers->get('Cache-Control'));
+        $response->assertInertia(fn ($page) => $page->where('flash.setup_url', null));
+    }
 }

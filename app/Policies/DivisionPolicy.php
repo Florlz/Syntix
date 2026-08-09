@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\EventRole;
 use App\Models\Division;
 use App\Models\User;
 
@@ -14,7 +13,7 @@ class DivisionPolicy
 
         return $eventId !== null
             && $actor->isActive()
-            && $actor->hasActiveEventRole($eventId, EventRole::Admin);
+            && $actor->hasAdminAccess($eventId);
     }
 
     public function update(User $actor, Division $division): bool

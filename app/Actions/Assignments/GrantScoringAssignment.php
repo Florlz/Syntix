@@ -38,8 +38,8 @@ final class GrantScoringAssignment
             $event = Event::query()->whereKey($event->getKey())->lockForUpdate()->firstOrFail();
             $assignee = User::query()->whereKey($assignee->getKey())->lockForUpdate()->firstOrFail();
 
-            if (! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-                throw new AuthorizationException('An active event Admin is required to create scoring assignments.');
+            if (! $actor->hasAdminAccess($event)) {
+                throw new AuthorizationException('The active Global Admin is required to create scoring assignments.');
             }
 
             if (! $assignee->isActive() || $event->eventState() === EventState::Archived) {
@@ -52,13 +52,14 @@ final class GrantScoringAssignment
                 throw new \DomainException('The assignment target must belong to the selected event.');
             }
 
-            $requiredRole = match ($scope) {
-                ScoringAssignmentScope::EntryScorecard => EventRole::Judge,
-                ScoringAssignmentScope::CompetitionDivision,
-                ScoringAssignmentScope::Contest => EventRole::Tabulator,
+            $hasRequiredRole = match ($scope) {
+                ScoringAssignmentScope::EntryScorecard => $assignee->hasActiveEventRole($event, EventRole::Judge),
+                ScoringAssignmentScope::Contest => $assignee->hasActiveEventRole($event, EventRole::Tabulator),
+                ScoringAssignmentScope::CompetitionDivision => $assignee->hasActiveEventRole($event, EventRole::Judge)
+                    || $assignee->hasActiveEventRole($event, EventRole::Tabulator),
             };
 
-            if (! $assignee->hasActiveEventRole($event, $requiredRole)) {
+            if (! $hasRequiredRole) {
                 throw new \DomainException('The assignee does not have the event role required by this scope.');
             }
 

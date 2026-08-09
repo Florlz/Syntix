@@ -4,7 +4,6 @@ namespace App\Actions\Scoring;
 
 use App\Enums\AuditAction;
 use App\Enums\DivisionPlacementState;
-use App\Enums\EventRole;
 use App\Enums\LedgerEntryType;
 use App\Models\DivisionPlacement;
 use App\Models\ScoreLedgerEntry;
@@ -22,8 +21,8 @@ final class VoidDivisionPlacement
         $placement->loadMissing('division.competition.event', 'items');
         $event = $placement->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can void a Division Placement.');
+        if ($event === null || ! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can void a Division Placement.');
         }
 
         if (trim($reason) === '') {

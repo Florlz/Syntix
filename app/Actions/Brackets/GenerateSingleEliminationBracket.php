@@ -7,7 +7,6 @@ use App\Enums\BracketNodeType;
 use App\Enums\BracketVersionState;
 use App\Enums\CompetitionFormat;
 use App\Enums\EntryStatus;
-use App\Enums\EventRole;
 use App\Enums\RuleVersionState;
 use App\Enums\TournamentState;
 use App\Models\BracketNode;
@@ -33,8 +32,8 @@ final class GenerateSingleEliminationBracket
         $division->loadMissing('competition.event');
         $event = $division->competition?->event;
 
-        if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can generate a bracket.');
+        if ($event === null || ! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can generate a bracket.');
         }
 
         return DB::transaction(function () use ($actor, $division, $drawOrder, $source, $event): Tournament {

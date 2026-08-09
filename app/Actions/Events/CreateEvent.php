@@ -4,7 +4,6 @@ namespace App\Actions\Events;
 
 use App\Enums\AuditAction;
 use App\Enums\EventState;
-use App\Enums\PlatformCapability;
 use App\Models\Event;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -30,8 +29,8 @@ final class CreateEvent
         return DB::transaction(function () use ($actor, $attributes, $name): Event {
             $actor = User::query()->whereKey($actor->getKey())->lockForUpdate()->firstOrFail();
 
-            if (! $actor->hasActivePlatformCapability(PlatformCapability::EventCreator)) {
-                throw new AuthorizationException('Only an active event creator can create an event.');
+            if (! $actor->isGlobalAdmin()) {
+                throw new AuthorizationException('Only the active Global Admin can create an event.');
             }
 
             $slug = Str::slug((string) ($attributes['slug'] ?? $name));

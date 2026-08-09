@@ -2,9 +2,7 @@
 
 namespace App\Actions\Identity;
 
-use App\Enums\AccountState;
 use App\Enums\AuditAction;
-use App\Enums\PlatformCapability;
 use App\Models\PlatformCapabilityGrant;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -29,30 +27,12 @@ final class RevokePlatformCapability
             $grant = PlatformCapabilityGrant::query()->whereKey($grant->getKey())->lockForUpdate()->firstOrFail();
             $target = User::query()->whereKey($grant->user_id)->lockForUpdate()->firstOrFail();
 
-            if (! $actor->hasActivePlatformCapability(PlatformCapability::EventCreator)) {
-                throw new AuthorizationException('An active event creator is required for platform capability changes.');
+            if (! $actor->isGlobalAdmin()) {
+                throw new AuthorizationException('Only the active Global Admin can revoke legacy platform capabilities.');
             }
 
             if (! $grant->isActive()) {
                 throw new \DomainException('The platform capability is already revoked.');
-            }
-
-            if ($grant->capability === PlatformCapability::EventCreator) {
-                $activeCreatorGrants = PlatformCapabilityGrant::query()
-                    ->where('capability', PlatformCapability::EventCreator->value)
-                    ->whereNull('revoked_at')
-                    ->lockForUpdate()
-                    ->get();
-
-                $activeCreatorIds = User::query()
-                    ->whereIn('id', $activeCreatorGrants->pluck('user_id'))
-                    ->where('account_state', AccountState::Active->value)
-                    ->lockForUpdate()
-                    ->pluck('id');
-
-                if ($activeCreatorIds->count() <= 1) {
-                    throw new \DomainException('The last active event creator cannot be revoked.');
-                }
             }
 
             $before = [

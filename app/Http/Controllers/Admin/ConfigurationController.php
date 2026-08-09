@@ -3,14 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Assignments\GrantScoringAssignment;
+use App\Actions\Brackets\GenerateRandomTournament;
+use App\Actions\Brackets\PublishBracket;
+use App\Actions\Events\ApplySiklab2025Programme;
 use App\Actions\Scoring\ActivateRuleVersion;
 use App\Enums\AuditAction;
 use App\Enums\CompetitionFormat;
-use App\Enums\EventRole;
 use App\Enums\ParticipantMode;
 use App\Enums\ScoringAssignmentScope;
 use App\Enums\ScoringFamily;
 use App\Http\Controllers\Controller;
+use App\Models\BracketVersion;
 use App\Models\CompetitionRuleVersion;
 use App\Models\Contest;
 use App\Models\Division;
@@ -26,6 +29,47 @@ use Illuminate\Support\Str;
 
 class ConfigurationController extends Controller
 {
+    public function applySiklabProgramme(
+        Request $request,
+        Event $event,
+        ApplySiklab2025Programme $apply,
+    ): RedirectResponse {
+        $apply->handle($request->user(), $event);
+
+        return back()->with('status', 'The SIKLAB proposal programme is ready for review.');
+    }
+
+    public function generateRandomTournament(
+        Request $request,
+        Division $division,
+        GenerateRandomTournament $generate,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'command_uuid' => ['nullable', 'uuid'],
+            'redraw' => ['sometimes', 'boolean'],
+        ]);
+        $generate->handle(
+            $request->user(),
+            $division,
+            $data['command_uuid'] ?? null,
+            (bool) ($data['redraw'] ?? false),
+        );
+
+        return back()->with('status', ($data['redraw'] ?? false)
+            ? 'The unpublished draw was replaced with a new recorded random draw.'
+            : 'A recorded random draw is ready for review.');
+    }
+
+    public function publishBracket(
+        Request $request,
+        BracketVersion $bracket,
+        PublishBracket $publish,
+    ): RedirectResponse {
+        $publish->handle($request->user(), $bracket);
+
+        return back()->with('status', 'The bracket is published and its playable contests are assigned.');
+    }
+
     public function storeCompetition(Request $request, Event $event, AuditLogger $audit): RedirectResponse
     {
         $this->assertAdmin($request, $event);
@@ -108,8 +152,8 @@ class ConfigurationController extends Controller
 
     private function assertAdmin(Request $request, ?Event $event): void
     {
-        if ($event === null || ! $request->user()->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('An active event Admin is required.');
+        if ($event === null || ! $request->user()->hasAdminAccess($event)) {
+            throw new AuthorizationException('The active Global Admin is required.');
         }
     }
 }

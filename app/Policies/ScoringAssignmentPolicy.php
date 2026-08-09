@@ -23,7 +23,7 @@ class ScoringAssignmentPolicy
     ): bool {
         $scope = $scope instanceof ScoringAssignmentScope ? $scope : ScoringAssignmentScope::from($scope);
 
-        if (! $actor->hasActiveEventRole($event, EventRole::Admin)
+        if (! $actor->hasAdminAccess($event)
             || ! $assignee->isActive()
             || $event->isArchived()
             || ! $target->exists
@@ -44,6 +44,6 @@ class ScoringAssignmentPolicy
     public function revoke(User $actor, ScoringAssignment $assignment): bool
     {
         return $assignment->isActive()
-            && $actor->hasActiveEventRole($assignment->event_id, EventRole::Admin);
+            && $actor->hasAdminAccess($assignment->event_id);
     }
 }

@@ -8,6 +8,7 @@ enum AuditAction: string
     case UserEnabled = 'user.enabled';
     case UserSessionsRevoked = 'user.sessions_revoked';
     case EventCreatorBootstrapped = 'event_creator.bootstrapped';
+    case GlobalAdminBootstrapped = 'global_admin.bootstrapped';
     case PlatformCapabilityGranted = 'platform_capability.granted';
     case PlatformCapabilityRevoked = 'platform_capability.revoked';
     case EventCreated = 'event.created';
@@ -28,12 +29,23 @@ enum AuditAction: string
     case DivisionPlacementVoided = 'division_placement.voided';
     case LedgerEntryCommitted = 'ledger_entry.committed';
     case BracketGenerated = 'bracket.generated';
+    case BracketRedrawn = 'bracket.redrawn';
     case BracketPublished = 'bracket.published';
     case DisciplinePlacementApproved = 'discipline_placement.approved';
     case DivisionSubPointsCommitted = 'division_sub_points.committed';
     case CompetitionCreated = 'competition.created';
     case DivisionCreated = 'division.created';
     case RuleVersionCreated = 'rule_version.created';
+    case ProgrammeApplied = 'programme.applied';
     case UserProvisioned = 'user.provisioned';
     case InvitationConsumed = 'invitation.consumed';
+    case VenueCreated = 'venue.created';
+    case VenueUpdated = 'venue.updated';
+    case ScheduleCreated = 'schedule.created';
+    case ScheduleUpdated = 'schedule.updated';
+    case SchedulePublished = 'schedule.published';
+    case SchedulePublicationWithdrawn = 'schedule_publication.withdrawn';
+    case CompetitionCoverUploaded = 'competition_cover.uploaded';
+    case CompetitionCoverPublished = 'competition_cover.published';
+    case CompetitionCoverWithdrawn = 'competition_cover.withdrawn';
 }

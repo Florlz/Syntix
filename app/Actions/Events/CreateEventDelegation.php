@@ -31,8 +31,8 @@ final class CreateEventDelegation
                 ->whereKey($organizationalUnit->getKey())
                 ->firstOrFail();
 
-            if (! $actor->hasActiveEventRole($event, 'admin')) {
-                throw new AuthorizationException('An active event Admin is required to create a delegation.');
+            if (! $actor->hasAdminAccess($event)) {
+                throw new AuthorizationException('The active Global Admin is required to create a delegation.');
             }
 
             if ($event->isArchived() || ! $organizationalUnit->is_active) {

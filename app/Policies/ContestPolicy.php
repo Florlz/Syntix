@@ -2,7 +2,6 @@
 
 namespace App\Policies;
 
-use App\Enums\EventRole;
 use App\Models\Contest;
 use App\Models\User;
 
@@ -16,7 +15,7 @@ class ContestPolicy
             return false;
         }
 
-        return $actor->hasActiveEventRole($eventId, EventRole::Admin)
+        return $actor->hasAdminAccess($eventId)
             || $actor->canScoreContest($contest);
     }
 

@@ -21,7 +21,8 @@ class ContestController extends Controller
     {
         Gate::authorize('view', $contest);
 
-        $contest->load(['division.competition', 'entries.entry', 'scorecards']);
+        $contest->load(['division.competition', 'division.governingRuleVersion', 'entries.entry', 'scorecards']);
+        $configuration = $contest->division?->governingRuleVersion?->scoring_configuration ?? [];
 
         return Inertia::render('Tabulator/Contest', [
             'contest' => [
@@ -35,6 +36,13 @@ class ContestController extends Controller
                 'competition' => $contest->division?->competition?->name,
                 'live_payload' => $contest->live_payload,
                 'result_payload' => $contest->result_payload,
+                'outcome_profile' => $configuration['outcome_profile'] ?? 'team_total',
+                'scoring_configuration' => $configuration,
+                'entries' => $contest->entries->sortBy('slot')->values()->map(fn ($contestEntry): array => [
+                    'id' => (string) $contestEntry->entry_id,
+                    'name' => $contestEntry->entry?->name ?? 'Entry '.$contestEntry->entry_id,
+                    'slot' => $contestEntry->slot,
+                ]),
             ],
         ]);
     }

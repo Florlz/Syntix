@@ -3,7 +3,6 @@
 namespace App\Actions\Assignments;
 
 use App\Enums\AuditAction;
-use App\Enums\EventRole;
 use App\Models\Event;
 use App\Models\ScoringAssignment;
 use App\Models\User;
@@ -26,8 +25,8 @@ final class RevokeScoringAssignment
             $event = Event::query()->whereKey($assignment->event_id)->lockForUpdate()->firstOrFail();
             $actor = User::query()->whereKey($actor->getKey())->lockForUpdate()->firstOrFail();
 
-            if (! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-                throw new AuthorizationException('An active event Admin is required to revoke scoring assignments.');
+            if (! $actor->hasAdminAccess($event)) {
+                throw new AuthorizationException('The active Global Admin is required to revoke scoring assignments.');
             }
 
             if (! $assignment->isActive()) {

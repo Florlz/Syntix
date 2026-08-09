@@ -6,7 +6,6 @@ use App\Actions\Scoring\ApproveContestOutcome;
 use App\Actions\Scoring\ApproveDivisionPlacement;
 use App\Actions\Scoring\RejectContestResult;
 use App\Actions\Scoring\SubmitDivisionPlacement;
-use App\Enums\EventRole;
 use App\Http\Controllers\Controller;
 use App\Models\Division;
 use App\Models\DivisionPlacement;
@@ -23,8 +22,8 @@ class ApprovalController extends Controller
 {
     public function index(Request $request, Event $event): Response
     {
-        if (! $request->user()->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can review approvals.');
+        if (! $request->user()->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can review approvals.');
         }
 
         $submissions = ResultSubmission::query()

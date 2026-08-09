@@ -6,11 +6,14 @@ The application is designed for multiple SIKLAB editions. The approved 2025 mate
 
 ## Current Status
 
-The repository contains the first working implementation across identity, event foundations, scoring, approvals, bracket generation, Judge and Tabulator workflows, Admin operations, public scoreboard pages, and a public CSPC landing surface.
+The repository contains a working proposal-backed implementation across identity, event foundations, scoring, approvals, randomized bracket generation, Judge and Tabulator workflows, Global Admin operations, public scoreboard pages, and a public CSPC landing surface.
 
-Known incomplete or intentionally blocked areas include Laravel Reverb/Echo delivery, the full offline synchronization phase, PDF report/archive generation, complete 2025 rule seeding, and double-elimination routing until each supported size has institutional sign-off.
+Known incomplete or intentionally blocked areas include Laravel Reverb/Echo delivery, the full offline synchronization phase, PDF report/archive generation, and proposal rules whose printed values conflict or omit required detail.
+The Global Admin participant/roster Registration Desk is the next approved
+administrative slice and is not yet part of the verified implementation
+baseline.
 
-See [`docs/implementation-status.md`](docs/implementation-status.md) for the current implementation map, verification evidence, and next slices.
+See the [product requirements](docs/prd/2026-08-09-syntix-product-prd.md) and [single system implementation plan](docs/plans/2026-08-09-syntix-system.md).
 
 ## Stack
 
@@ -43,14 +46,13 @@ docker compose down
 
 ## Documentation
 
-Start with [`docs/index.md`](docs/index.md). It defines the reading order and the source-of-truth boundaries.
+There are exactly two Markdown documentation authorities:
 
-- [`docs/cspc-siklab-plan.md`](docs/cspc-siklab-plan.md): canonical product and domain contract
-- [`docs/implementation-status.md`](docs/implementation-status.md): implementation state and roadmap
-- [`docs/open-decisions.md`](docs/open-decisions.md): centralized institutional decision register
-- [`docs/domain-glossary.md`](docs/domain-glossary.md): shared vocabulary
-- [`docs/adr/`](docs/adr/): accepted architectural decisions
-- [`docs/specs/`](docs/specs/): focused technical contracts
+- [`docs/prd/2026-08-09-syntix-product-prd.md`](docs/prd/2026-08-09-syntix-product-prd.md): product requirements, canonical terminology, architecture decisions, technical contracts, and open institutional decisions
+- [`docs/plans/2026-08-09-syntix-system.md`](docs/plans/2026-08-09-syntix-system.md): system implementation sequence and delivery evidence
+
+The PDF and DOCX files under `docs/` are preserved institutional source
+artifacts. They do not override the PRD when sources conflict.
 
 ## Scope Boundaries
 

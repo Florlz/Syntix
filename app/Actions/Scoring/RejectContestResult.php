@@ -3,7 +3,6 @@
 namespace App\Actions\Scoring;
 
 use App\Enums\AuditAction;
-use App\Enums\EventRole;
 use App\Enums\ResultSubmissionState;
 use App\Models\ResultSubmission;
 use App\Models\User;
@@ -20,8 +19,8 @@ final class RejectContestResult
         $submission->loadMissing('contest.division.competition.event');
         $event = $submission->contest?->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can reject a result.');
+        if ($event === null || ! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can reject a result.');
         }
 
         if (trim($reason) === '') {

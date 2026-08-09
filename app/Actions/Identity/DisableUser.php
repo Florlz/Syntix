@@ -4,10 +4,7 @@ namespace App\Actions\Identity;
 
 use App\Enums\AccountState;
 use App\Enums\AuditAction;
-use App\Enums\EventRole;
-use App\Enums\PlatformCapability;
 use App\Models\Event;
-use App\Models\PlatformCapabilityGrant;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\SessionRevoker;
@@ -31,35 +28,20 @@ final class DisableUser
             $actor = User::query()->whereKey($actor->getKey())->lockForUpdate()->firstOrFail();
             $target = User::query()->whereKey($target->getKey())->lockForUpdate()->firstOrFail();
 
-            $adminQuery = $actor->eventRoles()
-                ->where('role', EventRole::Admin->value)
-                ->whereNull('revoked_at');
+            $hasAdminAccess = $event === null
+                ? $actor->hasAnyAdminAccess()
+                : $actor->hasAdminAccess($event);
 
-            if ($event !== null) {
-                $adminQuery->where('event_id', $event->getKey());
-            }
-
-            if (! $actor->isActive() || ! $adminQuery->exists()) {
-                throw new AuthorizationException('An active event Admin is required to disable an account.');
+            if (! $actor->isActive() || ! $hasAdminAccess) {
+                throw new AuthorizationException('The active Global Admin is required to disable an account.');
             }
 
             if (! $target->isActive()) {
                 throw new \DomainException('The account is already disabled.');
             }
 
-            $creatorGrants = PlatformCapabilityGrant::query()
-                ->where('capability', PlatformCapability::EventCreator->value)
-                ->whereNull('revoked_at')
-                ->lockForUpdate()
-                ->get();
-            $creatorIds = User::query()
-                ->whereIn('id', $creatorGrants->pluck('user_id'))
-                ->where('account_state', AccountState::Active->value)
-                ->lockForUpdate()
-                ->pluck('id');
-
-            if ($creatorIds->contains($target->getKey()) && $creatorIds->count() <= 1) {
-                throw new \DomainException('The last active event creator cannot be disabled.');
+            if ($target->isGlobalAdmin()) {
+                throw new \DomainException('The sole Global Admin cannot be disabled.');
             }
 
             $before = [

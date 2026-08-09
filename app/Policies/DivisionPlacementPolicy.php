@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Enums\DivisionPlacementState;
-use App\Enums\EventRole;
 use App\Models\Division;
 use App\Models\DivisionPlacement;
 use App\Models\User;
@@ -17,7 +16,7 @@ class DivisionPlacementPolicy
 
         return $event !== null
             && $actor->isActive()
-            && $actor->hasActiveEventRole($event, EventRole::Admin);
+            && $actor->hasAdminAccess($event);
     }
 
     public function submit(User $actor, Division $division): bool
@@ -25,7 +24,7 @@ class DivisionPlacementPolicy
         $division->loadMissing('competition.event');
         $event = $division->competition?->event;
 
-        return $event !== null && $actor->hasActiveEventRole($event, EventRole::Admin);
+        return $event !== null && $actor->hasAdminAccess($event);
     }
 
     public function approve(User $actor, DivisionPlacement $placement): bool
@@ -35,6 +34,6 @@ class DivisionPlacementPolicy
 
         return $event !== null
             && $placement->placementState() === DivisionPlacementState::Submitted
-            && $actor->hasActiveEventRole($event, EventRole::Admin);
+            && $actor->hasAdminAccess($event);
     }
 }

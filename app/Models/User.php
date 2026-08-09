@@ -23,6 +23,7 @@ use Illuminate\Support\Str;
     'email',
     'password',
     'account_state',
+    'is_global_admin',
     'disable_reason',
     'disabled_at',
     'disabled_by',
@@ -109,6 +110,21 @@ class User extends Authenticatable
                 ->exists();
     }
 
+    public function isGlobalAdmin(): bool
+    {
+        return $this->isActive() && (bool) $this->getAttribute('is_global_admin');
+    }
+
+    public function hasAdminAccess(Event|int $event): bool
+    {
+        return $this->isGlobalAdmin();
+    }
+
+    public function hasAnyAdminAccess(): bool
+    {
+        return $this->isGlobalAdmin();
+    }
+
     public function canScoreContest(Contest $contest): bool
     {
         if (! $this->isActive() || ! $contest->exists) {
@@ -163,8 +179,17 @@ class User extends Authenticatable
         return $this->scoringAssignments()
             ->active()
             ->where('event_id', $eventId)
-            ->where('scope_type', 'entry_scorecard')
-            ->where('entry_scorecard_id', $scorecard->getKey())
+            ->where(function (Builder $query) use ($scorecard): void {
+                $query->where(function (Builder $query) use ($scorecard): void {
+                    $query
+                        ->where('scope_type', 'entry_scorecard')
+                        ->where('entry_scorecard_id', $scorecard->getKey());
+                })->orWhere(function (Builder $query) use ($scorecard): void {
+                    $query
+                        ->where('scope_type', 'competition_division')
+                        ->where('competition_division_id', $scorecard->contest?->competition_division_id);
+                });
+            })
             ->exists();
     }
 
@@ -205,6 +230,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'account_state' => AccountState::class,
+            'is_global_admin' => 'boolean',
             'disabled_at' => 'datetime',
         ];
     }

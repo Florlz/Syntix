@@ -15,5 +15,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(SiklabReferenceSeeder::class);
+
+        if (app()->environment('local')) {
+            $this->call(DevelopmentAdminSeeder::class);
+        }
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Actions\Scoring;
 
 use App\Enums\AuditAction;
-use App\Enums\EventRole;
 use App\Enums\OfficialOutcomeState;
 use App\Enums\OutcomeType;
 use App\Enums\ResultSubmissionState;
@@ -12,6 +11,7 @@ use App\Models\OfficialContestOutcome;
 use App\Models\ResultSubmission;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\AutomaticPlacementDeriver;
 use App\Services\BracketAdvancer;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +21,7 @@ final class ApproveContestOutcome
     public function __construct(
         private readonly ?AuditLogger $audit = null,
         private readonly ?BracketAdvancer $advancer = null,
+        private readonly ?AutomaticPlacementDeriver $placementDeriver = null,
     ) {}
 
     public function handle(User $actor, ResultSubmission $submission, ?string $reason = null): OfficialContestOutcome
@@ -28,8 +29,8 @@ final class ApproveContestOutcome
         $submission->loadMissing('contest.division.competition.event');
         $event = $submission->contest?->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasActiveEventRole($event, EventRole::Admin)) {
-            throw new AuthorizationException('Only an event Admin can approve a contest outcome.');
+        if ($event === null || ! $actor->hasAdminAccess($event)) {
+            throw new AuthorizationException('Only the active Global Admin can approve a contest outcome.');
         }
 
         return DB::transaction(function () use ($actor, $submission, $reason, $event): OfficialContestOutcome {
@@ -93,6 +94,7 @@ final class ApproveContestOutcome
             ]);
 
             ($this->advancer ?? new BracketAdvancer)->apply($outcome);
+            ($this->placementDeriver ?? new AutomaticPlacementDeriver)->derive($actor, $outcome);
 
             ($this->audit ?? new AuditLogger)->record(
                 $actor,
