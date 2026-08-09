@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\EventRole;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -29,10 +30,63 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $anonymousPublic = $request->is('events/*/scoreboard', 'events/*/divisions/*/bracket');
+        $public = $anonymousPublic || $request->is('/');
+        $shared = parent::share($request);
+
+        if ($public) {
+            $shared['errors'] = (object) [];
+        }
+
+        $user = $anonymousPublic ? null : $request->user();
+        $activeRole = $user?->eventRoles()
+            ->active()
+            ->with('event')
+            ->latest('granted_at')
+            ->first();
+        $activeEvent = $activeRole?->event;
+        $roles = $activeEvent === null
+            ? []
+            : $user->eventRoles()
+                ->active()
+                ->where('event_id', $activeEvent->getKey())
+                ->pluck('role')
+                ->map(fn (EventRole|string $role): string => $role instanceof EventRole ? $role->value : (string) $role)
+                ->values()
+                ->all();
+        $platformCapabilities = $user?->platformCapabilities()
+            ->active()
+            ->get()
+            ->map(fn ($grant): string => $grant->capability->value)
+            ->values()
+            ->all() ?? [];
+
         return [
-            ...parent::share($request),
+            ...$shared,
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user === null ? null : [
+                    'id' => (string) $user->getKey(),
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'email_verified' => $user->email_verified_at !== null,
+                ],
+                'active_event' => $activeEvent === null ? null : [
+                    'id' => (string) $activeEvent->getKey(),
+                    'name' => $activeEvent->name,
+                    'roles' => $roles,
+                ],
+                'platform_capabilities' => $platformCapabilities,
+                'capabilities' => array_values(array_unique([
+                    ...$platformCapabilities,
+                    ...$roles,
+                ])),
+            ],
+            'flash' => $public || $user === null ? [
+                'status' => null,
+                'setup_url' => null,
+            ] : [
+                'status' => $request->session()->get('status'),
+                'setup_url' => $request->session()->get('setup_url'),
             ],
         ];
     }

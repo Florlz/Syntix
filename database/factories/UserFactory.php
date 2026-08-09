@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\AccountState;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +31,7 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'account_state' => AccountState::Active->value,
         ];
     }
 
@@ -40,6 +42,18 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
+        ]);
+    }
+
+    /**
+     * Indicate that the account is disabled.
+     */
+    public function disabled(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'account_state' => AccountState::Disabled->value,
+            'disabled_at' => now(),
+            'disable_reason' => 'Factory-disabled account',
         ]);
     }
 }
