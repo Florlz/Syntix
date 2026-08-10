@@ -9,7 +9,10 @@ export default defineConfig({
         port: 5173,
         strictPort: true,
         cors: {
-            origin: 'http://localhost:8000',
+            origin: [
+                'http://localhost:8000',
+                'http://syntix.test',
+            ],
         },
         hmr: {
             host: 'localhost',

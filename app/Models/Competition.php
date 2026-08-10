@@ -10,11 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['event_id', 'name', 'slug'])]
+#[Fillable(['event_id', 'name', 'slug', 'is_active', 'deactivation_reason', 'deactivated_at'])]
 class Competition extends Model
 {
     /** @use HasFactory<CompetitionFactory> */
     use HasFactory;
+
+    protected $attributes = ['is_active' => true];
 
     public function event(): BelongsTo
     {
@@ -48,5 +50,10 @@ class Competition extends Model
     public function eventId(): ?int
     {
         return $this->event_id === null ? null : (int) $this->event_id;
+    }
+
+    protected function casts(): array
+    {
+        return ['is_active' => 'boolean', 'deactivated_at' => 'datetime'];
     }
 }

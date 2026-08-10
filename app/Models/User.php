@@ -49,6 +49,11 @@ class User extends Authenticatable
         return $this->hasMany(ScoringAssignment::class);
     }
 
+    public function userInvitations(): HasMany
+    {
+        return $this->hasMany(UserInvitation::class);
+    }
+
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class, 'actor_id');

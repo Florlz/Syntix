@@ -52,6 +52,16 @@ final class GrantScoringAssignment
                 throw new \DomainException('The assignment target must belong to the selected event.');
             }
 
+            $division = match (true) {
+                $target instanceof Division => $target->loadMissing('competition'),
+                $target instanceof Contest => $target->loadMissing('division.competition')->division,
+                $target instanceof EntryScorecard => $target->loadMissing('contest.division.competition')->contest?->division,
+                default => null,
+            };
+            if ($division === null || ! $division->is_active || ! $division->competition?->is_active) {
+                throw new \DomainException('New assignments cannot target an inactive sport or division.');
+            }
+
             $hasRequiredRole = match ($scope) {
                 ScoringAssignmentScope::EntryScorecard => $assignee->hasActiveEventRole($event, EventRole::Judge),
                 ScoringAssignmentScope::Contest => $assignee->hasActiveEventRole($event, EventRole::Tabulator),

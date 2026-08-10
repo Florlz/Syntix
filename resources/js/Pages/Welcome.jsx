@@ -514,7 +514,7 @@ function ChampionshipStandingsStack({ event, leaderboard }) {
     );
 }
 
-function BroadcastHero({ authenticated, event, contests, leaderboard, status, lastSuccessfulAt }) {
+function BroadcastHero({ authenticated, event, contests, competitionCount, leaderboard, status, lastSuccessfulAt }) {
     return (
         <section className="bg-[#F7F5EF]">
             <div className="mx-auto max-w-7xl px-5 sm:px-8">
@@ -531,6 +531,21 @@ function BroadcastHero({ authenticated, event, contests, leaderboard, status, la
                         {event ? <Link href={route('public.scoreboard', event.slug)} className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0B2E4F] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#164565] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F7F5EF]">View Event Board</Link> : null}
                     </div>
                 </div>
+
+                <section aria-label="Event at a glance" className="grid gap-3 pb-7 sm:grid-cols-3 sm:pb-9">
+                    <article className="border-l-[3px] border-[#D5A21F] bg-white px-5 py-4 shadow-[0_10px_28px_rgba(23,33,43,0.05)]">
+                        <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[#7A878D]">Live now</p>
+                        <div className="mt-2 flex items-end justify-between gap-3"><p className="font-mono text-3xl font-bold tabular-nums text-[#0B2E4F]">{contests.length}</p><span className="pb-1 text-xs text-[#68767E]">{contests.length === 1 ? 'contest' : 'contests'}</span></div>
+                    </article>
+                    <article className="border-l-[3px] border-[#0B536D] bg-white px-5 py-4 shadow-[0_10px_28px_rgba(23,33,43,0.05)]">
+                        <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[#7A878D]">Sports programme</p>
+                        <div className="mt-2 flex items-end justify-between gap-3"><p className="font-mono text-3xl font-bold tabular-nums text-[#0B2E4F]">{competitionCount}</p><span className="pb-1 text-xs text-[#68767E]">published</span></div>
+                    </article>
+                    <article className="border-l-[3px] border-[#16845B] bg-white px-5 py-4 shadow-[0_10px_28px_rgba(23,33,43,0.05)]">
+                        <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[#7A878D]">Department table</p>
+                        <div className="mt-2 flex items-end justify-between gap-3"><p className="font-mono text-3xl font-bold tabular-nums text-[#0B2E4F]">{leaderboard.length}</p><span className="pb-1 text-xs text-[#68767E]">with points</span></div>
+                    </article>
+                </section>
 
                 <div className="grid gap-5 pb-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(20rem,0.85fr)] lg:items-stretch lg:pb-14">
                     <div className="min-w-0">
@@ -710,7 +725,7 @@ export default function Welcome({ auth, featured_event: event, featured_contest:
             </Head>
             <a href="#main-content" className="sr-only z-50 bg-[#F5C64B] px-4 py-3 font-bold text-[#17212B] focus:not-sr-only focus:fixed focus:left-4 focus:top-0 focus:outline-none focus:ring-2 focus:ring-[#17212B]">Skip to event content</a>
             <main id="main-content" className="min-h-screen overflow-x-hidden bg-[#F7F5EF] font-sans text-[#17212B]">
-                <BroadcastHero authenticated={authenticated} event={event} contests={contests} leaderboard={leaderboard} status={status} lastSuccessfulAt={lastSuccessfulAt} />
+                <BroadcastHero authenticated={authenticated} event={event} contests={contests} competitionCount={competitions.length} leaderboard={leaderboard} status={status} lastSuccessfulAt={lastSuccessfulAt} />
                 <CompetitionDirectory event={event} competitions={competitions} />
                 <Footer authenticated={authenticated} event={event} />
             </main>

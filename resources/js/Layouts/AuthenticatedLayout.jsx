@@ -1,180 +1,47 @@
+import AppIcon from '@/Components/AppIcon';
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import Dropdown from '@/Components/Dropdown';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+function NavItem({ href, icon, label, active, badge, external = false, onNavigate }) {
+    const classes = `group flex min-h-11 items-center gap-3 border-l-[3px] px-4 py-2.5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#D5A21F] ${active ? 'border-[#D5A21F] bg-white/10 text-white' : 'border-transparent text-white/65 hover:bg-white/5 hover:text-white'}`;
+    return <Link href={href} onClick={onNavigate} className={classes}><AppIcon name={icon} className="size-5 shrink-0 text-white/50 group-hover:text-[#D5A21F]"/><span className="min-w-0 flex-1">{label}</span>{badge > 0 ? <span className="rounded-full bg-[#D5A21F] px-2 py-0.5 font-mono text-[0.65rem] text-[#17212B]">{badge}</span> : null}{external ? <AppIcon name="external" className="size-4 text-white/35"/> : null}</Link>;
+}
+
+function Sidebar({ onNavigate }) {
+    const page = usePage();
+    const { auth, nav_badges: badges = {} } = page.props;
+    const event = auth.active_event;
+    const admin = auth.global_admin;
+    const eventId = event?.id;
+    const dashboard = route().current('dashboard');
+    const items = eventId && admin ? [
+        [route('dashboard', { event: eventId }), 'overview', 'Overview', dashboard],
+        [route('admin.sports.index', eventId), 'trophy', 'Sports & Events', route().current('admin.sports.*')],
+        [route('admin.registrations.index', eventId), 'users', 'Players & Rosters', route().current('admin.registrations.*') || route().current('admin.participants.*') || route().current('admin.entries.*'), badges.eligibility],
+        [route('admin.staff.index', eventId), 'badge', 'Event Staff', route().current('admin.staff.*') || route().current('admin.accounts.*'), badges.staff],
+        [route('admin.approvals.index', eventId), 'clipboard-check', 'Results Review', route().current('admin.approvals.*'), badges.results],
+        [route('dashboard', { event: eventId, tab: 'tournaments' }), 'trophy', 'Tournament Desk', dashboard && new URLSearchParams(page.url.split('?')[1] ?? '').get('tab') === 'tournaments'],
+        [route('admin.public-programme.index', eventId), 'calendar', 'Schedules & Publishing', route().current('admin.public-programme.*')],
+    ] : [[route('dashboard'), 'overview', 'Overview', dashboard]];
+
+    return <div className="flex h-full flex-col bg-[#082944] text-white">
+        <div className="border-b border-white/10 px-5 py-5"><Link href={route('dashboard')} onClick={onNavigate} className="flex items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D5A21F]"><ApplicationLogo className="size-9 text-[#D5A21F]"/><span><strong className="block font-serif text-lg tracking-[0.08em]">SYNTIX</strong><span className="text-[0.62rem] uppercase tracking-[0.2em] text-white/40">Event operations</span></span></Link></div>
+        <div className="border-b border-white/10 px-5 py-4"><p className="text-[0.62rem] font-bold uppercase tracking-[0.16em] text-[#D5A21F]">Active event</p><p className="mt-1 truncate text-sm font-semibold">{event?.name ?? 'No event selected'}</p></div>
+        <nav aria-label="Administration" className="flex-1 overflow-y-auto py-4">{items.map(([href, icon, label, active, badge]) => <NavItem key={label} href={href} icon={icon} label={label} active={active} badge={badge} onNavigate={onNavigate}/>)}</nav>
+        {admin ? <div className="border-t border-white/10 py-3"><NavItem href={route('admin.events.create')} icon="plus" label="Create Event" active={route().current('admin.events.create')} onNavigate={onNavigate}/><NavItem href={route('landing')} icon="external" label="View Public Site" external onNavigate={onNavigate}/></div> : null}
+        <div className="border-t border-white/10 p-4"><p className="truncate text-sm font-semibold">{auth.user?.name}</p><p className="truncate text-xs text-white/40">{auth.user?.email}</p><Link method="post" as="button" href={route('logout')} className="mt-3 flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white"><AppIcon name="logout" className="size-4"/>Sign out</Link></div>
+    </div>;
+}
 
 export default function AuthenticatedLayout({ header, children }) {
-    const { user, global_admin: globalAdmin, active_event: activeEvent } = usePage().props.auth;
-
-    const [showingNavigationDropdown, setShowingNavigationDropdown] =
-        useState(false);
-
-    return (
-        <div className="min-h-screen bg-[#f4f1e8]">
-            <a href="#main-content" className="sr-only z-50 rounded-md bg-[#0b2e4f] px-4 py-2 text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4">
-                Skip to Main Content
-            </a>
-            <nav className="border-b border-white/10 bg-[#0b2e4f] text-white">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex h-16 justify-between">
-                        <div className="flex">
-                            <div className="flex shrink-0 items-center">
-                                <Link href="/" className="flex items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a21f]">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-white" />
-                                    <span className="hidden leading-tight lg:block"><strong className="block font-serif text-sm tracking-wide">SYNTIX</strong><span className="block text-[0.65rem] uppercase tracking-[0.16em] text-white/50">Operations</span></span>
-                                </Link>
-                            </div>
-
-                            <div className="hidden sm:ms-10 sm:flex sm:items-center">
-                                <Link href={route('dashboard')} className={`rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a21f] ${route().current('dashboard') ? 'bg-white/15 text-white' : 'text-white/65 hover:bg-white/10 hover:text-white'}`}>
-                                    Dashboard
-                                </Link>
-                                {globalAdmin && activeEvent ? (
-                                    <Link href={route('admin.registrations.index', activeEvent.id)} className={`ms-1 rounded-lg px-3 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a21f] ${route().current('admin.registrations.*') || route().current('admin.participants.*') || route().current('admin.entries.*') || route().current('admin.entry-members.*') || route().current('admin.eligibility.*') ? 'bg-white/15 text-white' : 'text-white/65 hover:bg-white/10 hover:text-white'}`}>
-                                        Registrations
-                                    </Link>
-                                ) : null}
-                            </div>
-                        </div>
-
-                        <div className="hidden sm:ms-6 sm:flex sm:items-center">
-                            <div className="relative ms-3">
-                                <Dropdown>
-                                    <Dropdown.Trigger>
-                                        <span className="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                className="inline-flex items-center rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-sm font-medium leading-4 text-white/75 transition-colors duration-150 ease-in-out hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a21f] motion-reduce:transition-none"
-                                            >
-                                                {user.name}
-
-                                                <svg
-                                                    className="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fillRule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clipRule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </Dropdown.Trigger>
-
-                                    <Dropdown.Content>
-                                        <Dropdown.Link
-                                            href={route('profile.edit')}
-                                        >
-                                            Profile
-                                        </Dropdown.Link>
-                                        <Dropdown.Link
-                                            href={route('logout')}
-                                            method="post"
-                                            as="button"
-                                        >
-                                            Log Out
-                                        </Dropdown.Link>
-                                    </Dropdown.Content>
-                                </Dropdown>
-                            </div>
-                        </div>
-
-                        <div className="-me-2 flex items-center sm:hidden">
-                            <button
-                                type="button"
-                                aria-label="Toggle navigation menu"
-                                aria-expanded={showingNavigationDropdown}
-                                onClick={() =>
-                                    setShowingNavigationDropdown(
-                                        (previousState) => !previousState,
-                                    )
-                                }
-                                className="inline-flex items-center justify-center rounded-md p-2 text-white/65 transition-colors duration-150 ease-in-out hover:bg-white/10 hover:text-white focus-visible:bg-white/10 focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a21f] motion-reduce:transition-none"
-                            >
-                                <svg
-                                    className="h-6 w-6"
-                                    stroke="currentColor"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        className={
-                                            !showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                    <path
-                                        className={
-                                            showingNavigationDropdown
-                                                ? 'inline-flex'
-                                                : 'hidden'
-                                        }
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    className={
-                        (showingNavigationDropdown ? 'block' : 'hidden') +
-                        ' sm:hidden'
-                    }
-                >
-                    <div className="space-y-1 px-4 pb-3 pt-2">
-                        <Link href={route('dashboard')} className="block rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold text-white">Dashboard</Link>
-                        {globalAdmin && activeEvent ? <Link href={route('admin.registrations.index', activeEvent.id)} className="block rounded-lg px-3 py-2 text-sm font-semibold text-white/75 hover:bg-white/10 hover:text-white">Registrations</Link> : null}
-                    </div>
-
-                    <div className="border-t border-white/10 pb-1 pt-4">
-                        <div className="px-4">
-                            <div className="text-base font-medium text-white">
-                                {user.name}
-                            </div>
-                            <div className="text-sm font-medium text-white/55">
-                                {user.email}
-                            </div>
-                        </div>
-
-                        <div className="mt-3 space-y-1">
-                            <ResponsiveNavLink href={route('profile.edit')}>
-                                Profile
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                method="post"
-                                href={route('logout')}
-                                as="button"
-                            >
-                                Log Out
-                            </ResponsiveNavLink>
-                        </div>
-                    </div>
-                </div>
-            </nav>
-
-            {header && (
-                <header className="border-b border-slate-200 bg-white shadow-sm">
-                    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                        {header}
-                    </div>
-                </header>
-            )}
-
-            <div id="main-content" tabIndex="-1">{children}</div>
-        </div>
-    );
+    const [open, setOpen] = useState(false);
+    useEffect(() => { document.body.style.overflow = open ? 'hidden' : ''; return () => { document.body.style.overflow = ''; }; }, [open]);
+    return <div className="min-h-screen bg-[#F4F5F2] text-[#17212B]">
+        <a href="#main-content" className="sr-only z-[60] rounded bg-white px-4 py-2 focus:not-sr-only focus:fixed focus:left-3 focus:top-3">Skip to content</a>
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 lg:block"><Sidebar/></aside>
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur lg:ml-64"><div className="flex min-h-16 items-center gap-4 px-4 sm:px-6 lg:px-8"><button type="button" onClick={() => setOpen(true)} aria-label="Open navigation" aria-expanded={open} className="grid size-10 place-items-center rounded-lg text-[#082944] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D5A21F] lg:hidden"><AppIcon name="menu"/></button><div className="min-w-0 flex-1 py-3">{header}</div></div></header>
+        {open ? <div className="fixed inset-0 z-50 lg:hidden"><button type="button" aria-label="Close navigation backdrop" onClick={() => setOpen(false)} className="absolute inset-0 bg-[#17212B]/55"/><aside role="dialog" aria-modal="true" aria-label="Administration navigation" className="relative h-full w-[min(20rem,88vw)] shadow-2xl"><button type="button" autoFocus onClick={() => setOpen(false)} aria-label="Close navigation" className="absolute right-3 top-3 z-10 grid size-10 place-items-center rounded-lg text-white focus-visible:ring-2 focus-visible:ring-[#D5A21F]"><AppIcon name="close"/></button><Sidebar onNavigate={() => setOpen(false)}/></aside></div> : null}
+        <div id="main-content" tabIndex="-1" className="outline-none lg:ml-64">{children}</div>
+    </div>;
 }

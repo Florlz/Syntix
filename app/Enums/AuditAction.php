@@ -34,7 +34,12 @@ enum AuditAction: string
     case DisciplinePlacementApproved = 'discipline_placement.approved';
     case DivisionSubPointsCommitted = 'division_sub_points.committed';
     case CompetitionCreated = 'competition.created';
+    case CompetitionUpdated = 'competition.updated';
+    case CompetitionStateChanged = 'competition.state_changed';
     case DivisionCreated = 'division.created';
+    case DivisionUpdated = 'division.updated';
+    case DivisionStateChanged = 'division.state_changed';
+    case InvitationReissued = 'invitation.reissued';
     case RuleVersionCreated = 'rule_version.created';
     case ProgrammeApplied = 'programme.applied';
     case UserProvisioned = 'user.provisioned';

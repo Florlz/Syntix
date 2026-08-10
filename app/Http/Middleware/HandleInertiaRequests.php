@@ -4,6 +4,9 @@ namespace App\Http\Middleware;
 
 use App\Enums\EventRole;
 use App\Models\Event;
+use App\Models\DivisionPlacement;
+use App\Models\EligibilityRecord;
+use App\Models\ResultSubmission;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -76,6 +79,20 @@ class HandleInertiaRequests extends Middleware
             ->values()
             ->all() ?? [];
 
+        $navBadges = ['eligibility' => 0, 'staff' => 0, 'results' => 0];
+        if ($globalAdmin && $activeEvent !== null) {
+            $eventId = $activeEvent->getKey();
+            $navBadges['eligibility'] = EligibilityRecord::query()
+                ->where('status', 'pending')
+                ->where('event_id', $eventId)
+                ->count();
+            $staffUsers = $activeEvent->userRoles()->active()->whereIn('role', ['judge', 'tabulator'])->pluck('user_id')->unique();
+            $assignedUsers = $activeEvent->assignments()->active()->pluck('user_id')->unique();
+            $navBadges['staff'] = $staffUsers->diff($assignedUsers)->count();
+            $navBadges['results'] = ResultSubmission::query()->where('state', 'submitted')->whereHas('contest.division.competition', fn ($query) => $query->where('event_id', $eventId))->count()
+                + DivisionPlacement::query()->where('state', 'submitted')->whereHas('division.competition', fn ($query) => $query->where('event_id', $eventId))->count();
+        }
+
         return [
             ...$shared,
             'auth' => [
@@ -105,6 +122,7 @@ class HandleInertiaRequests extends Middleware
                 'status' => $request->session()->get('status'),
                 'setup_url' => $request->session()->get('setup_url'),
             ],
+            'nav_badges' => $navBadges,
         ];
     }
 }

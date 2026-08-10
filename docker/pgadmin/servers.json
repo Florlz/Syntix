@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Syntix PostgreSQL",
+      "Group": "Syntix",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "syntix",
+      "Username": "postgres",
+      "SSLMode": "prefer"
+    }
+  }
+}

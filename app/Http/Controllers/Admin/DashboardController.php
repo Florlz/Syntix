@@ -22,9 +22,9 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $globalAdmin = $user->isGlobalAdmin();
-        $activeTab = in_array($request->string('tab')->toString(), ['programme', 'access', 'tournaments'], true)
+        $activeTab = in_array($request->string('tab')->toString(), ['tournaments'], true)
             ? $request->string('tab')->toString()
-            : 'programme';
+            : 'overview';
         $events = $this->availableEvents($user, $globalAdmin);
         $requestedEventId = $request->integer('event');
         $event = $events->firstWhere('id', $requestedEventId) ?? $events->first();
@@ -200,6 +200,16 @@ class DashboardController extends Controller
             'global_admin' => User::query()->where('is_global_admin', true)->first(['id', 'name', 'email']),
             'pending_approvals' => $pendingApprovals,
             'live_contests' => $liveContests,
+            'summary' => [
+                'participants' => $activeParticipants->count(),
+                'eligible_participants' => $eligibleRegistrations,
+                'event_staff' => $people->pluck('id')->unique()->count(),
+                'unassigned_staff' => $people->filter(fn ($person) => $person['assignments']->isEmpty())->pluck('id')->unique()->count(),
+                'pending_results' => $pendingApprovals->where('kind', 'Contest outcome')->count(),
+                'pending_placements' => $pendingApprovals->where('kind', 'Final placement')->count(),
+                'live_contests' => $liveContests->count(),
+                'approved_placements' => $approvedPlacements,
+            ],
             'readiness' => [
                 ['key' => 'event', 'label' => 'Event', 'complete' => true, 'detail' => $event->eventState()->value],
                 ['key' => 'programme', 'label' => 'Programme', 'complete' => $programme->isNotEmpty(), 'detail' => $programme->count().' divisions'],
@@ -271,6 +281,10 @@ class DashboardController extends Controller
         return [
             'events' => [],
             'event' => null,
+            'summary' => [
+                'participants' => 0, 'eligible_participants' => 0, 'event_staff' => 0, 'unassigned_staff' => 0,
+                'pending_results' => 0, 'pending_placements' => 0, 'live_contests' => 0, 'approved_placements' => 0,
+            ],
             'readiness' => [],
             'programme' => [],
             'teams' => [],

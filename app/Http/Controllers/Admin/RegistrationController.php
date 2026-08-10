@@ -138,9 +138,11 @@ class RegistrationController extends Controller
             'competitions' => $event->competitions->map(fn (Competition $competition): array => [
                 'id' => (string) $competition->getKey(),
                 'name' => $competition->name,
+                'active' => (bool) $competition->is_active,
                 'divisions' => $competition->divisions->map(fn (Division $division): array => [
                     'id' => (string) $division->getKey(),
                     'name' => $division->name,
+                    'active' => (bool) $division->is_active,
                     'participant_mode' => $division->governingRuleVersion?->participantMode()?->value,
                     'min_roster_size' => $division->governingRuleVersion?->min_roster_size,
                     'max_roster_size' => $division->governingRuleVersion?->max_roster_size,

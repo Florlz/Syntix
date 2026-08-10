@@ -10,11 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['competition_id', 'name', 'slug', 'scoring_started_at'])]
+#[Fillable(['competition_id', 'name', 'slug', 'scoring_started_at', 'is_active', 'deactivation_reason', 'deactivated_at'])]
 class Division extends Model
 {
     /** @use HasFactory<DivisionFactory> */
     use HasFactory;
+
+    protected $attributes = ['is_active' => true];
 
     protected $table = 'competition_divisions';
 
@@ -92,6 +94,8 @@ class Division extends Model
     {
         return [
             'scoring_started_at' => 'datetime',
+            'is_active' => 'boolean',
+            'deactivated_at' => 'datetime',
         ];
     }
 }

@@ -27,20 +27,42 @@ See the [product requirements](docs/prd/2026-08-09-syntix-product-prd.md) and [s
 
 Laravel and PostgreSQL remain authoritative for authorization, scoring, approvals, brackets, official standings, and ledger totals. Browser storage and realtime transports are delivery mechanisms, not alternate sources of truth.
 
-## Run With Docker
+## Run With Laravel Herd
 
-Host PHP is not required. The Compose file provides the app, Vite, and PostgreSQL services.
+Laravel Herd provides PHP and the local `syntix.test` web server. Docker Compose
+is used only for PostgreSQL; PHP and Node do not run in containers.
 
-```bash
-docker compose up -d
-docker compose exec app php artisan test
-docker compose exec app ./vendor/bin/pint --test
-docker compose exec vite npm run build
+After installing Herd and Docker Desktop, open PowerShell in the repository and
+run:
+
+```powershell
+.\scripts\setup-herd.ps1
 ```
 
-The app service installs Composer dependencies and runs migrations on startup. Stop the stack with:
+Link this repository as `syntix` in Herd, then open <http://syntix.test>. During
+frontend development, keep Vite running in another terminal:
 
-```bash
+```powershell
+npm run dev
+```
+
+PostgreSQL can be inspected at <http://localhost:5050> through pgAdmin. Sign in
+with `admin@example.com` / `password`, open **Syntix PostgreSQL**, and enter the
+database password `password` when prompted. Change these local credentials in
+`.env` if the services will be exposed beyond your machine.
+
+Common project commands use Herd's selected PHP version:
+
+```powershell
+herd php artisan test
+herd php vendor/bin/pint --test
+herd php artisan migrate
+```
+
+Start or stop the PostgreSQL service independently with:
+
+```powershell
+docker compose up -d postgres pgadmin
 docker compose down
 ```
 
