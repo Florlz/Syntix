@@ -8,10 +8,29 @@ export default defineConfig({
         host: '0.0.0.0',
         port: 5173,
         strictPort: true,
+        warmup: {
+            clientFiles: [
+                'resources/js/Pages/**/*.jsx',
+                'resources/js/Layouts/**/*.jsx',
+                'resources/js/Components/**/*.jsx',
+            ],
+        },
+        watch: {
+            usePolling: true,
+            interval: 500,
+            ignored: [
+                '**/.git/**',
+                '**/.superpowers/**',
+                '**/bootstrap/cache/**',
+                '**/node_modules/**',
+                '**/public/build/**',
+                '**/storage/framework/**',
+                '**/vendor/**',
+            ],
+        },
         cors: {
             origin: [
                 'http://localhost:8000',
-                'http://syntix.test',
             ],
         },
         hmr: {
@@ -65,6 +84,7 @@ export default defineConfig({
             },
             workbox: {
                 cleanupOutdatedCaches: true,
+                navigateFallback: null,
                 runtimeCaching: [
                     {
                         urlPattern: ({ url, request }) =>

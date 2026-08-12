@@ -1,6 +1,64 @@
-# Herd runs PHP, the web server, and Vite on the host. Compose only provides
-# PostgreSQL so application code never depends on a PHP or Node container.
 services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    command: php artisan serve --host=0.0.0.0 --port=8000 --no-reload
+    ports:
+      - '${APP_PORT:-8000}:8000'
+    environment:
+      PHP_CLI_SERVER_WORKERS: '${PHP_CLI_SERVER_WORKERS:-4}'
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - syntix-vendor:/var/www/html/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      vite:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'php', '-r', "exit(@fsockopen('127.0.0.1', 8000) === false ? 1 : 0);"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  vite:
+    image: node:22-alpine
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - '${VITE_PORT:-5173}:5173'
+    environment:
+      CHOKIDAR_USEPOLLING: 'true'
+      CHOKIDAR_INTERVAL: '500'
+    volumes:
+      - ./:/var/www/html
+      - syntix-node-modules:/var/www/html/node_modules
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:5173/@vite/client').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  queue:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    working_dir: /var/www/html
+    command: php artisan queue:listen --tries=1 --timeout=0
+    volumes:
+      - ./:/var/www/html
+      - syntix-vendor:/var/www/html/vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
@@ -37,6 +95,10 @@ services:
         condition: service_healthy
 
 volumes:
+  syntix-vendor:
+    driver: local
+  syntix-node-modules:
+    driver: local
   syntix-postgres:
     driver: local
   syntix-pgadmin:

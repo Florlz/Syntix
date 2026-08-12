@@ -1,6 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import AppIcon from '@/Components/AppIcon';
-import { Head, Link, usePage } from '@inertiajs/react';
+import Link from '@/Components/PrefetchLink';
+import { Head, usePage } from '@inertiajs/react';
 
 const panel = 'rounded-xl border border-[#DDE2E0] bg-white';
 

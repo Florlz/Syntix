@@ -1,6 +1,7 @@
 import AppIcon from '@/Components/AppIcon';
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import { Link, usePage } from '@inertiajs/react';
+import Link from '@/Components/PrefetchLink';
+import { usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 function NavItem({ href, icon, label, active, badge, external = false, onNavigate }) {

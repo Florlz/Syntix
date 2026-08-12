@@ -1,5 +1,5 @@
 import { Transition } from '@headlessui/react';
-import { Link } from '@inertiajs/react';
+import Link from '@/Components/PrefetchLink';
 import { createContext, useContext, useState } from 'react';
 
 const DropDownContext = createContext();

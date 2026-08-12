@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import Link from '@/Components/PrefetchLink';
 
 export default function ResponsiveNavLink({
     active = false,

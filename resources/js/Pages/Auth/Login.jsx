@@ -1,5 +1,6 @@
 import InputError from '@/Components/InputError';
-import { Head, Link, useForm } from '@inertiajs/react';
+import Link from '@/Components/PrefetchLink';
+import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
 function BrandMark() {

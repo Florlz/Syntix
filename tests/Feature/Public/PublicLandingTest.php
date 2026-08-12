@@ -57,6 +57,7 @@ class PublicLandingTest extends TestCase
             ->where('featured_event.name', 'Current SIKLAB')
             ->where('featured_event.slug', 'current-siklab')
             ->where('featured_contest.id', (string) $second->getKey())
+            ->where('featured_contest.competition_id', fn ($value) => is_string($value))
             ->where('featured_contest.sides.0.label', 'HOME-'.$second->getKey())
             ->where('featured_contest.live.set', 3)
             ->missing('featured_contest.sides.0.entry')
@@ -101,7 +102,7 @@ class PublicLandingTest extends TestCase
             'draw_locked_at' => now(),
             'published_at' => now(),
         ]);
-        $tournament->bracketVersions()->create([
+        $bracket = $tournament->bracketVersions()->create([
             'version' => 1,
             'state' => BracketVersionState::Published,
             'generation_algorithm_version' => 'test-v1',
@@ -111,20 +112,43 @@ class PublicLandingTest extends TestCase
             'published_at' => now(),
         ]);
         $delegation = EventDelegation::factory()->create(['event_id' => $event->getKey()]);
-        Entry::create([
+        $entry = Entry::create([
             'competition_division_id' => $division->getKey(),
             'event_delegation_id' => $delegation->getKey(),
             'name' => 'Private Entry Name',
             'entry_mode' => ParticipantMode::Team,
             'status' => 'active',
         ]);
+        $contest = Contest::factory()->create([
+            'competition_division_id' => $division->getKey(),
+            'competition_rule_version_id' => $version->getKey(),
+            'name' => 'Quarterfinal',
+            'state' => 'scheduled',
+        ]);
+        $node = $bracket->nodes()->create([
+            'node_key' => 'R1-N1',
+            'node_type' => 'contest',
+            'round_number' => 1,
+            'sequence' => 1,
+            'state' => 'pending',
+            'contest_id' => $contest->getKey(),
+        ]);
+        $node->slots()->create([
+            'slot_number' => 1,
+            'entry_id' => $entry->getKey(),
+            'label' => 'Private slot label',
+        ]);
 
         $response = $this->get('/');
 
         $response->assertInertia(fn ($page) => $page
             ->where('competitions.0.divisions.0.has_published_bracket', true)
+            ->where('competitions.0.divisions.0.bracket_preview.format', 'single_elimination')
+            ->where('competitions.0.divisions.0.bracket_preview.round_label', 'Round 1')
+            ->where('competitions.0.divisions.0.bracket_preview.matchups.0.slots.0.label', $delegation->abbreviation)
             ->missing('competitions.0.divisions.0.entries'));
         $this->assertStringNotContainsString('Private Entry Name', json_encode($response->viewData('page')));
+        $this->assertStringNotContainsString('Private slot label', json_encode($response->viewData('page')));
     }
 
     public function test_landing_has_a_truthful_no_live_event_state(): void
@@ -170,10 +194,10 @@ class PublicLandingTest extends TestCase
         ]);
 
         $totals = [
-            ['name' => 'Alpha Delegation', 'abbreviation' => 'ALP', 'amount' => '35.0000'],
-            ['name' => 'Bravo Delegation', 'abbreviation' => 'BRV', 'amount' => '20.0000'],
-            ['name' => 'Charlie Delegation', 'abbreviation' => 'CHR', 'amount' => '20.0000'],
-            ['name' => 'Delta Delegation', 'abbreviation' => 'DLT', 'amount' => '10.0000'],
+            ['name' => 'Alpha Delegation', 'abbreviation' => 'ALP', 'color' => 'Red', 'amount' => '35.0000'],
+            ['name' => 'Bravo Delegation', 'abbreviation' => 'BRV', 'color' => 'Yellow', 'amount' => '20.0000'],
+            ['name' => 'Charlie Delegation', 'abbreviation' => 'CHR', 'color' => 'Purple', 'amount' => '20.0000'],
+            ['name' => 'Delta Delegation', 'abbreviation' => 'DLT', 'color' => 'Gray', 'amount' => '10.0000'],
         ];
 
         foreach ($totals as $index => $total) {
@@ -181,6 +205,7 @@ class PublicLandingTest extends TestCase
                 'event_id' => $event->getKey(),
                 'name' => $total['name'],
                 'abbreviation' => $total['abbreviation'],
+                'color' => $total['color'],
             ]);
             $entry = Entry::create([
                 'competition_division_id' => $division->getKey(),
@@ -234,6 +259,7 @@ class PublicLandingTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->has('leaderboard', 4)
             ->where('leaderboard.0.name', 'Alpha Delegation')
+            ->where('leaderboard.0.color', 'Red')
             ->where('leaderboard.0.total', fn ($value) => is_string($value) && (float) $value === 30.0)
             ->where('leaderboard.1.name', 'Bravo Delegation')
             ->where('leaderboard.1.total', fn ($value) => is_string($value) && (float) $value === 20.0)

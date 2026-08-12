@@ -1,6 +1,7 @@
 import InputError from '@/Components/InputError';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import Link from '@/Components/PrefetchLink';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 const fieldClass = 'mt-1 block min-h-11 w-full rounded-lg border-slate-300 bg-white text-sm text-slate-900 shadow-sm focus:border-sky-700 focus:ring-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700';

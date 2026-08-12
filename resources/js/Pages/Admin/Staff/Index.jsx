@@ -1,6 +1,7 @@
 import AppIcon from '@/Components/AppIcon';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import Link from '@/Components/PrefetchLink';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
 const control = 'mt-1 w-full rounded-lg border-slate-300 text-sm focus:border-[#0B536D] focus:ring-[#0B536D]';

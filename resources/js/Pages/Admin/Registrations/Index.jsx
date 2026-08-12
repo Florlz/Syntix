@@ -1,5 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import Link from '@/Components/PrefetchLink';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { cloneElement, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 const inputClass = 'mt-1 block w-full rounded-xl border-slate-300 bg-white text-sm text-slate-900 shadow-sm focus:border-[#d5a21f] focus:ring-[#d5a21f] disabled:cursor-not-allowed disabled:bg-slate-100';

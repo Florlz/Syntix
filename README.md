@@ -17,7 +17,7 @@ See the [product requirements](docs/prd/2026-08-09-syntix-product-prd.md) and [s
 
 ## Stack
 
-- Laravel 13 and PHP 8.3+
+- Laravel 13 and PHP 8.4+
 - PostgreSQL as the application authority
 - React 18 with Inertia 2
 - Tailwind CSS 3 and Vite 8
@@ -27,42 +27,49 @@ See the [product requirements](docs/prd/2026-08-09-syntix-product-prd.md) and [s
 
 Laravel and PostgreSQL remain authoritative for authorization, scoring, approvals, brackets, official standings, and ledger totals. Browser storage and realtime transports are delivery mechanisms, not alternate sources of truth.
 
-## Run With Laravel Herd
+## Run With Docker
 
-Laravel Herd provides PHP and the local `syntix.test` web server. Docker Compose
-is used only for PostgreSQL; PHP and Node do not run in containers.
+Docker Compose runs Laravel's PHP server, Vite, PostgreSQL, pgAdmin, and the
+queue worker. Laravel Sail and Laravel Herd are not required.
 
-After installing Herd and Docker Desktop, open PowerShell in the repository and
-run:
-
-```powershell
-.\scripts\setup-herd.ps1
-```
-
-Link this repository as `syntix` in Herd, then open <http://syntix.test>. During
-frontend development, keep Vite running in another terminal:
+After installing and starting Docker Desktop, open PowerShell in the repository
+and run:
 
 ```powershell
-npm run dev
+.\scripts\setup-docker.ps1
 ```
+
+Open <http://localhost:8000>. Vite runs in its own container and automatically
+hot-reloads frontend changes. Start the stack later with:
+
+```powershell
+docker compose up -d --wait
+```
+
+The command returns only after PostgreSQL, Vite, and Laravel are ready. If you
+change `.env`, restart the Laravel workers with `docker compose restart app`.
+Frontend pages, layouts, and components are warmed automatically by Vite. Use
+`PrefetchLink` for new internal GET navigation so it inherits the shared
+hover-prefetch cache; mutation links remain opt-out automatically.
 
 PostgreSQL can be inspected at <http://localhost:5050> through pgAdmin. Sign in
 with `admin@example.com` / `password`, open **Syntix PostgreSQL**, and enter the
 database password `password` when prompted. Change these local credentials in
 `.env` if the services will be exposed beyond your machine.
 
-Common project commands use Herd's selected PHP version:
+Common project commands run inside the PHP container:
 
 ```powershell
-herd php artisan test
-herd php vendor/bin/pint --test
-herd php artisan migrate
+docker compose exec app php artisan test
+docker compose exec app php vendor/bin/pint --test
+docker compose exec app php artisan migrate
 ```
 
-Start or stop the PostgreSQL service independently with:
+View application, Vite, or queue-worker logs with `docker compose logs -f app`,
+`docker compose logs -f vite`, or `docker compose logs -f queue`. Stop the full
+development stack with:
 
 ```powershell
-docker compose up -d postgres pgadmin
 docker compose down
 ```
 

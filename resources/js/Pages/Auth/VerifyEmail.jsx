@@ -1,6 +1,7 @@
 import PrimaryButton from '@/Components/PrimaryButton';
+import Link from '@/Components/PrefetchLink';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 
 export default function VerifyEmail({ status }) {
     const { post, processing } = useForm({});

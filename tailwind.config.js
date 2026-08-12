@@ -14,6 +14,7 @@ export default {
         extend: {
             fontFamily: {
                 sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                condensed: ['"Barlow Condensed"', ...defaultTheme.fontFamily.sans],
             },
         },
     },

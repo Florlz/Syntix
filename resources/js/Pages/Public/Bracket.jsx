@@ -1,4 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
+import Link from '@/Components/PrefetchLink';
+import { Head } from '@inertiajs/react';
 
 function Node({ node }) {
     const official = node.official?.state === 'approved';
