@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Enums\BracketNodeType;
 use App\Enums\BracketVersionState;
 use App\Enums\CompetitionFormat;
+use App\Enums\TournamentFormat;
 use App\Enums\EntryStatus;
 use App\Enums\RuleVersionState;
 use App\Enums\TournamentState;
@@ -13,16 +14,21 @@ use App\Models\BracketNode;
 use App\Models\BracketVersion;
 use App\Models\CompetitionRuleVersion;
 use App\Models\Contest;
+use App\Models\Discipline;
 use App\Models\Division;
 use App\Models\Tournament;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\BracketAutoResolver;
+use App\Services\TournamentScope;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 final class GenerateDoubleEliminationBracket
 {
+    private ?Discipline $discipline = null;
+
     public function __construct(
         private readonly ?AuditLogger $audit = null,
         private readonly ?BracketAutoResolver $autoResolver = null,
@@ -39,16 +45,23 @@ final class GenerateDoubleEliminationBracket
         Division $division,
         array $drawOrder,
         string $source = 'manual_draw',
+        ?Discipline $discipline = null,
     ): Tournament {
         $division->loadMissing('competition.event');
         $event = $division->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can generate a double-elimination bracket.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can generate a double-elimination bracket.');
 
-        return DB::transaction(function () use ($actor, $division, $drawOrder, $source, $event): Tournament {
+        return DB::transaction(function () use ($actor, $division, $drawOrder, $source, $event, $discipline): Tournament {
             $division = Division::query()->whereKey($division->getKey())->lockForUpdate()->firstOrFail();
+            if ($discipline !== null) {
+                $discipline = Discipline::query()
+                    ->whereKey($discipline->getKey())
+                    ->where('competition_division_id', $division->getKey())
+                    ->firstOrFail();
+            }
+            $this->discipline = $discipline;
+            $scope = new TournamentScope($division, $discipline);
             $version = $division->ruleVersions()->where('is_governing', true)->lockForUpdate()->first();
 
             if ($version === null
@@ -57,14 +70,19 @@ final class GenerateDoubleEliminationBracket
                 throw new \DomainException('Only a governing double-elimination rule version can generate this bracket.');
             }
 
-            if ($division->tournaments()->whereIn('state', [TournamentState::Preview->value, TournamentState::Published->value])->exists()) {
+            if ($scope->tournamentQuery()->whereIn('state', [TournamentState::Preview->value, TournamentState::Published->value])->exists()) {
                 throw new \DomainException('A preview or published tournament already exists for this Division.');
             }
 
             $drawOrder = array_map('intval', array_values($drawOrder));
             $entries = $division->entries()
                 ->whereIn('id', $drawOrder)
-                ->whereIn('status', [EntryStatus::Active->value, EntryStatus::Locked->value])
+                ->when($discipline === null,
+                    fn ($query) => $query->whereIn('status', [EntryStatus::Active->value, EntryStatus::Locked->value]),
+                    fn ($query) => $query->where('status', EntryStatus::Locked->value))
+                ->when($discipline !== null, fn ($query) => $query->whereHas('disciplineEntries', fn ($query) => $query
+                    ->where('discipline_id', $discipline->getKey())
+                    ->where('state', 'locked')))
                 ->count();
 
             if ($drawOrder === [] || count($drawOrder) !== count(array_unique($drawOrder)) || $entries !== count($drawOrder)) {
@@ -77,8 +95,9 @@ final class GenerateDoubleEliminationBracket
 
             $tournament = Tournament::create([
                 'competition_division_id' => $division->getKey(),
+                'discipline_id' => $discipline?->getKey(),
                 'competition_rule_version_id' => $version->getKey(),
-                'format' => CompetitionFormat::DoubleElimination,
+                'format' => TournamentFormat::DoubleElimination,
                 'state' => count($drawOrder) === 1 ? TournamentState::Uncontested : TournamentState::Preview,
                 'eligible_entry_count' => count($drawOrder),
                 'created_by' => $actor->getKey(),
@@ -211,7 +230,7 @@ final class GenerateDoubleEliminationBracket
                 'Grand final reset (if required)',
                 ($grandFinal->round_number ?? 0) + 1,
                 BracketNodeType::ResetFinal,
-                'conditional',
+                'pending',
                 'reset_final',
             );
             $reset->slots()->createMany([
@@ -227,7 +246,7 @@ final class GenerateDoubleEliminationBracket
                 $bracket,
                 event: $event,
                 after: [
-                    'format' => CompetitionFormat::DoubleElimination->value,
+                    'format' => TournamentFormat::DoubleElimination->value,
                     'bracket_size' => $size,
                     'bye_count' => $size - count($drawOrder),
                     'reset_final' => true,
@@ -318,17 +337,21 @@ final class GenerateDoubleEliminationBracket
     ): BracketNode {
         $contest = $type === BracketNodeType::Bye ? null : Contest::create([
             'competition_division_id' => $division->getKey(),
+            'discipline_id' => $this->discipline?->getKey(),
             'competition_rule_version_id' => $version->getKey(),
             'name' => $name,
             'state' => 'scheduled',
             'revision' => 0,
         ]);
 
+        preg_match('/N(\d+)$/', $key, $matches);
+        $sequence = isset($matches[1]) ? (int) $matches[1] : 1;
+
         return $bracket->nodes()->create([
             'node_key' => $key,
             'node_type' => $type,
             'round_number' => $round,
-            'sequence' => 1,
+            'sequence' => $sequence,
             'state' => $state,
             'contest_id' => $contest?->getKey(),
             'metadata' => ['bracket_side' => $side],

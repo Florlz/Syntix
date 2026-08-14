@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\BracketVersionState;
+use App\Enums\BracketNodeState;
 use App\Enums\ContestState;
 use App\Enums\OfficialOutcomeState;
 use App\Models\BracketNode;
@@ -29,7 +30,7 @@ final class BracketAdvancer
         $loserId = $outcome->payload['loser_entry_id'] ?? $entryIds->first(fn (int $id): bool => $id !== (int) $winnerId);
 
         foreach ($node->advancementRules as $rule) {
-            $entryId = match ($rule->outcome) {
+            $entryId = match ($rule->outcomeType()->value) {
                 'winner' => $winnerId,
                 'loser' => $loserId,
                 default => null,
@@ -44,7 +45,7 @@ final class BracketAdvancer
             ]);
         }
 
-        $node->update(['state' => 'resolved']);
+        $node->update(['state' => BracketNodeState::Resolved]);
         $this->resolveConditionalReset($node, (int) $winnerId);
         (new BracketAutoResolver)->resolve($node->bracketVersion);
     }
@@ -70,12 +71,12 @@ final class BracketAdvancer
             foreach ($node->slots->whereNotNull('entry_id') as $slot) {
                 $reset->slots()->where('slot_number', $slot->slot_number)->update(['entry_id' => $slot->entry_id]);
             }
-            $reset->update(['state' => 'pending']);
+            $reset->update(['state' => BracketNodeState::Pending]);
 
             return;
         }
 
-        $reset->update(['state' => 'skipped']);
+        $reset->update(['state' => BracketNodeState::Skipped]);
         $reset->contest?->update([
             'state' => ContestState::Cancelled,
             'cancelled_at' => now(),

@@ -10,6 +10,7 @@ use App\Models\DivisionPlacement;
 use App\Models\ScoreLedgerEntry;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -22,9 +23,7 @@ final class ApproveDivisionPlacement
         $placement->loadMissing('division.competition.event');
         $event = $placement->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can approve a Division Placement.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can approve a Division Placement.');
 
         return DB::transaction(function () use ($actor, $placement, $reason, $event): DivisionPlacement {
             $placement = DivisionPlacement::query()

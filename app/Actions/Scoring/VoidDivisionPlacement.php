@@ -9,6 +9,7 @@ use App\Models\DivisionPlacement;
 use App\Models\ScoreLedgerEntry;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -21,9 +22,7 @@ final class VoidDivisionPlacement
         $placement->loadMissing('division.competition.event', 'items');
         $event = $placement->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can void a Division Placement.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can void a Division Placement.');
 
         if (trim($reason) === '') {
             throw new \InvalidArgumentException('A void reason is required.');

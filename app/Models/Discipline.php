@@ -38,14 +38,14 @@ class Discipline extends Model
         return $this->belongsTo(Division::class, 'competition_division_id');
     }
 
-    public function competitionDivision(): BelongsTo
-    {
-        return $this->division();
-    }
-
     public function schedules(): HasMany
     {
         return $this->hasMany(Schedule::class);
+    }
+
+    public function disciplineEntries(): HasMany
+    {
+        return $this->hasMany(DisciplineEntry::class);
     }
 
     public function results(): HasMany

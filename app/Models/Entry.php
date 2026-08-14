@@ -32,11 +32,6 @@ class Entry extends Model
         return $this->belongsTo(Division::class, 'competition_division_id');
     }
 
-    public function competitionDivision(): BelongsTo
-    {
-        return $this->division();
-    }
-
     public function delegation(): BelongsTo
     {
         return $this->belongsTo(EventDelegation::class, 'event_delegation_id');
@@ -47,14 +42,17 @@ class Entry extends Model
         return $this->hasMany(RosterMember::class);
     }
 
-    public function members(): HasMany
-    {
-        return $this->rosterMembers();
-    }
-
     public function eligibilityRecords(): HasMany
     {
         return $this->hasMany(EligibilityRecord::class);
+    }
+
+    public function rosterApprovals(): HasMany { return $this->hasMany(RosterApproval::class); }
+    public function participationExceptions(): HasMany { return $this->hasMany(ParticipationException::class); }
+
+    public function disciplineEntries(): HasMany
+    {
+        return $this->hasMany(DisciplineEntry::class);
     }
 
     public function eventId(): ?int

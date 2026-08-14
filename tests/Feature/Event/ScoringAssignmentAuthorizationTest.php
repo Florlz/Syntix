@@ -82,6 +82,47 @@ class ScoringAssignmentAuthorizationTest extends TestCase
         $this->assertFalse((new DivisionPolicy)->view($tabulator, $division));
     }
 
+    public function test_assignment_matches_each_canonical_target_type(): void
+    {
+        [$creator, $event, $tabulator] = $this->eventWithTabulator();
+        $judge = User::factory()->create(['email' => 'matching-judge@example.com']);
+        (new GrantEventRole)->handle($creator, $event, $judge, EventRole::Judge);
+        [$division, $siblingDivision] = $this->divisionsFor($event);
+        $contest = Contest::factory()->create(['competition_division_id' => $division->getKey()]);
+        $siblingContest = Contest::factory()->create(['competition_division_id' => $siblingDivision->getKey()]);
+        $scorecard = EntryScorecard::factory()->create(['contest_id' => $contest->getKey()]);
+
+        $divisionAssignment = (new GrantScoringAssignment)->handle(
+            $creator,
+            $event,
+            $tabulator,
+            ScoringAssignmentScope::CompetitionDivision,
+            $division,
+        );
+        $contestAssignment = (new GrantScoringAssignment)->handle(
+            $creator,
+            $event,
+            $tabulator,
+            ScoringAssignmentScope::Contest,
+            $contest,
+        );
+        $scorecardAssignment = (new GrantScoringAssignment)->handle(
+            $creator,
+            $event,
+            $judge,
+            ScoringAssignmentScope::EntryScorecard,
+            $scorecard,
+        );
+
+        $this->assertTrue($divisionAssignment->matches($division));
+        $this->assertTrue($divisionAssignment->matches($contest));
+        $this->assertFalse($divisionAssignment->matches($siblingContest));
+        $this->assertTrue($contestAssignment->matches($contest));
+        $this->assertFalse($contestAssignment->matches($division));
+        $this->assertTrue($scorecardAssignment->matches($scorecard));
+        $this->assertFalse($scorecardAssignment->matches($contest));
+    }
+
     public function test_overlapping_assignments_preserve_access_until_both_are_revoked(): void
     {
         [$creator, $event, $tabulator] = $this->eventWithTabulator();

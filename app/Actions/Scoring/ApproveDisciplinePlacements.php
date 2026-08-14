@@ -3,12 +3,14 @@
 namespace App\Actions\Scoring;
 
 use App\Enums\AuditAction;
+use App\Enums\DisciplinePlacementState;
 use App\Enums\DisciplineResultState;
 use App\Models\Discipline;
 use App\Models\DisciplinePlacement;
 use App\Models\DivisionSubPoint;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -24,9 +26,7 @@ final class ApproveDisciplinePlacements
         $discipline->loadMissing('division.competition.event');
         $event = $discipline->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can approve discipline placements.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can approve discipline placements.');
 
         return DB::transaction(function () use ($actor, $discipline, $items, $event): array {
             $discipline = Discipline::query()
@@ -44,7 +44,7 @@ final class ApproveDisciplinePlacements
                 throw new \InvalidArgumentException('At least one discipline placement is required.');
             }
 
-            if ($discipline->placements()->where('state', DisciplineResultState::Approved->value)->exists()) {
+            if ($discipline->placements()->where('state', DisciplinePlacementState::Approved->value)->exists()) {
                 throw new \DomainException('The discipline already has approved placements.');
             }
 
@@ -83,7 +83,7 @@ final class ApproveDisciplinePlacements
                     'event_delegation_id' => $entry->event_delegation_id,
                     'rank' => $rank,
                     'sub_points' => $points,
-                    'state' => DisciplineResultState::Approved,
+                    'state' => DisciplinePlacementState::Approved,
                     'approved_by' => $actor->getKey(),
                     'approved_at' => now(),
                 ]);

@@ -11,6 +11,7 @@ use App\Actions\Scoring\ApproveContestOutcome;
 use App\Actions\Scoring\ApproveDivisionPlacement;
 use App\Actions\Scoring\CompleteContest;
 use App\Actions\Scoring\RecordLiveScore;
+use App\Actions\Scoring\RejectContestResult;
 use App\Actions\Scoring\StartContest;
 use App\Actions\Scoring\SubmitContestResult;
 use App\Actions\Scoring\SubmitDivisionPlacement;
@@ -77,6 +78,41 @@ class ResultApprovalTest extends TestCase
             'amount' => '25.0000',
         ]);
         $this->assertSame('25', (string) $context['delegation']->fresh()->ledgerEntries()->sum('amount'));
+    }
+
+    public function test_returning_a_result_for_correction_reopens_the_contest_for_resubmission(): void
+    {
+        $context = $this->context();
+        $started = (new StartContest)->handle($context['tabulator'], $context['contest']);
+        $scored = (new RecordLiveScore)->handle($context['tabulator'], $started, [
+            'home' => 10,
+            'away' => 8,
+        ], 1);
+        $completed = (new CompleteContest)->handle($context['tabulator'], $scored, [
+            'outcome_type' => OutcomeType::Played->value,
+            'winner_entry_id' => $context['entry']->getKey(),
+            'home' => 10,
+            'away' => 8,
+        ], 2);
+        $submission = (new SubmitContestResult)->handle($context['tabulator'], $completed);
+
+        (new RejectContestResult)->handle($context['admin'], $submission, 'The final score needs correction.');
+
+        $reopened = $context['contest']->fresh();
+        $this->assertSame('live', $reopened->state->value);
+        $this->assertNull($reopened->completed_at);
+
+        $recompleted = (new CompleteContest)->handle($context['tabulator'], $reopened, [
+            'outcome_type' => OutcomeType::Played->value,
+            'winner_entry_id' => $context['entry']->getKey(),
+            'home' => 11,
+            'away' => 9,
+        ], $reopened->revision);
+        $replacement = (new SubmitContestResult)->handle($context['tabulator'], $recompleted);
+
+        $this->assertNotSame($submission->getKey(), $replacement->getKey());
+        $this->assertSame('submitted', $replacement->state->value);
+        $this->assertSame(11, $replacement->payload['home']);
     }
 
     public function test_activation_blocks_criteria_weights_that_do_not_total_one_hundred_percent(): void

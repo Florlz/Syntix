@@ -7,6 +7,7 @@ use App\Enums\ResultSubmissionState;
 use App\Models\ResultSubmission;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -19,9 +20,7 @@ final class RejectContestResult
         $submission->loadMissing('contest.division.competition.event');
         $event = $submission->contest?->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can reject a result.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can reject a result.');
 
         if (trim($reason) === '') {
             throw new \InvalidArgumentException('A rejection reason is required.');
@@ -38,6 +37,8 @@ final class RejectContestResult
                 'state' => ResultSubmissionState::Rejected,
                 'rejection_reason' => trim($reason),
             ]);
+
+            (new ReopenContestForCorrection($this->audit))->handle($actor, $submission, $reason);
 
             ($this->audit ?? new AuditLogger)->record(
                 $actor,

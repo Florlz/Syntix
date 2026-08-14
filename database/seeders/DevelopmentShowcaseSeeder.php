@@ -16,8 +16,6 @@ use App\Models\OfficialContestOutcome;
 use App\Models\Participant;
 use App\Models\ResultSubmission;
 use App\Models\RosterMember;
-use App\Models\Schedule;
-use App\Models\SchedulePublication;
 use App\Models\ScoreLedgerEntry;
 use App\Models\ScoringAssignment;
 use App\Models\User;
@@ -62,11 +60,6 @@ class DevelopmentShowcaseSeeder extends Seeder
                 }
             }
 
-            $venue = Venue::query()->firstOrCreate(
-                ['event_id' => $event->getKey(), 'name' => 'CSPC Activity Center'],
-                ['code' => 'CAC', 'location' => 'Main Campus', 'description' => 'Development showcase venue', 'is_active' => true],
-            );
-
             $showcase = [
                 ['Basketball', 'Men', 'CAS', 'CCS', 'Basketball Men — CAS vs CCS', 'live', ['home' => 68, 'away' => 64, 'period' => 'Q4', 'status' => 'Live']],
                 ['Volleyball', 'Women', 'CHS', 'CEA', 'Volleyball Women — CHS vs CEA', 'live', ['home' => 2, 'away' => 1, 'set' => 4, 'status' => 'Live']],
@@ -75,7 +68,7 @@ class DevelopmentShowcaseSeeder extends Seeder
                 ['Chess', 'Women', 'CAS', 'CCS', 'Chess Women — CAS vs CCS', 'official', ['home' => 1, 'away' => 0, 'status' => 'Official']],
             ];
 
-            foreach ($showcase as $offset => [$sportName, $divisionName, $homeCode, $awayCode, $contestName, $mode, $score]) {
+            foreach ($showcase as [$sportName, $divisionName, $homeCode, $awayCode, $contestName, $mode, $score]) {
                 $division = $event->competitions()->where('name', $sportName)->firstOrFail()->divisions()->where('name', $divisionName)->firstOrFail();
                 $rule = $division->governingRuleVersion()->first() ?? $division->ruleVersions()->latest('version')->firstOrFail();
                 $home = $delegations->first(fn ($d) => strcasecmp((string) $d->abbreviation, $homeCode) === 0 || strcasecmp((string) $d->name, $homeCode) === 0);
@@ -92,14 +85,6 @@ class DevelopmentShowcaseSeeder extends Seeder
                 ScoringAssignment::query()->firstOrCreate(
                     ['event_id' => $event->getKey(), 'user_id' => $tabulator->getKey(), 'scope_type' => 'contest', 'contest_id' => $contest->getKey(), 'revoked_at' => null],
                     ['granted_by' => $admin->getKey(), 'granted_at' => now(), 'reason' => 'Development sports showcase'],
-                );
-                $schedule = Schedule::query()->firstOrCreate(
-                    ['event_id' => $event->getKey(), 'contest_id' => $contest->getKey()],
-                    ['competition_division_id' => $division->getKey(), 'venue_id' => $venue->getKey(), 'title' => $contestName, 'starts_at' => now()->startOfDay()->addHours(8 + $offset), 'ends_at' => now()->startOfDay()->addHours(9 + $offset), 'status' => $mode === 'live' ? 'scheduled' : 'completed'],
-                );
-                SchedulePublication::query()->firstOrCreate(
-                    ['schedule_id' => $schedule->getKey(), 'revision' => 1],
-                    ['competition_name' => $sportName, 'division_name' => $divisionName, 'title' => $contestName, 'starts_at' => $schedule->starts_at, 'ends_at' => $schedule->ends_at, 'status' => $schedule->status, 'venue_name' => $venue->name, 'venue_location' => $venue->location, 'state' => 'published', 'published_by' => $admin->getKey(), 'published_at' => now()],
                 );
                 if ($mode !== 'live') $this->seedOutcome($contest, $tabulator, $admin, $homeEntry, $score, $mode === 'official');
             }

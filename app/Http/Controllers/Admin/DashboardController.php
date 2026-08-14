@@ -8,6 +8,7 @@ use App\Enums\RuleVersionState;
 use App\Http\Controllers\Controller;
 use App\Models\Division;
 use App\Models\Event;
+use App\Models\EligibilityRecord;
 use App\Models\ScoringAssignment;
 use App\Models\User;
 use App\Services\TournamentStandingCalculator;
@@ -22,15 +23,12 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $globalAdmin = $user->isGlobalAdmin();
-        $activeTab = in_array($request->string('tab')->toString(), ['tournaments'], true)
-            ? $request->string('tab')->toString()
-            : 'overview';
         $events = $this->availableEvents($user, $globalAdmin);
         $requestedEventId = $request->integer('event');
         $event = $events->firstWhere('id', $requestedEventId) ?? $events->first();
 
         if ($event === null) {
-            return Inertia::render('Dashboard', [...$this->emptyPayload($globalAdmin), 'active_tab' => $activeTab]);
+            return Inertia::render('Dashboard', $this->emptyPayload($globalAdmin));
         }
 
         $roles = $globalAdmin
@@ -45,7 +43,6 @@ class DashboardController extends Controller
                 'events' => $events->map($this->eventOption(...))->values(),
                 'event' => $this->eventPayload($event, $roles),
                 'work_queue' => $this->workQueue($user, $event, $roles),
-                'active_tab' => $activeTab,
             ]);
         }
 
@@ -59,6 +56,9 @@ class DashboardController extends Controller
             'competitions.divisions.tournaments.bracketVersions',
             'competitions.divisions.contests.resultSubmissions',
             'competitions.divisions.placements',
+            'schedules.currentPublication',
+            'schedules.division.competition',
+            'schedules.venue',
             'userRoles' => fn ($query) => $query->active()->whereIn('role', [EventRole::Judge->value, EventRole::Tabulator->value])->with('user'),
             'assignments' => fn ($query) => $query->active()->with([
                 'user',
@@ -182,12 +182,30 @@ class DashboardController extends Controller
         $approvedPlacements = $event->competitions->flatMap->divisions->flatMap->placements->where('state', 'approved')->count();
         $activeParticipants = $event->participants->where('is_active', true);
         $eligibleRegistrations = $event->participants->flatMap->eligibilityRecords->where('status', 'eligible')->count();
+        $pendingEligibilityRecords = $event->participants->flatMap->eligibilityRecords->where('status', 'pending')->count();
+        $pendingRosterRecord = EligibilityRecord::query()
+            ->with('entry.division.competition')
+            ->where('event_id', $event->getKey())
+            ->where('status', 'pending')
+            ->first();
+        $sportsAttentionUrl = $pendingRosterRecord?->entry?->division?->competition === null
+            ? route('admin.sports.index', $event->getKey())
+            : route('admin.sports.show', [
+                'event' => $event,
+                'sport' => $pendingRosterRecord->entry->division->competition,
+                'tab' => 'rosters',
+                'division' => $pendingRosterRecord->entry->competition_division_id,
+                'department' => $pendingRosterRecord->entry->event_delegation_id,
+            ]);
+        $schedules = $event->schedules;
+        $publishedSchedules = $schedules->filter(fn ($schedule): bool => $schedule->currentPublication !== null)->count();
+        $scheduleDraftChanges = $schedules->filter(fn ($schedule): bool => $schedule->hasUnpublishedChanges())->count();
+        $blockedDivisions = $programme->filter(fn (array $division): bool => $division['blockers'] !== [])->count();
 
         return Inertia::render('Dashboard', [
             ...$this->emptyPayload(true),
             'events' => $events->map($this->eventOption(...))->values(),
             'event' => $this->eventPayload($event, ['global_admin']),
-            'active_tab' => $activeTab,
             'programme' => $programme,
             'teams' => $event->delegations->map(fn ($delegation): array => [
                 'id' => (string) $delegation->getKey(),
@@ -201,14 +219,22 @@ class DashboardController extends Controller
             'pending_approvals' => $pendingApprovals,
             'live_contests' => $liveContests,
             'summary' => [
+                'competitions' => $event->competitions->count(),
+                'divisions' => $programme->count(),
+                'blocked_divisions' => $blockedDivisions,
                 'participants' => $activeParticipants->count(),
                 'eligible_participants' => $eligibleRegistrations,
+                'pending_eligibility_records' => $pendingEligibilityRecords,
                 'event_staff' => $people->pluck('id')->unique()->count(),
                 'unassigned_staff' => $people->filter(fn ($person) => $person['assignments']->isEmpty())->pluck('id')->unique()->count(),
                 'pending_results' => $pendingApprovals->where('kind', 'Contest outcome')->count(),
                 'pending_placements' => $pendingApprovals->where('kind', 'Final placement')->count(),
                 'live_contests' => $liveContests->count(),
                 'approved_placements' => $approvedPlacements,
+                'schedules' => $schedules->count(),
+                'published_schedules' => $publishedSchedules,
+                'schedule_draft_changes' => $scheduleDraftChanges,
+                'sports_attention_url' => $sportsAttentionUrl,
             ],
             'readiness' => [
                 ['key' => 'event', 'label' => 'Event', 'complete' => true, 'detail' => $event->eventState()->value],
@@ -282,8 +308,12 @@ class DashboardController extends Controller
             'events' => [],
             'event' => null,
             'summary' => [
+                'competitions' => 0, 'divisions' => 0, 'blocked_divisions' => 0,
                 'participants' => 0, 'eligible_participants' => 0, 'event_staff' => 0, 'unassigned_staff' => 0,
-                'pending_results' => 0, 'pending_placements' => 0, 'live_contests' => 0, 'approved_placements' => 0,
+                'pending_eligibility_records' => 0, 'pending_results' => 0, 'pending_placements' => 0,
+                'live_contests' => 0, 'approved_placements' => 0,
+                'schedules' => 0, 'published_schedules' => 0, 'schedule_draft_changes' => 0,
+                'sports_attention_url' => null,
             ],
             'readiness' => [],
             'programme' => [],

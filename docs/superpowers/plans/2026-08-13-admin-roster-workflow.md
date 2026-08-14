@@ -10,6 +10,8 @@
 
 **Design spec:** `docs/superpowers/specs/2026-08-13-admin-roster-workflow-design.md`
 
+**Implementation status (2026-08-13):** Complete. The backend roster read model, shared readiness service, quick roster creation, transactional membership/eligibility batches, private guided CSV profile import, inline department team sheets, shared profile panels, grouped participant directory, Sports & Events submenu, compact sport directory, and actionable dashboard links are implemented. The project app container (PHP 8.4.24) passes the full Laravel suite and the focused CSV/roster acceptance tests; the Vite production build, PHP syntax checks, diff check, and desktop browser walkthrough also pass. Participant documents and medical permits remain explicitly deferred as agreed.
+
 ## Global Constraints
 
 - Use the current codebase and `docs/superpowers/specs/2026-08-13-admin-roster-workflow-design.md` as the source of truth; do not consult the outdated product PRD.

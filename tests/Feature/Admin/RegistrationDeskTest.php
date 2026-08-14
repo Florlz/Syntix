@@ -60,10 +60,10 @@ class RegistrationDeskTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Registrations/Index')
                 ->where('event.id', (string) $event->getKey())
-                ->has('participants', 1)
-                ->where('participants.0.student_number', '2025-AbC')
-                ->where('participants.0.email', 'maria@example.test')
-                ->where('participants.0.private_notes', 'Registrar verified.'));
+                ->where('directory_summary.totals.players', 1)
+                ->where('participants', [])
+                ->where('sections', [])
+                ->where('coach_sections', []));
 
         $this->get('/')->assertInertia(fn (Assert $page) => $page->missing('participants'));
     }
@@ -196,7 +196,7 @@ class RegistrationDeskTest extends TestCase
             'reason' => null,
         ])->assertRedirect();
         $this->actingAs($admin)->patch(route('admin.entries.status', [$event, $entry]), [
-            'status' => 'locked',
+            'status' => 'locked', 'roster_review_confirmed' => true,
             'reason' => null,
         ])->assertRedirect();
         $this->assertSame('locked', $entry->fresh()->entryStatus()->value);
@@ -238,6 +238,26 @@ class RegistrationDeskTest extends TestCase
         $this->assertDatabaseHas('audit_logs', ['event_id' => $event->getKey(), 'action' => 'eligibility.set']);
     }
 
+    public function test_active_membership_can_be_approved_without_per_player_eligibility(): void
+    {
+        [$admin, $event] = $this->programme();
+        $entry = $this->division($event, 'basketball', 'women')->entries()->firstOrFail();
+        $participant = $this->participant($event, $entry->delegation, 'Pending Lock Player', 'LOCK-PENDING');
+        $this->saveMember($admin, $event, $entry, $participant, 'student_athlete')->assertRedirect();
+
+        $this->actingAs($admin)->patch(route('admin.entries.status', [$event, $entry]), [
+            'status' => 'locked', 'reason' => null, 'roster_review_confirmed' => true,
+        ])->assertRedirect(route('admin.sports.show', [
+            'event' => $event,
+            'sport' => $entry->division->competition,
+            'tab' => 'rosters',
+            'division' => $entry->competition_division_id,
+            'department' => $entry->event_delegation_id,
+        ]));
+        $this->assertSame('locked', $entry->fresh()->entryStatus()->value);
+        $this->assertDatabaseHas('roster_approvals', ['entry_id' => $entry->getKey(), 'revision' => 1]);
+    }
+
     public function test_filters_are_reflected_in_url_state_and_no_registration_delete_route_exists(): void
     {
         [$admin, $event] = $this->programme();
@@ -250,13 +270,149 @@ class RegistrationDeskTest extends TestCase
                 ->where('filters.q', 'Searchable')
                 ->where('filters.delegation', (string) $delegation->getKey())
                 ->where('filters.roster_status', 'unassigned')
-                ->where('participants.0.id', (string) $participant->getKey()));
+                ->where('directory_summary.totals.unassigned', 1)
+                ->where('participants', []));
 
         $deleteRegistrationRoutes = collect(Route::getRoutes())->filter(function ($route): bool {
             return in_array('DELETE', $route->methods(), true)
                 && (str_contains($route->uri(), 'participants') || str_contains($route->uri(), 'entries'));
         });
         $this->assertCount(0, $deleteRegistrationRoutes);
+    }
+
+    public function test_directory_segments_players_by_department_sport_division_and_roster_state(): void
+    {
+        [$admin, $event] = $this->programme();
+        $division = $this->division($event, 'basketball', 'men');
+        $entry = $division->entries()->firstOrFail();
+        $player = $this->participant($event, $entry->delegation, 'Segmented Player', 'SEGMENT-1');
+        $this->saveMember($admin, $event, $entry, $player, 'student_athlete')->assertRedirect();
+
+        $this->actingAs($admin)
+            ->get(route('admin.registrations.index', $event).'?view=players&directory_department='.$entry->event_delegation_id.'&directory_sport='.$division->competition_id.'&directory_division='.$division->getKey().'&directory_roster=assigned')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.directory_department', (string) $entry->event_delegation_id)
+                ->where('filters.directory_sport', (string) $division->competition_id)
+                ->where('filters.directory_division', (string) $division->getKey())
+                ->where('filters.directory_roster', 'assigned')
+                ->where('selection.department', (string) $entry->event_delegation_id)
+                ->where('selection.sport', (string) $division->competition_id)
+                ->where('selection.division', (string) $division->getKey())
+                ->has('directory_summary.departments'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.registrations.directory-preview', $event).'?view=players&department='.$entry->event_delegation_id.'&sport='.$division->competition_id.'&division='.$division->getKey().'&entry='.$entry->getKey())
+            ->assertOk()
+            ->assertJsonPath('people.0.id', (string) $player->getKey())
+            ->assertJsonPath('people.0.display_name', 'Segmented Player')
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('limit', 25);
+    }
+
+    public function test_directory_segments_coaches_by_sport_assignment(): void
+    {
+        [$admin, $event] = $this->programme();
+        $division = $this->division($event, 'basketball', 'men');
+        $coach = $this->participant($event, $division->entries()->firstOrFail()->delegation, 'Segmented Coach', 'SEGMENT-COACH');
+
+        $this->actingAs($admin)->post(route('admin.coach-assignments.store', [$event, $coach]), [
+            'coach_type' => 'faculty_coach',
+            'title' => 'Head Coach',
+            'scope_type' => 'competition_division',
+            'scope_key' => (string) $division->getKey(),
+        ])->assertRedirect();
+
+        $this->actingAs($admin)
+            ->get(route('admin.registrations.index', $event).'?view=coaches&directory_sport='.$division->competition_id)
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.view', 'coaches')
+                ->where('filters.directory_sport', (string) $division->competition_id)
+                ->where('selection.sport', (string) $division->competition_id)
+                ->where('directory_summary.totals.coaches', 1));
+
+        $this->actingAs($admin)
+            ->get(route('admin.registrations.directory-preview', $event).'?view=coaches&department='.$coach->event_delegation_id.'&sport='.$division->competition_id.'&division='.$division->getKey().'&entry='.$division->entries()->firstOrFail()->getKey())
+            ->assertOk()
+            ->assertJsonPath('people.0.id', (string) $coach->getKey())
+            ->assertJsonPath('total', 1);
+    }
+
+    public function test_sport_scoped_registration_url_redirects_to_the_canonical_roster_workspace(): void
+    {
+        [$admin, $event] = $this->programme();
+        $division = $this->division($event, 'basketball', 'men');
+        $entry = $division->entries()->firstOrFail();
+
+        $this->actingAs($admin)
+            ->get(route('admin.registrations.index', $event).'?competition='.$division->competition_id.'&division='.$division->getKey().'&entry='.$entry->getKey())
+            ->assertRedirect(route('admin.sports.show', [
+                'event' => $event,
+                'sport' => $division->competition_id,
+                'tab' => 'rosters',
+                'division' => $division->getKey(),
+                'department' => $entry->event_delegation_id,
+            ]));
+    }
+
+    public function test_cross_event_entry_cannot_be_used_in_a_scoped_registration_redirect(): void
+    {
+        [$admin, $event] = $this->programme();
+        $otherEvent = Event::factory()->create();
+        $otherCompetition = Competition::factory()->for($otherEvent)->create();
+        $otherDivision = Division::factory()->for($otherCompetition)->create();
+        $otherDepartment = EventDelegation::factory()->for($otherEvent)->create();
+        $otherEntry = Entry::query()->create([
+            'competition_division_id' => $otherDivision->getKey(),
+            'event_delegation_id' => $otherDepartment->getKey(),
+            'name' => 'Other Entry',
+            'entry_mode' => 'team',
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.registrations.index', $event).'?entry='.$otherEntry->getKey())
+            ->assertNotFound();
+    }
+
+    public function test_department_directory_and_roster_pages_use_the_department_first_flow(): void
+    {
+        [$admin, $event] = $this->programme();
+        $department = $event->delegations()->where('is_active', true)->firstOrFail();
+
+        $this->actingAs($admin)
+            ->get(route('admin.departments.index', $event))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Departments/Index')
+                ->where('event.id', (string) $event->getKey())
+                ->has('directory_summary.departments')
+                ->has('directory_summary.totals'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.departments.show', [$event, $department]).'?view=coaches')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Departments/Show')
+                ->where('department.id', (string) $department->getKey())
+                ->where('department.name', $department->name)
+                ->where('initial_view', 'coaches')
+                ->has('department.sports')
+                ->has('department.sports.0.divisions')
+                ->has('departments')
+                ->has('competitions'));
+    }
+
+    public function test_department_roster_page_rejects_a_department_from_another_event(): void
+    {
+        [$admin, $event] = $this->programme();
+        $otherEvent = Event::factory()->create(['created_by' => $admin->getKey()]);
+        $otherDepartment = EventDelegation::factory()->for($otherEvent)->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.departments.show', [$event, $otherDepartment]))
+            ->assertNotFound();
     }
 
     /** @return array{0: User, 1: Event} */

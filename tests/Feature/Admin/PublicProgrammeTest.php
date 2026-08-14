@@ -53,6 +53,32 @@ class PublicProgrammeTest extends TestCase
                 ->where('event.id', (string) $event->getKey()));
     }
 
+    public function test_sport_schedule_view_filters_the_programme_without_crossing_event_boundaries(): void
+    {
+        $event = Event::factory()->create(['state' => EventState::Live]);
+        $otherEvent = Event::factory()->create(['state' => EventState::Live]);
+        $admin = $this->globalAdmin();
+        $basketball = Competition::factory()->create(['event_id' => $event->getKey(), 'name' => 'Basketball']);
+        $volleyball = Competition::factory()->create(['event_id' => $event->getKey(), 'name' => 'Volleyball']);
+        $foreign = Competition::factory()->create(['event_id' => $otherEvent->getKey(), 'name' => 'Foreign']);
+        $basketballDivision = Division::factory()->create(['competition_id' => $basketball->getKey(), 'name' => 'Men']);
+        $volleyballDivision = Division::factory()->create(['competition_id' => $volleyball->getKey(), 'name' => 'Women']);
+        Schedule::create(['event_id' => $event->getKey(), 'competition_division_id' => $basketballDivision->getKey(), 'title' => 'Basketball court', 'starts_at' => now()->addDay(), 'status' => 'scheduled']);
+        Schedule::create(['event_id' => $event->getKey(), 'competition_division_id' => $volleyballDivision->getKey(), 'title' => 'Volleyball court', 'starts_at' => now()->addDays(2), 'status' => 'scheduled']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.sports.schedules', $event).'?competition='.$basketball->getKey())
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('scope.competition', 'Basketball')
+                ->has('schedules', 1)
+                ->where('schedules.0.title', 'Basketball court'));
+
+        $this->actingAs($admin)
+            ->get(route('admin.sports.schedules', $event).'?competition='.$foreign->getKey())
+            ->assertNotFound();
+    }
+
     public function test_schedule_changes_stay_private_until_explicit_republication_and_can_be_withdrawn(): void
     {
         $event = Event::factory()->create([

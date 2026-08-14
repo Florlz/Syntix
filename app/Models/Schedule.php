@@ -65,6 +65,25 @@ class Schedule extends Model
             ->latestOfMany('revision');
     }
 
+    public function hasUnpublishedChanges(): bool
+    {
+        $publication = $this->currentPublication;
+
+        if ($publication === null) {
+            return true;
+        }
+
+        return $publication->competition_name !== $this->division?->competition?->name
+            || $publication->division_name !== $this->division?->name
+            || $publication->title !== $this->title
+            || $publication->starts_at?->toIso8601String() !== $this->starts_at?->toIso8601String()
+            || $publication->ends_at?->toIso8601String() !== $this->ends_at?->toIso8601String()
+            || ($publication->status instanceof ScheduleStatus ? $publication->status->value : (string) $publication->status)
+                !== ($this->status instanceof ScheduleStatus ? $this->status->value : (string) $this->status)
+            || $publication->venue_name !== $this->venue?->name
+            || $publication->venue_location !== $this->venue?->location;
+    }
+
     protected function casts(): array
     {
         return [

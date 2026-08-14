@@ -7,6 +7,7 @@ use App\Enums\RuleVersionState;
 use App\Models\CompetitionRuleVersion;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -24,9 +25,7 @@ final class ActivateRuleVersion
             $version->load('division.competition.event');
             $event = $version->division?->competition?->event;
 
-            if ($event === null || ! $actor->hasAdminAccess($event)) {
-                throw new AuthorizationException('Only the active Global Admin can activate a rule version.');
-            }
+            EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can activate a rule version.');
 
             if ($version->lifecycleState() !== RuleVersionState::Draft) {
                 throw new \DomainException('Only draft rule versions can be activated.');

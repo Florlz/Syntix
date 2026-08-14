@@ -12,9 +12,11 @@ use App\Enums\RoundingMode;
 use App\Enums\RuleVersionState;
 use App\Enums\ScoringFamily;
 use App\Models\CompetitionRuleVersion;
+use App\Models\Discipline;
 use App\Models\Division;
 use App\Models\Event;
 use App\Models\EventDelegation;
+use App\Models\CoachCapacityRule;
 use App\Models\OrganizationalUnit;
 use App\Models\PlacementPointTemplate;
 use App\Models\User;
@@ -48,6 +50,15 @@ final class ApplySiklab2025Programme
 
             foreach (Siklab2025Programme::judgedCompetitions() as $competition) {
                 $this->createJudgedCompetition($actor, $event, $delegations, $competition);
+            }
+
+            foreach ([
+                'literary' => [2, 4], 'musical' => [3, 4], 'dance' => [4, 4], 'visual_arts' => [2, 4],
+            ] as $family => [$studentMax, $facultyMax]) {
+                CoachCapacityRule::query()->updateOrCreate(
+                    ['event_id' => $event->getKey(), 'scope_type' => 'programme_family', 'scope_key' => $family],
+                    ['student_coach_max' => $studentMax, 'faculty_coach_max' => $facultyMax, 'source_reference' => 'Approved 2025 Intramurals Proposal p. 19'],
+                );
             }
 
             ($this->audit ?? new AuditLogger)->record(
@@ -109,7 +120,6 @@ final class ApplySiklab2025Programme
             ['slug' => Str::slug((string) $sport['name'])],
             ['name' => $sport['name']],
         );
-
         foreach ($sport['divisions'] as $divisionName) {
             $division = $competition->divisions()->firstOrCreate(
                 ['slug' => Str::slug((string) $divisionName)],
@@ -135,6 +145,10 @@ final class ApplySiklab2025Programme
                 $this->createAthleticsDisciplines($division);
             }
 
+            if (in_array($sport['name'], ['Taekwondo', 'Arnis'], true)) {
+                $this->createCombatDisciplines($division, $sport);
+            }
+
             if ($version->source_status === 'verified'
                 && $version->lifecycleState() === RuleVersionState::Draft) {
                 (new ActivateRuleVersion)->handle($actor, $version);
@@ -158,6 +172,17 @@ final class ApplySiklab2025Programme
         }
     }
 
+    private function programmeFamily(string $name): ?string
+    {
+        return match (true) {
+            in_array($name, ['Extemporaneous Speaking', 'Dagliang Talumpati', 'Essay Writing', 'Pagsulat ng Sanaysay', 'Story Telling', 'Pagkukwento', 'Radio Drama'], true) => 'literary',
+            in_array($name, ['Pop Solo', 'Kundiman', 'Vocal Duet'], true) || str_starts_with($name, 'Instrumental Solo') => 'musical',
+            in_array($name, ['Folk Dance', 'Hip Hop Dance', 'Contemporary Dance', 'Dance Sports'], true) => 'dance',
+            in_array($name, ['Charcoal Rendering', 'Pencil Drawing', 'Painting', 'On-the-Spot Poster Making', 'Photography'], true) => 'visual_arts',
+            default => null,
+        };
+    }
+
     /**
      * @param  array<int, EventDelegation>  $delegations
      * @param  array<string, mixed>  $definition
@@ -168,6 +193,7 @@ final class ApplySiklab2025Programme
             ['slug' => Str::slug((string) $definition['name'])],
             ['name' => $definition['name']],
         );
+        $competition->update(['programme_family' => $this->programmeFamily((string) $definition['name'])]);
         $division = $competition->divisions()->firstOrCreate(
             ['slug' => 'open'],
             ['name' => 'Open'],
@@ -231,49 +257,63 @@ final class ApplySiklab2025Programme
             ->where('code', $definition['template'])
             ->firstOrFail();
 
-        return CompetitionRuleVersion::query()->firstOrCreate(
+        $attributes = [
+            'placement_point_template_id' => $template->getKey(),
+            'lifecycle_state' => RuleVersionState::Draft,
+            'is_governing' => false,
+            'scoring_family' => $definition['scoring_family'],
+            'format' => $definition['format'],
+            'participant_mode' => $definition['participant_mode'],
+            'min_roster_size' => 1,
+            'max_roster_size' => $definition['max_roster_size'] ?? match ($definition['participant_mode']) {
+                ParticipantMode::Individual => 1,
+                ParticipantMode::Pair => 2,
+                ParticipantMode::Relay => 4,
+                ParticipantMode::Team, ParticipantMode::Mixed => null,
+            },
+            'entries_per_delegation' => 1,
+            'participant_competition_limit' => 2,
+            'roster_role_limits' => $definition['roster_role_limits'] ?? [],
+            'criteria_calculation_mode' => $definition['scoring_family'] === ScoringFamily::CriteriaBased
+                ? CriterionNumberMeaning::PercentageWeight
+                : null,
+            'verified_scorecard_total' => $definition['verified_scorecard_total'] ?? null,
+            'judge_aggregation_method' => $definition['scoring_family'] === ScoringFamily::CriteriaBased ? 'average' : null,
+            'input_scale' => 2,
+            'calculation_scale' => 4,
+            'display_scale' => 2,
+            'comparison_scale' => 4,
+            'rounding_mode' => RoundingMode::HalfUp,
+            'rounding_stage' => 'final',
+            'tie_breaker_configuration' => ['mode' => 'authorized_resolution'],
+            'participation_configuration' => ['policy' => 'approved_final_placement'],
+            'publication_configuration' => ['live' => true, 'participants' => false],
+            'approval_configuration' => ['global_admin_required' => true],
+            'scoring_configuration' => $definition['scoring_configuration'],
+            'source_reference' => $definition['source_reference'],
+            'source_status' => $definition['source_status'],
+            'created_by' => $actor->getKey(),
+        ];
+
+        $version = CompetitionRuleVersion::query()->firstOrCreate(
             [
                 'competition_division_id' => $divisionId,
                 'version' => 1,
             ],
-            [
-                'placement_point_template_id' => $template->getKey(),
-                'lifecycle_state' => RuleVersionState::Draft,
-                'is_governing' => false,
-                'scoring_family' => $definition['scoring_family'],
-                'format' => $definition['format'],
-                'participant_mode' => $definition['participant_mode'],
-                'min_roster_size' => 1,
-                'max_roster_size' => $definition['max_roster_size'] ?? match ($definition['participant_mode']) {
-                    ParticipantMode::Individual => 1,
-                    ParticipantMode::Pair => 2,
-                    ParticipantMode::Relay => 4,
-                    ParticipantMode::Team, ParticipantMode::Mixed => null,
-                },
-                'entries_per_delegation' => 1,
-                'participant_competition_limit' => 2,
-                'roster_role_limits' => $definition['roster_role_limits'] ?? [],
-                'criteria_calculation_mode' => $definition['scoring_family'] === ScoringFamily::CriteriaBased
-                    ? CriterionNumberMeaning::PercentageWeight
-                    : null,
-                'verified_scorecard_total' => $definition['verified_scorecard_total'] ?? null,
-                'judge_aggregation_method' => $definition['scoring_family'] === ScoringFamily::CriteriaBased ? 'average' : null,
-                'input_scale' => 2,
-                'calculation_scale' => 4,
-                'display_scale' => 2,
-                'comparison_scale' => 4,
-                'rounding_mode' => RoundingMode::HalfUp,
-                'rounding_stage' => 'final',
-                'tie_breaker_configuration' => ['mode' => 'authorized_resolution'],
-                'participation_configuration' => ['policy' => 'approved_final_placement'],
-                'publication_configuration' => ['live' => true, 'participants' => false],
-                'approval_configuration' => ['global_admin_required' => true],
-                'scoring_configuration' => $definition['scoring_configuration'],
-                'source_reference' => $definition['source_reference'],
-                'source_status' => $definition['source_status'],
-                'created_by' => $actor->getKey(),
-            ],
+            $attributes,
         );
+
+        $division = $version->division()->first();
+        $hasScoringHistory = $division?->contests()->exists()
+            || $division?->placements()->exists()
+            || $division?->disciplines()->whereHas('results')->exists();
+
+        if ($version->lifecycleState() === RuleVersionState::Draft && ! $hasScoringHistory) {
+            $version->fill($attributes);
+            $version->save();
+        }
+
+        return $version;
     }
 
     private function createAthleticsDisciplines(Division $division): void
@@ -291,9 +331,50 @@ final class ApplySiklab2025Programme
                     'input_scale' => 3,
                     'storage_scale' => 6,
                     'display_scale' => 3,
+                    'qualification_configuration' => ['starter_count' => $definition['family'] === 'relay' ? 4 : 1],
                     'tie_breaker_configuration' => ['mode' => 'authorized_resolution'],
                     'sub_point_configuration' => $definition['sub_points'],
-                    'metadata' => ['source_reference' => 'Proposal pp. 15–16'],
+                    'metadata' => [
+                        'starter_count' => $definition['family'] === 'relay' ? 4 : 1,
+                        'source_reference' => 'Proposal pp. 15–16',
+                    ],
+                    'is_active' => true,
+                ],
+            );
+        }
+    }
+
+    /** @param array<string, mixed> $sport */
+    private function createCombatDisciplines(Division $division, array $sport): void
+    {
+        $classes = $sport['configuration']['weight_classes'][$division->name] ?? [];
+
+        foreach ($classes as $index => $name) {
+            Discipline::query()->firstOrCreate(
+                [
+                    'competition_division_id' => $division->getKey(),
+                    'code' => Str::slug((string) $name),
+                ],
+                [
+                    'name' => $name,
+                    'family' => 'combat',
+                    'performance_type' => 'match',
+                    'canonical_unit' => 'points',
+                    'accepted_input_units' => ['points'],
+                    'sort_direction' => 'descending',
+                    'input_scale' => 0,
+                    'storage_scale' => 0,
+                    'display_scale' => 0,
+                    'qualification_configuration' => ['starter_count' => 1],
+                    'tie_breaker_configuration' => ['mode' => 'authorized_resolution'],
+                    'sub_point_configuration' => ['1' => 5, '2' => 3, '3' => 1, 'participation' => 0],
+                    'metadata' => [
+                        'sport' => $sport['name'],
+                        'division' => $division->name,
+                        'weight_class' => $name,
+                        'display_order' => $index + 1,
+                        'source_reference' => 'Approved-2025-Intramurals-Proposal.pdf',
+                    ],
                     'is_active' => true,
                 ],
             );

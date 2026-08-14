@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\AutomaticPlacementDeriver;
 use App\Services\BracketAdvancer;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -29,9 +30,7 @@ final class ApproveContestOutcome
         $submission->loadMissing('contest.division.competition.event');
         $event = $submission->contest?->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can approve a contest outcome.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can approve a contest outcome.');
 
         return DB::transaction(function () use ($actor, $submission, $reason, $event): OfficialContestOutcome {
             $submission = ResultSubmission::query()

@@ -67,32 +67,21 @@ return new class extends Migration
                 ->constrained('placement_point_templates')
                 ->restrictOnDelete();
             $table->unsignedInteger('version');
-            $table->enum('lifecycle_state', array_map(
-                static fn (RuleVersionState $state): string => $state->value,
-                RuleVersionState::cases(),
-            ))->default(RuleVersionState::Draft->value);
+            $table->enum('lifecycle_state', ['draft', 'activated_editable', 'frozen', 'superseded', 'archived'])
+                ->default(RuleVersionState::Draft->value);
             $table->boolean('is_governing')->default(false)->index();
-            $table->enum('scoring_family', array_map(
-                static fn (ScoringFamily $family): string => $family->value,
-                ScoringFamily::cases(),
-            ))->nullable();
-            $table->enum('format', array_map(
-                static fn (CompetitionFormat $format): string => $format->value,
-                CompetitionFormat::cases(),
-            ))->nullable();
-            $table->enum('participant_mode', array_map(
-                static fn (ParticipantMode $mode): string => $mode->value,
-                ParticipantMode::cases(),
-            ))->nullable();
+            $table->enum('scoring_family', ['objective', 'criteria_based', 'aggregate', 'custom_series'])->nullable();
+            $table->enum('format', [
+                'single_elimination', 'double_elimination', 'round_robin', 'series',
+                'placement', 'criteria_based', 'aggregate', 'custom',
+            ])->nullable();
+            $table->enum('participant_mode', ['team', 'individual', 'pair', 'relay', 'mixed'])->nullable();
             $table->unsignedInteger('min_roster_size')->nullable();
             $table->unsignedInteger('max_roster_size')->nullable();
             $table->unsignedInteger('entries_per_delegation')->nullable();
             $table->unsignedInteger('participant_competition_limit')->nullable();
             $table->json('roster_role_limits')->nullable();
-            $table->enum('criteria_calculation_mode', array_map(
-                static fn (CriterionNumberMeaning $meaning): string => $meaning->value,
-                CriterionNumberMeaning::cases(),
-            ))->nullable();
+            $table->enum('criteria_calculation_mode', ['percentage_weight', 'point_maximum'])->nullable();
             $table->decimal('verified_scorecard_total', 14, 4)->nullable();
             $table->string('judge_aggregation_method')->nullable();
             $table->json('deduction_configuration')->nullable();
@@ -137,10 +126,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('source_label');
             $table->unsignedInteger('display_order');
-            $table->enum('number_meaning', array_map(
-                static fn (CriterionNumberMeaning $meaning): string => $meaning->value,
-                CriterionNumberMeaning::cases(),
-            ));
+            $table->enum('number_meaning', ['percentage_weight', 'point_maximum']);
             $table->decimal('weight', 10, 4)->nullable();
             $table->decimal('maximum_points', 14, 4)->nullable();
             $table->decimal('raw_minimum', 14, 4)->nullable();
@@ -163,10 +149,9 @@ return new class extends Migration
                 ->restrictOnDelete();
             $table->string('code');
             $table->string('name');
-            $table->enum('family', array_map(
-                static fn (DisciplineFamily $family): string => $family->value,
-                DisciplineFamily::cases(),
-            ));
+            // Combat was introduced by the additive scope migration; keep
+            // this original schema list frozen at its historical values.
+            $table->enum('family', ['track', 'field', 'relay']);
             $table->string('performance_type');
             $table->string('canonical_unit');
             $table->json('accepted_input_units')->nullable();
@@ -217,14 +202,9 @@ return new class extends Migration
                 ->restrictOnDelete();
             $table->string('code')->nullable();
             $table->string('name');
-            $table->enum('entry_mode', array_map(
-                static fn (ParticipantMode $mode): string => $mode->value,
-                ParticipantMode::cases(),
-            ));
-            $table->enum('status', array_map(
-                static fn (EntryStatus $status): string => $status->value,
-                EntryStatus::cases(),
-            ))->default(EntryStatus::Draft->value)->index();
+            $table->enum('entry_mode', ['team', 'individual', 'pair', 'relay', 'mixed']);
+            $table->enum('status', ['draft', 'active', 'locked', 'withdrawn', 'disqualified'])
+                ->default(EntryStatus::Draft->value)->index();
             $table->timestamp('locked_at')->nullable();
             $table->foreignId('locked_by')
                 ->nullable()
@@ -243,10 +223,7 @@ return new class extends Migration
             $table->foreignId('participant_id')
                 ->constrained('participants')
                 ->restrictOnDelete();
-            $table->enum('role', array_map(
-                static fn (RosterMemberRole $role): string => $role->value,
-                RosterMemberRole::cases(),
-            ));
+            $table->enum('role', ['student_athlete', 'reserve', 'student_coach', 'faculty_coach']);
             $table->unsignedInteger('display_order')->default(0);
             $table->boolean('is_active')->default(true)->index();
             $table->text('notes')->nullable();
@@ -265,10 +242,8 @@ return new class extends Migration
             $table->foreignId('participant_id')
                 ->constrained('participants')
                 ->restrictOnDelete();
-            $table->enum('status', array_map(
-                static fn (EligibilityStatus $status): string => $status->value,
-                EligibilityStatus::cases(),
-            ))->default(EligibilityStatus::Pending->value);
+            $table->enum('status', ['pending', 'eligible', 'ineligible', 'withdrawn', 'disqualified'])
+                ->default(EligibilityStatus::Pending->value);
             $table->text('reason')->nullable();
             $table->foreignId('checked_by')
                 ->nullable()
@@ -317,10 +292,8 @@ return new class extends Migration
             $table->string('title');
             $table->timestamp('starts_at');
             $table->timestamp('ends_at')->nullable();
-            $table->enum('status', array_map(
-                static fn (ScheduleStatus $status): string => $status->value,
-                ScheduleStatus::cases(),
-            ))->default(ScheduleStatus::Scheduled->value)->index();
+            $table->enum('status', ['scheduled', 'postponed', 'cancelled', 'completed'])
+                ->default(ScheduleStatus::Scheduled->value)->index();
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->index(['event_id', 'starts_at']);

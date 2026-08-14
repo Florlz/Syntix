@@ -20,10 +20,7 @@ return new class extends Migration
             $table->foreignId('user_id')
                 ->constrained('users')
                 ->restrictOnDelete();
-            $table->enum('role', array_map(
-                static fn (EventRole $role): string => $role->value,
-                EventRole::cases(),
-            ));
+            $table->enum('role', ['admin', 'judge', 'tabulator']);
             $table->foreignId('granted_by')
                 ->nullable()
                 ->constrained('users')

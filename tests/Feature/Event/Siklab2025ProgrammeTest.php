@@ -84,7 +84,7 @@ class Siklab2025ProgrammeTest extends TestCase
 
         $this->assertSame(42, CompetitionRuleVersion::query()->count());
         $this->assertDatabaseCount('scoring_criteria', 92);
-        $this->assertDatabaseCount('audit_logs', 34);
+        $this->assertDatabaseCount('audit_logs', 39);
     }
 
     public function test_non_global_user_cannot_apply_the_programme(): void

@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Str;
+
 final class Siklab2025Programme
 {
     /** @return list<array{name: string, abbreviation: string, color: string}> */
@@ -50,7 +52,9 @@ final class Siklab2025Programme
                 'target_wins' => 2,
                 'set_target' => 15,
                 'set_cap' => 17,
-            ], 'blocked', 'Master roster allows 6 while detailed rules allow a maximum of 4.'),
+                'starter_count' => 4,
+                'reserve_count' => 2,
+            ]),
             self::sport('Chess', ['Men', 'Women'], 'round_robin', 'intermediate', 4, 'chess', 'Proposal pp. 10, 13–14', [
                 'win_points' => 1,
                 'draw_points' => 0.5,
@@ -68,14 +72,18 @@ final class Siklab2025Programme
                     'Men' => ['63kg', '68kg', '73kg', '79kg', '85kg', '86kg and above'],
                     'Women' => ['53kg', '57kg', '62kg', '67kg', '73kg', '74kg and above'],
                 ],
-            ], 'blocked', 'Weight-class tournament entries require final aggregate placement confirmation.'),
+                'starter_count' => 6,
+                'reserve_count' => 2,
+            ]),
             self::sport('Arnis', ['Men', 'Women'], 'single_elimination', 'major', 8, 'combat_rounds', 'Proposal pp. 10, 15', [
                 'target_wins' => 2,
                 'weight_classes' => [
                     'Men' => ['65kg', '72kg', '80kg', '89kg', '99kg', '100kg and above'],
                     'Women' => ['56kg', '62kg', '69kg', '77kg', '86kg', '87kg and above'],
                 ],
-            ], 'blocked', 'Master roster allows 8 while detailed rules allow a maximum of 6.'),
+                'starter_count' => 6,
+                'reserve_count' => 2,
+            ]),
             [
                 'name' => 'Athletics',
                 'divisions' => ['Men', 'Women'],
@@ -196,6 +204,45 @@ final class Siklab2025Programme
         return $disciplines;
     }
 
+    /** @return list<array<string, mixed>> */
+    public static function combatDisciplines(string $sport, string $division): array
+    {
+        $classes = match (strtolower($sport)) {
+            'taekwondo' => [
+                'Men' => ['63kg', '68kg', '73kg', '79kg', '85kg', '86kg and above'],
+                'Women' => ['53kg', '57kg', '62kg', '67kg', '73kg', '74kg and above'],
+            ],
+            'arnis' => [
+                'Men' => ['65kg', '72kg', '80kg', '89kg', '99kg', '100kg and above'],
+                'Women' => ['56kg', '62kg', '69kg', '77kg', '86kg', '87kg and above'],
+            ],
+            default => [],
+        };
+
+        return collect($classes[$division] ?? [])->values()->map(fn (string $name, int $index): array => [
+            'code' => Str::slug($name),
+            'name' => $name,
+            'family' => 'combat',
+            'performance_type' => 'match',
+            'canonical_unit' => 'points',
+            'accepted_input_units' => ['points'],
+            'sort_direction' => 'descending',
+            'input_scale' => 0,
+            'storage_scale' => 0,
+            'display_scale' => 0,
+            'qualification_configuration' => ['starter_count' => 1],
+            'tie_breaker_configuration' => ['mode' => 'authorized_resolution'],
+            'sub_point_configuration' => null,
+            'metadata' => [
+                'sport' => $sport,
+                'division' => $division,
+                'weight_class' => $name,
+                'display_order' => $index + 1,
+                'source_reference' => 'Approved-2025-Intramurals-Proposal.pdf',
+            ],
+        ])->all();
+    }
+
     /** @return array<string, mixed> */
     private static function sport(
         string $name,
@@ -208,7 +255,7 @@ final class Siklab2025Programme
         array $configuration = [],
         string $sourceStatus = 'verified',
         ?string $blocker = null,
-        array $rosterRoleLimits = [],
+        array $rosterRoleLimits = ['student_coach' => 1, 'faculty_coach' => 2],
     ): array {
         return compact('name', 'divisions', 'format', 'template', 'maxRosterSize', 'outcomeProfile', 'sourceReference', 'configuration', 'sourceStatus', 'blocker', 'rosterRoleLimits') + [
             'participant_mode' => 'team',

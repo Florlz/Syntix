@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'phone',
     'private_notes',
     'is_active',
+    'is_competitor',
     'created_by',
 ])]
 #[Hidden(['student_number', 'student_number_normalized', 'email', 'phone', 'private_notes'])]
@@ -50,6 +51,9 @@ class Participant extends Model
         return $this->hasMany(EligibilityRecord::class);
     }
 
+    public function coachAssignments(): HasMany { return $this->hasMany(CoachAssignment::class); }
+    public function participationExceptions(): HasMany { return $this->hasMany(ParticipationException::class); }
+
     public function eventId(): ?int
     {
         return $this->event_id === null ? null : (int) $this->event_id;
@@ -59,6 +63,7 @@ class Participant extends Model
     {
         return [
             'is_active' => 'boolean',
+            'is_competitor' => 'boolean',
         ];
     }
 }

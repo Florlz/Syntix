@@ -24,10 +24,8 @@ return new class extends Migration
             $table->decimal('performance_value', 18, 6)->nullable();
             $table->string('unit')->nullable();
             $table->string('qualification_status')->nullable();
-            $table->enum('state', array_map(
-                static fn (DisciplineResultState $state): string => $state->value,
-                DisciplineResultState::cases(),
-            ))->default(DisciplineResultState::Draft->value)->index();
+            $table->enum('state', ['draft', 'submitted', 'approved', 'voided'])
+                ->default(DisciplineResultState::Draft->value)->index();
             $table->unsignedBigInteger('revision')->default(0);
             $table->json('payload')->nullable();
             $table->foreignId('recorded_by')
@@ -56,10 +54,8 @@ return new class extends Migration
                 ->restrictOnDelete();
             $table->unsignedInteger('rank');
             $table->decimal('sub_points', 14, 4)->default(0);
-            $table->enum('state', array_map(
-                static fn (DisciplineResultState $state): string => $state->value,
-                [DisciplineResultState::Submitted, DisciplineResultState::Approved, DisciplineResultState::Voided],
-            ))->default(DisciplineResultState::Submitted->value)->index();
+            $table->enum('state', ['submitted', 'approved', 'voided'])
+                ->default(DisciplineResultState::Submitted->value)->index();
             $table->foreignId('approved_by')
                 ->nullable()
                 ->constrained('users')

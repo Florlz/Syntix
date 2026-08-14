@@ -64,7 +64,8 @@ class CompetitionRuleVersion extends Model
         return $this->belongsTo(Division::class, 'competition_division_id');
     }
 
-    public function event(): ?Event
+    /** Return the owning Event without pretending this helper is an Eloquent relation. */
+    public function eventRecord(): ?Event
     {
         $this->loadMissing('division.competition');
 

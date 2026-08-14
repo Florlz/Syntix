@@ -30,10 +30,11 @@ final class SaveRosterMembership
         RosterMemberRole $role,
         bool $active = true,
         ?string $notes = null,
+        bool $allowAdverseRestore = false,
     ): RosterMember {
         $this->authorize($actor, $event, $entry, $participant);
 
-        return DB::transaction(function () use ($actor, $event, $entry, $participant, $role, $active, $notes): RosterMember {
+        return DB::transaction(function () use ($actor, $event, $entry, $participant, $role, $active, $notes, $allowAdverseRestore): RosterMember {
             $lockedEntry = Entry::query()->with(['division.competition', 'division.governingRuleVersion'])
                 ->whereKey($entry->getKey())->lockForUpdate()->firstOrFail();
             $lockedParticipant = Participant::query()->whereKey($participant->getKey())->lockForUpdate()->firstOrFail();
@@ -72,6 +73,22 @@ final class SaveRosterMembership
                 ->lockForUpdate()
                 ->first();
 
+            if ($active && $membership !== null && ! (bool) $membership->getAttribute('is_active') && ! $allowAdverseRestore) {
+                $status = DB::table('eligibility_records')
+                    ->where('entry_id', $lockedEntry->getKey())
+                    ->where('participant_id', $lockedParticipant->getKey())
+                    ->value('status');
+                if (in_array($status, [
+                    EligibilityStatus::Ineligible->value,
+                    EligibilityStatus::Withdrawn->value,
+                    EligibilityStatus::Disqualified->value,
+                ], true)) {
+                    throw ValidationException::withMessages([
+                        'eligibility.status' => 'Choose eligible or pending when restoring an adverse roster history.',
+                    ]);
+                }
+            }
+
             if ($active) {
                 $this->assertLimits($lockedEntry, $lockedParticipant, $rule, $role, $membership);
             }
@@ -90,19 +107,6 @@ final class SaveRosterMembership
                     : ((int) $lockedEntry->rosterMembers()->max('display_order')) + 1,
             ]);
             $membership->save();
-
-            if ($active) {
-                $lockedEntry->eligibilityRecords()->updateOrCreate(
-                    ['participant_id' => $lockedParticipant->getKey()],
-                    [
-                        'event_id' => $event->getKey(),
-                        'status' => EligibilityStatus::Pending,
-                        'reason' => null,
-                        'checked_by' => null,
-                        'checked_at' => null,
-                    ],
-                );
-            }
 
             $this->audit->record(
                 $actor,

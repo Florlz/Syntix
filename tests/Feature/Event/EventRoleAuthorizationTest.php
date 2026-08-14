@@ -9,6 +9,7 @@ use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Enums\EventRole;
 use App\Models\User;
 use App\Policies\EventPolicy;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -77,6 +78,27 @@ class EventRoleAuthorizationTest extends TestCase
         (new RevokeEventRole)->handle($membership, $admin, 'Role no longer required');
 
         $this->assertFalse((new EventPolicy)->view($judge->fresh(), $event));
+    }
+
+    public function test_archived_event_roles_cannot_be_revoked(): void
+    {
+        $admin = $this->bootstrapAdmin();
+        $event = (new CreateEvent)->handle($admin, ['name' => 'SIKLAB 2026']);
+        $judge = User::factory()->create(['email' => 'archived-judge@example.com']);
+        $membership = (new GrantEventRole)->handle($admin, $event, $judge, EventRole::Judge);
+        $event->update(['state' => 'archived']);
+
+        try {
+            (new RevokeEventRole)->handle($membership, $admin, 'Role no longer required');
+            $this->fail('Archived event roles must be read-only.');
+        } catch (AuthorizationException) {
+            // Expected: archive guard blocks the mutation before save.
+        }
+
+        $this->assertDatabaseHas('event_user_roles', [
+            'id' => $membership->getKey(),
+            'revoked_at' => null,
+        ]);
     }
 
     private function bootstrapAdmin(): User

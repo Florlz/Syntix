@@ -9,6 +9,7 @@ use App\Models\BracketVersion;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\BracketAutoResolver;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -21,9 +22,7 @@ final class PublishBracket
         $bracket->loadMissing('tournament.division.competition.event');
         $event = $bracket->tournament?->division?->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can publish a bracket.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can publish a bracket.');
 
         return DB::transaction(function () use ($actor, $bracket, $event): BracketVersion {
             $bracket = BracketVersion::query()->whereKey($bracket->getKey())->lockForUpdate()->firstOrFail();

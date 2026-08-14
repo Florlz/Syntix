@@ -7,7 +7,7 @@ use App\Models\Event;
 use App\Models\EventUserRole;
 use App\Models\User;
 use App\Services\AuditLogger;
-use Illuminate\Auth\Access\AuthorizationException;
+use App\Support\EventOperationGuard;
 use Illuminate\Support\Facades\DB;
 
 final class RevokeEventRole
@@ -25,9 +25,7 @@ final class RevokeEventRole
             $membership = EventUserRole::query()->whereKey($membership->getKey())->lockForUpdate()->firstOrFail();
             $event = Event::query()->whereKey($membership->event_id)->lockForUpdate()->firstOrFail();
 
-            if (! $actor->hasAdminAccess($event)) {
-                throw new AuthorizationException('The active Global Admin is required to revoke an Event Role.');
-            }
+            EventOperationGuard::assertMutable($actor, $event, 'The active Global Admin is required to revoke an Event Role.');
 
             if (! $membership->isActive()) {
                 throw new \DomainException('The event role is already revoked.');

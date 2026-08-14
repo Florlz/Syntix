@@ -37,10 +37,8 @@ return new class extends Migration
                 ->constrained('competition_divisions')
                 ->restrictOnDelete();
             $table->string('name');
-            $table->enum('state', array_map(
-                static fn (ContestState $state): string => $state->value,
-                ContestState::cases(),
-            ))->default(ContestState::Scheduled->value)->index();
+            $table->enum('state', ['scheduled', 'live', 'completed', 'cancelled', 'suspended'])
+                ->default(ContestState::Scheduled->value)->index();
             $table->timestamps();
         });
 

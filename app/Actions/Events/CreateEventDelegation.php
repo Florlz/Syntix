@@ -8,7 +8,7 @@ use App\Models\EventDelegation;
 use App\Models\OrganizationalUnit;
 use App\Models\User;
 use App\Services\AuditLogger;
-use Illuminate\Auth\Access\AuthorizationException;
+use App\Support\EventOperationGuard;
 use Illuminate\Support\Facades\DB;
 
 final class CreateEventDelegation
@@ -31,11 +31,9 @@ final class CreateEventDelegation
                 ->whereKey($organizationalUnit->getKey())
                 ->firstOrFail();
 
-            if (! $actor->hasAdminAccess($event)) {
-                throw new AuthorizationException('The active Global Admin is required to create a delegation.');
-            }
+            EventOperationGuard::assertMutable($actor, $event, 'The active Global Admin is required to create a delegation.');
 
-            if ($event->isArchived() || ! $organizationalUnit->is_active) {
+            if (! $organizationalUnit->is_active) {
                 throw new \DomainException('Delegations cannot be added to archived events or inactive units.');
             }
 

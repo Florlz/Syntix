@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AdvancementOutcome;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,5 +18,19 @@ class AdvancementRule extends Model
     public function targetSlot(): BelongsTo
     {
         return $this->belongsTo(BracketSlot::class, 'target_slot_id');
+    }
+
+    public function outcomeType(): AdvancementOutcome
+    {
+        $outcome = $this->getAttribute('outcome');
+
+        return $outcome instanceof AdvancementOutcome
+            ? $outcome
+            : AdvancementOutcome::from((string) $outcome);
+    }
+
+    protected function casts(): array
+    {
+        return ['outcome' => AdvancementOutcome::class];
     }
 }

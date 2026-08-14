@@ -16,16 +16,18 @@ use App\Http\Controllers\Controller;
 use App\Models\BracketVersion;
 use App\Models\CompetitionRuleVersion;
 use App\Models\Contest;
+use App\Models\Discipline;
 use App\Models\Division;
 use App\Models\EntryScorecard;
 use App\Models\Event;
 use App\Models\User;
 use App\Services\AuditLogger;
-use Illuminate\Auth\Access\AuthorizationException;
+use App\Support\EventOperationGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ConfigurationController extends Controller
 {
@@ -48,16 +50,50 @@ class ConfigurationController extends Controller
             'command_uuid' => ['nullable', 'uuid'],
             'redraw' => ['sometimes', 'boolean'],
         ]);
-        $generate->handle(
-            $request->user(),
-            $division,
-            $data['command_uuid'] ?? null,
-            (bool) ($data['redraw'] ?? false),
-        );
+        try {
+            $generate->handle(
+                $request->user(),
+                $division,
+                $data['command_uuid'] ?? null,
+                (bool) ($data['redraw'] ?? false),
+            );
+        } catch (\DomainException|\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['draw' => $exception->getMessage()]);
+        }
 
         return back()->with('status', ($data['redraw'] ?? false)
             ? 'The unpublished draw was replaced with a new recorded random draw.'
             : 'A recorded random draw is ready for review.');
+    }
+
+    public function generateRandomDisciplineTournament(
+        Request $request,
+        Discipline $discipline,
+        GenerateRandomTournament $generate,
+    ): RedirectResponse {
+        $discipline->loadMissing('division.competition.event');
+        $division = $discipline->division;
+        $this->assertAdmin($request, $division?->competition?->event);
+        $data = $request->validate([
+            'command_uuid' => ['nullable', 'uuid'],
+            'redraw' => ['sometimes', 'boolean'],
+        ]);
+
+        try {
+            $generate->handle(
+                $request->user(),
+                $division,
+                $data['command_uuid'] ?? null,
+                (bool) ($data['redraw'] ?? false),
+                $discipline,
+            );
+        } catch (\DomainException|\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['draw' => $exception->getMessage()]);
+        }
+
+        return back()->with('status', ($data['redraw'] ?? false)
+            ? 'The unpublished discipline draw was replaced with a new recorded random draw.'
+            : 'A recorded discipline draw is ready for review.');
     }
 
     public function publishBracket(
@@ -65,7 +101,11 @@ class ConfigurationController extends Controller
         BracketVersion $bracket,
         PublishBracket $publish,
     ): RedirectResponse {
-        $publish->handle($request->user(), $bracket);
+        try {
+            $publish->handle($request->user(), $bracket);
+        } catch (\DomainException|\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages(['publish' => $exception->getMessage()]);
+        }
 
         return back()->with('status', 'The bracket is published and its playable contests are assigned.');
     }
@@ -152,8 +192,6 @@ class ConfigurationController extends Controller
 
     private function assertAdmin(Request $request, ?Event $event): void
     {
-        if ($event === null || ! $request->user()->hasAdminAccess($event)) {
-            throw new AuthorizationException('The active Global Admin is required.');
-        }
+        EventOperationGuard::assertMutable($request->user(), $event, 'The active Global Admin is required and the Event must be mutable.');
     }
 }

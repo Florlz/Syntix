@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\BracketNodeType;
+use App\Enums\BracketNodeState;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -49,10 +50,20 @@ class BracketNode extends Model
             : BracketNodeType::from((string) $type);
     }
 
+    public function nodeState(): BracketNodeState
+    {
+        $state = $this->getAttribute('state');
+
+        return $state instanceof BracketNodeState
+            ? $state
+            : BracketNodeState::from((string) $state);
+    }
+
     protected function casts(): array
     {
         return [
             'node_type' => BracketNodeType::class,
+            'state' => BracketNodeState::class,
             'metadata' => 'array',
         ];
     }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BracketSlotSource;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,5 +23,19 @@ class BracketSlot extends Model
     public function sourceNode(): BelongsTo
     {
         return $this->belongsTo(BracketNode::class, 'source_node_id');
+    }
+
+    public function sourceType(): ?BracketSlotSource
+    {
+        $source = $this->getAttribute('source_result');
+
+        return $source === null || $source === ''
+            ? null
+            : ($source instanceof BracketSlotSource ? $source : BracketSlotSource::from((string) $source));
+    }
+
+    protected function casts(): array
+    {
+        return ['source_result' => BracketSlotSource::class];
     }
 }

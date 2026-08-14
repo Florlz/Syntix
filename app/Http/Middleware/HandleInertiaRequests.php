@@ -5,7 +5,6 @@ namespace App\Http\Middleware;
 use App\Enums\EventRole;
 use App\Models\Event;
 use App\Models\DivisionPlacement;
-use App\Models\EligibilityRecord;
 use App\Models\ResultSubmission;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -79,13 +78,9 @@ class HandleInertiaRequests extends Middleware
             ->values()
             ->all() ?? [];
 
-        $navBadges = ['eligibility' => 0, 'staff' => 0, 'results' => 0];
+        $navBadges = ['staff' => 0, 'results' => 0];
         if ($globalAdmin && $activeEvent !== null) {
             $eventId = $activeEvent->getKey();
-            $navBadges['eligibility'] = EligibilityRecord::query()
-                ->where('status', 'pending')
-                ->where('event_id', $eventId)
-                ->count();
             $staffUsers = $activeEvent->userRoles()->active()->whereIn('role', ['judge', 'tabulator'])->pluck('user_id')->unique();
             $assignedUsers = $activeEvent->assignments()->active()->pluck('user_id')->unique();
             $navBadges['staff'] = $staffUsers->diff($assignedUsers)->count();
@@ -95,6 +90,7 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...$shared,
+            'selected_participant_ids' => $public || $user === null ? [] : $request->session()->get('selected_participant_ids', []),
             'auth' => [
                 'user' => $user === null ? null : [
                     'id' => (string) $user->getKey(),
@@ -118,9 +114,11 @@ class HandleInertiaRequests extends Middleware
             'flash' => $public || $user === null ? [
                 'status' => null,
                 'setup_url' => null,
+                'selected_participant_ids' => [],
             ] : [
                 'status' => $request->session()->get('status'),
                 'setup_url' => $request->session()->get('setup_url'),
+                'selected_participant_ids' => $request->session()->get('selected_participant_ids', []),
             ],
             'nav_badges' => $navBadges,
         ];

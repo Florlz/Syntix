@@ -13,6 +13,7 @@ use App\Models\Event;
 use App\Models\ScoringAssignment;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -38,9 +39,7 @@ final class GrantScoringAssignment
             $event = Event::query()->whereKey($event->getKey())->lockForUpdate()->firstOrFail();
             $assignee = User::query()->whereKey($assignee->getKey())->lockForUpdate()->firstOrFail();
 
-            if (! $actor->hasAdminAccess($event)) {
-                throw new AuthorizationException('The active Global Admin is required to create scoring assignments.');
-            }
+            EventOperationGuard::assertMutable($actor, $event, 'The active Global Admin is required to create scoring assignments.');
 
             if (! $assignee->isActive() || $event->eventState() === EventState::Archived) {
                 throw new AuthorizationException('Assignments require an active account and non-archived event.');

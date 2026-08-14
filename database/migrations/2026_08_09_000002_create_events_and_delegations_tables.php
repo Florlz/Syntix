@@ -13,10 +13,10 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('slug')->unique();
-            $table->enum('state', array_map(
-                static fn (EventState $state): string => $state->value,
-                EventState::cases(),
-            ))->default(EventState::Preparation->value)->index();
+            // Keep this historical schema literal stable if EventState gains
+            // a future application-only state.
+            $table->enum('state', ['preparation', 'configuration', 'live', 'closed', 'archived'])
+                ->default(EventState::Preparation->value)->index();
             $table->foreignId('created_by')
                 ->nullable()
                 ->constrained('users')

@@ -9,6 +9,7 @@ use App\Models\Division;
 use App\Models\DivisionPlacement;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -25,9 +26,7 @@ final class SubmitDivisionPlacement
         $division->loadMissing('competition.event');
         $event = $division->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can submit a Division Placement.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can submit a Division Placement.');
 
         if ($items === []) {
             throw new \InvalidArgumentException('A Division Placement requires at least one placed entry.');

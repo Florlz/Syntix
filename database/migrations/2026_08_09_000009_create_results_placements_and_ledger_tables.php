@@ -61,10 +61,8 @@ return new class extends Migration
             $table->foreignId('submitted_by')
                 ->constrained('users')
                 ->restrictOnDelete();
-            $table->enum('state', array_map(
-                static fn (ResultSubmissionState $state): string => $state->value,
-                ResultSubmissionState::cases(),
-            ))->default(ResultSubmissionState::Draft->value)->index();
+            $table->enum('state', ['draft', 'completed', 'submitted', 'rejected', 'approved'])
+                ->default(ResultSubmissionState::Draft->value)->index();
             $table->unsignedBigInteger('contest_revision');
             $table->json('payload');
             $table->text('rejection_reason')->nullable();
@@ -83,14 +81,12 @@ return new class extends Migration
                 ->constrained('result_submissions')
                 ->restrictOnDelete();
             $table->unsignedBigInteger('revision');
-            $table->enum('state', array_map(
-                static fn (OfficialOutcomeState $state): string => $state->value,
-                OfficialOutcomeState::cases(),
-            ))->default(OfficialOutcomeState::Approved->value)->index();
-            $table->enum('outcome_type', array_map(
-                static fn (OutcomeType $type): string => $type->value,
-                OutcomeType::cases(),
-            ));
+            $table->enum('state', ['approved', 'superseded', 'voided'])
+                ->default(OfficialOutcomeState::Approved->value)->index();
+            $table->enum('outcome_type', [
+                'played', 'walkover', 'forfeit', 'no_show', 'withdrawal',
+                'disqualification', 'ruled',
+            ]);
             $table->foreignId('winner_entry_id')
                 ->nullable()
                 ->constrained('entries')
@@ -114,10 +110,8 @@ return new class extends Migration
                 ->constrained('competition_rule_versions')
                 ->restrictOnDelete();
             $table->unsignedBigInteger('revision')->default(1);
-            $table->enum('state', array_map(
-                static fn (DivisionPlacementState $state): string => $state->value,
-                DivisionPlacementState::cases(),
-            ))->default(DivisionPlacementState::Candidate->value)->index();
+            $table->enum('state', ['candidate', 'submitted', 'rejected', 'approved', 'superseded', 'voided'])
+                ->default(DivisionPlacementState::Candidate->value)->index();
             $table->json('evidence')->nullable();
             $table->foreignId('submitted_by')
                 ->nullable()
@@ -169,10 +163,7 @@ return new class extends Migration
             $table->foreignId('division_placement_item_id')
                 ->constrained('division_placement_items')
                 ->restrictOnDelete();
-            $table->enum('entry_type', array_map(
-                static fn (LedgerEntryType $type): string => $type->value,
-                LedgerEntryType::cases(),
-            ));
+            $table->enum('entry_type', ['award', 'reversal', 'replacement']);
             $table->decimal('amount', 14, 4);
             $table->string('source_key')->unique();
             $table->unsignedBigInteger('source_revision');

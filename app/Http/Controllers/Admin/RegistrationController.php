@@ -3,10 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Actions\Registrations\SaveEntry;
+use App\Actions\Registrations\CreateDepartmentRoster;
 use App\Actions\Registrations\SaveParticipant;
+use App\Actions\Registrations\SaveRosterMembershipBatch;
 use App\Actions\Registrations\SaveRosterMembership;
+use App\Actions\Registrations\SaveRosterPlayer;
+use App\Actions\Registrations\SetEligibilityBatch;
 use App\Actions\Registrations\SetEligibility;
 use App\Actions\Registrations\TransitionEntryStatus;
+use App\Actions\Registrations\SaveCoachAssignment;
+use App\Actions\Registrations\DeactivateCoachAssignment;
+use App\Actions\Registrations\RecordParticipationException;
+use App\Enums\CoachAssignmentScope;
+use App\Enums\CoachType;
+use App\Enums\ParticipationExceptionType;
 use App\Enums\EligibilityStatus;
 use App\Enums\EntryStatus;
 use App\Enums\ParticipantMode;
@@ -17,20 +27,93 @@ use App\Models\Competition;
 use App\Models\Division;
 use App\Models\Entry;
 use App\Models\Event;
+use App\Models\EventDelegation;
 use App\Models\Participant;
 use App\Models\RosterMember;
+use App\Models\CoachAssignment;
+use App\Services\ParticipantDirectoryReadModel;
+use App\Services\ParticipantCsvImporter;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RegistrationController extends Controller
 {
-    public function index(Request $request, Event $event): Response
+    public function departments(Request $request, Event $event, ParticipantDirectoryReadModel $directory): Response
+    {
+        $this->assertAdmin($request, $event);
+
+        return Inertia::render('Admin/Departments/Index', [
+            'event' => [
+                'id' => (string) $event->getKey(),
+                'name' => $event->name,
+                'state' => $event->eventState()->value,
+                'archived' => $event->isArchived(),
+            ],
+            'directory_summary' => $directory->summaryForEvent($event),
+        ]);
+    }
+
+    public function department(
+        Request $request,
+        Event $event,
+        EventDelegation $department,
+        ParticipantDirectoryReadModel $directory,
+    ): Response {
+        $this->assertAdmin($request, $event);
+        abort_unless(
+            (int) $department->event_id === (int) $event->getKey() && (bool) $department->is_active,
+            404,
+        );
+
+        $filters = $request->validate([
+            'view' => ['nullable', Rule::in(['players', 'coaches'])],
+        ]);
+        $event->load([
+            'delegations' => fn ($query) => $query->where('is_active', true)->orderBy('name'),
+            'competitions' => fn ($query) => $query->where('is_active', true)->orderBy('name'),
+            'competitions.divisions' => fn ($query) => $query->where('is_active', true)->orderBy('name'),
+        ]);
+        $summary = $directory->summaryForEvent($event);
+        $selectedDepartment = collect($summary['departments'])
+            ->firstWhere('id', (string) $department->getKey());
+        abort_if($selectedDepartment === null, 404);
+
+        return Inertia::render('Admin/Departments/Show', [
+            'event' => [
+                'id' => (string) $event->getKey(),
+                'name' => $event->name,
+                'state' => $event->eventState()->value,
+                'archived' => $event->isArchived(),
+            ],
+            'department' => $selectedDepartment,
+            'departments' => $event->delegations->map(fn (EventDelegation $delegation): array => [
+                'id' => (string) $delegation->getKey(),
+                'name' => $delegation->name,
+                'abbreviation' => $delegation->abbreviation,
+                'color' => $delegation->color,
+            ])->values(),
+            'competitions' => $event->competitions->map(fn (Competition $competition): array => [
+                'id' => (string) $competition->getKey(),
+                'name' => $competition->name,
+                'programme_family' => $competition->programme_family,
+                'divisions' => $competition->divisions->map(fn (Division $division): array => [
+                    'id' => (string) $division->getKey(),
+                    'name' => $division->name,
+                ])->values(),
+            ])->values(),
+            'initial_view' => $filters['view'] ?? 'players',
+        ]);
+    }
+
+    public function index(Request $request, Event $event, ParticipantDirectoryReadModel $directory): Response|RedirectResponse
     {
         $this->assertAdmin($request, $event);
         $filters = $request->validate([
@@ -43,7 +126,18 @@ class RegistrationController extends Controller
             'eligibility' => ['nullable', Rule::enum(EligibilityStatus::class)],
             'participant' => ['nullable', 'integer'],
             'entry' => ['nullable', 'integer'],
+            'view' => ['nullable', Rule::in(['players', 'coaches'])],
+            'directory_department' => ['nullable', 'integer'],
+            'directory_sport' => ['nullable', 'integer'],
+            'directory_division' => ['nullable', 'integer'],
+            'directory_entry' => ['nullable', 'integer'],
+            'directory_roster' => ['nullable', Rule::in(['assigned', 'unassigned'])],
+            'directory_status' => ['nullable', Rule::in(['all', 'active', 'inactive'])],
         ]);
+        $directoryFilters = [
+            'roster' => $filters['directory_roster'] ?? $filters['roster_status'] ?? null,
+            'status' => $filters['directory_status'] ?? 'all',
+        ];
         $event->load([
             'delegations' => fn ($query) => $query->orderBy('name'),
             'competitions' => fn ($query) => $query->orderBy('name'),
@@ -52,57 +146,92 @@ class RegistrationController extends Controller
             'competitions.divisions.tournaments',
         ]);
 
-        $participants = $event->participants()
-            ->with([
-                'delegation',
-                'rosterMembers.entry.division.competition',
-                'eligibilityRecords',
-            ])
-            ->when($filters['q'] ?? null, function (Builder $query, string $search): void {
-                $value = '%'.mb_strtolower(trim($search)).'%';
-                $query->where(function (Builder $query) use ($value): void {
-                    $query->whereRaw('LOWER(display_name) LIKE ?', [$value])
-                        ->orWhereRaw('LOWER(COALESCE(given_name, \'\')) LIKE ?', [$value])
-                        ->orWhereRaw('LOWER(COALESCE(family_name, \'\')) LIKE ?', [$value])
-                        ->orWhereRaw('LOWER(COALESCE(student_number, \'\')) LIKE ?', [$value]);
-                });
-            })
-            ->when($filters['delegation'] ?? null, fn (Builder $query, int $id) => $query->where('event_delegation_id', $id))
-            ->when($filters['competition'] ?? null, fn (Builder $query, int $id) => $query->whereHas(
-                'rosterMembers.entry.division', fn (Builder $query) => $query->where('competition_id', $id),
-            ))
-            ->when($filters['division'] ?? null, fn (Builder $query, int $id) => $query->whereHas(
-                'rosterMembers.entry', fn (Builder $query) => $query->where('competition_division_id', $id),
-            ))
-            ->when($filters['entry_mode'] ?? null, fn (Builder $query, string $mode) => $query->whereHas(
-                'rosterMembers.entry', fn (Builder $query) => $query->where('entry_mode', $mode),
-            ))
-            ->when(($filters['roster_status'] ?? null) === 'assigned', fn (Builder $query) => $query->whereHas('rosterMembers', fn (Builder $query) => $query->where('is_active', true)))
-            ->when(($filters['roster_status'] ?? null) === 'unassigned', fn (Builder $query) => $query->whereDoesntHave('rosterMembers', fn (Builder $query) => $query->where('is_active', true)))
-            ->when($filters['eligibility'] ?? null, fn (Builder $query, string $status) => $query->whereHas(
-                'eligibilityRecords', fn (Builder $query) => $query->where('status', $status),
-            ))
-            ->orderBy('display_name')
-            ->get();
+        $directorySport = ($filters['directory_sport'] ?? null) === null
+            ? null
+            : $event->competitions->firstWhere('id', (int) $filters['directory_sport']);
+        $directoryDivision = ($filters['directory_division'] ?? null) === null
+            ? null
+            : $event->competitions->flatMap->divisions->firstWhere('id', (int) $filters['directory_division']);
+        if (($filters['directory_sport'] ?? null) !== null && $directorySport === null) {
+            abort(404);
+        }
+        if (($filters['directory_division'] ?? null) !== null && ($directoryDivision === null || ($directorySport !== null && (int) $directoryDivision->competition_id !== (int) $directorySport->getKey()))) {
+            abort(404);
+        }
 
-        $entries = Entry::query()
-            ->whereHas('division.competition', fn (Builder $query) => $query->where('event_id', $event->getKey()))
-            ->with([
-                'delegation',
-                'division.competition',
-                'division.governingRuleVersion',
-                'division.tournaments',
-                'rosterMembers.participant',
-                'eligibilityRecords',
-            ])
-            ->orderBy('name')
-            ->get();
+        $scopedCompetition = ($filters['competition'] ?? null) === null
+            ? null
+            : $event->competitions->firstWhere('id', (int) $filters['competition']);
+        $scopedDivision = ($filters['division'] ?? null) === null
+            ? null
+            : $event->competitions->flatMap->divisions->firstWhere('id', (int) $filters['division']);
+        if (($filters['competition'] ?? null) !== null && $scopedCompetition === null) {
+            abort(404);
+        }
+        if (($filters['division'] ?? null) !== null && ($scopedDivision === null || ($scopedCompetition !== null && (int) $scopedDivision->competition_id !== (int) $scopedCompetition->getKey()))) {
+            abort(404);
+        }
 
-        $eligibilityCounts = $event->participants()
-            ->join('eligibility_records', 'participants.id', '=', 'eligibility_records.participant_id')
-            ->selectRaw('eligibility_records.status, COUNT(*) AS aggregate')
-            ->groupBy('eligibility_records.status')
-            ->pluck('aggregate', 'status');
+        $selectedEntry = ($filters['entry'] ?? null) === null
+            ? null
+            : Entry::query()->with('division.competition')->find((int) $filters['entry']);
+        if (($filters['entry'] ?? null) !== null && ($selectedEntry === null || $selectedEntry->eventId() !== (int) $event->getKey())) {
+            abort(404);
+        }
+        if ($selectedEntry !== null && $scopedCompetition !== null && (int) $selectedEntry->division->competition_id !== (int) $scopedCompetition->getKey()) {
+            abort(404);
+        }
+        if ($selectedEntry !== null && $scopedDivision !== null && (int) $selectedEntry->competition_division_id !== (int) $scopedDivision->getKey()) {
+            abort(404);
+        }
+
+        if ($scopedCompetition !== null || $scopedDivision !== null || $selectedEntry !== null) {
+            $division = $selectedEntry?->division ?? $scopedDivision;
+            $competition = $selectedEntry?->division?->competition ?? $scopedCompetition ?? $division?->competition;
+            abort_if($competition === null, 404);
+
+            return redirect()->route('admin.sports.show', array_filter([
+                'event' => $event,
+                'sport' => $competition,
+                'tab' => 'rosters',
+                'division' => $division?->getKey(),
+                'department' => $selectedEntry?->event_delegation_id,
+            ], fn ($value): bool => $value !== null));
+        }
+
+        $directoryDepartment = ($filters['directory_department'] ?? $filters['delegation'] ?? null) === null
+            ? null
+            : $event->delegations()->whereKey((int) ($filters['directory_department'] ?? $filters['delegation']))->where('is_active', true)->first();
+        if (($filters['directory_department'] ?? $filters['delegation'] ?? null) !== null && $directoryDepartment === null) {
+            abort(404);
+        }
+
+        $directorySport = ($filters['directory_sport'] ?? null) === null
+            ? null
+            : $event->competitions->firstWhere('id', (int) $filters['directory_sport']);
+        if (($filters['directory_sport'] ?? null) !== null && $directorySport === null) {
+            abort(404);
+        }
+
+        $directoryDivision = ($filters['directory_division'] ?? null) === null
+            ? null
+            : $event->competitions->flatMap->divisions->firstWhere('id', (int) $filters['directory_division']);
+        if (($filters['directory_division'] ?? null) !== null && ($directoryDivision === null || ($directorySport !== null && (int) $directoryDivision->competition_id !== (int) $directorySport->getKey()))) {
+            abort(404);
+        }
+
+        $directoryEntry = ($filters['directory_entry'] ?? null) === null
+            ? null
+            : Entry::query()->with('division.competition')->find((int) $filters['directory_entry']);
+        if ($directoryEntry !== null) {
+            if ($directoryEntry->eventId() !== (int) $event->getKey()) abort(404);
+            if ($directoryDepartment !== null && (int) $directoryEntry->event_delegation_id !== (int) $directoryDepartment->getKey()) abort(404);
+            if ($directoryDivision !== null && (int) $directoryEntry->competition_division_id !== (int) $directoryDivision->getKey()) abort(404);
+            if ($directorySport !== null && (int) $directoryEntry->division->competition_id !== (int) $directorySport->getKey()) abort(404);
+        }
+
+        $directorySummary = $directory->summaryForEvent($event, $filters['q'] ?? null, $directoryFilters);
+        $selectedDepartment = $directoryDepartment?->getKey() ?? data_get($directorySummary, 'departments.0.id');
 
         return Inertia::render('Admin/Registrations/Index', [
             'event' => [
@@ -114,21 +243,22 @@ class RegistrationController extends Controller
             'filters' => [
                 'q' => $filters['q'] ?? '',
                 'delegation' => isset($filters['delegation']) ? (string) $filters['delegation'] : '',
-                'competition' => isset($filters['competition']) ? (string) $filters['competition'] : '',
-                'division' => isset($filters['division']) ? (string) $filters['division'] : '',
-                'entry_mode' => $filters['entry_mode'] ?? '',
                 'roster_status' => $filters['roster_status'] ?? '',
-                'eligibility' => $filters['eligibility'] ?? '',
+                'view' => $filters['view'] ?? 'players',
+                'directory_department' => isset($filters['directory_department']) ? (string) $filters['directory_department'] : (isset($filters['delegation']) ? (string) $filters['delegation'] : ''),
+                'directory_sport' => isset($filters['directory_sport']) ? (string) $filters['directory_sport'] : '',
+                'directory_division' => isset($filters['directory_division']) ? (string) $filters['directory_division'] : '',
+                'directory_entry' => isset($filters['directory_entry']) ? (string) $filters['directory_entry'] : '',
+                'directory_roster' => $filters['directory_roster'] ?? ($filters['roster_status'] ?? ''),
+                'directory_status' => $filters['directory_status'] ?? 'all',
             ],
             'selection' => [
-                'participant' => $participants->contains('id', $filters['participant'] ?? null)
-                    ? (string) $filters['participant']
-                    : null,
-                'entry' => $entries->contains('id', $filters['entry'] ?? null)
-                    ? (string) $filters['entry']
-                    : null,
+                'department' => $selectedDepartment === null ? '' : (string) $selectedDepartment,
+                'sport' => $directorySport === null ? '' : (string) $directorySport->getKey(),
+                'division' => $directoryDivision === null ? '' : (string) $directoryDivision->getKey(),
+                'entry' => $directoryEntry === null ? '' : (string) $directoryEntry->getKey(),
             ],
-            'delegations' => $event->delegations->map(fn ($delegation): array => [
+            'delegations' => $event->delegations->where('is_active', true)->map(fn ($delegation): array => [
                 'id' => (string) $delegation->getKey(),
                 'name' => $delegation->name,
                 'abbreviation' => $delegation->abbreviation,
@@ -138,6 +268,7 @@ class RegistrationController extends Controller
             'competitions' => $event->competitions->map(fn (Competition $competition): array => [
                 'id' => (string) $competition->getKey(),
                 'name' => $competition->name,
+                'programme_family' => $competition->programme_family,
                 'active' => (bool) $competition->is_active,
                 'divisions' => $competition->divisions->map(fn (Division $division): array => [
                     'id' => (string) $division->getKey(),
@@ -149,37 +280,144 @@ class RegistrationController extends Controller
                     'roster_role_limits' => $division->governingRuleVersion?->roster_role_limits ?? [],
                 ])->values(),
             ])->values(),
-            'participants' => $participants->map(fn (Participant $participant): array => $this->participantData($participant))->values(),
-            'entries' => $entries->map(fn (Entry $entry): array => $this->entryData($entry))->values(),
-            'summary' => [
-                'participants' => $event->participants()->count(),
-                'active_participants' => $event->participants()->where('is_active', true)->count(),
-                'active_roster_memberships' => RosterMember::query()->whereHas(
-                    'entry.division.competition', fn (Builder $query) => $query->where('event_id', $event->getKey()),
-                )->where('is_active', true)->count(),
-                'eligibility' => collect(EligibilityStatus::cases())->mapWithKeys(
-                    fn (EligibilityStatus $status): array => [$status->value => (int) ($eligibilityCounts[$status->value] ?? 0)],
-                ),
-            ],
-            'options' => [
-                'entry_modes' => $this->enumOptions(ParticipantMode::cases()),
-                'roster_roles' => $this->enumOptions(RosterMemberRole::cases()),
-                'eligibility_statuses' => $this->enumOptions(EligibilityStatus::cases()),
-                'entry_statuses' => $this->enumOptions(EntryStatus::cases()),
-            ],
+            'directory_summary' => $directorySummary,
+            // Compatibility keys intentionally stay empty so older page shells
+            // do not trigger a second, unscoped participant query.
+            'participants' => [],
+            'sections' => [],
+            'coach_sections' => [],
         ]);
+    }
+
+    public function directoryPreview(Request $request, Event $event, ParticipantDirectoryReadModel $directory): JsonResponse
+    {
+        $this->assertAdmin($request, $event);
+        $filters = $request->validate([
+            'view' => ['nullable', Rule::in(['players', 'coaches'])],
+            'department' => ['required', 'integer'],
+            'sport' => ['nullable', 'integer'],
+            'division' => ['nullable', 'integer'],
+            'entry' => ['nullable', 'integer'],
+            'q' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', Rule::in(['all', 'active', 'inactive'])],
+            'roster' => ['nullable', Rule::in(['assigned', 'unassigned'])],
+        ]);
+        $view = $filters['view'] ?? 'players';
+        $department = $event->delegations()->whereKey((int) $filters['department'])->where('is_active', true)->firstOrFail();
+        $sport = ($filters['sport'] ?? null) === null ? null : $event->competitions()->whereKey((int) $filters['sport'])->first();
+        if (($filters['sport'] ?? null) !== null && $sport === null) abort(404);
+        $division = ($filters['division'] ?? null) === null
+            ? null
+            : Division::query()->whereKey((int) $filters['division'])->where('competition_id', $sport?->getKey())->first();
+        if (($filters['division'] ?? null) !== null && $division === null) abort(404);
+        $entry = ($filters['entry'] ?? null) === null ? null : Entry::query()->with('division.competition')->find((int) $filters['entry']);
+        if ($entry !== null) {
+            if ($entry->eventId() !== (int) $event->getKey()) abort(404);
+            if ((int) $entry->event_delegation_id !== (int) $department->getKey()) abort(404);
+            if ($division !== null && (int) $entry->competition_division_id !== (int) $division->getKey()) abort(404);
+            if ($sport !== null && (int) $entry->division->competition_id !== (int) $sport->getKey()) abort(404);
+            return response()->json($directory->previewForEntry($event, $department, $entry, $view, $filters['q'] ?? null, [
+                'status' => $filters['status'] ?? 'all',
+                'roster' => $filters['roster'] ?? null,
+            ]));
+        }
+
+        if (($filters['roster'] ?? null) === 'unassigned' && $view === 'players') {
+            return response()->json($directory->previewUnassigned($event, $department, $view, $filters['q'] ?? null, [
+                'status' => $filters['status'] ?? 'all',
+                'roster' => 'unassigned',
+            ]));
+        }
+
+        abort(422, 'A roster is required to preview directory people.');
     }
 
     public function storeParticipant(Request $request, Event $event, SaveParticipant $save): RedirectResponse
     {
-        $save->handle($request->user(), $event, $this->participantAttributes($request));
+        $attributes = $this->participantAttributes($request);
+        $entry = isset($attributes['entry_id']) && $attributes['entry_id'] !== null
+            ? Entry::query()->with('division.competition')->findOrFail((int) $attributes['entry_id'])
+            : null;
+        if ($entry !== null) {
+            if ($entry->eventId() !== (int) $event->getKey() || $event->isArchived()) {
+                throw new AuthorizationException('The selected roster does not belong to this Event.');
+            }
+            $entry->loadMissing('division.tournaments');
+            if ($entry->isLocked() || $entry->division->tournaments->contains(fn ($tournament): bool => $tournament->tournamentState() === TournamentState::Published)) {
+                throw ValidationException::withMessages(['entry_id' => 'A locked or published roster cannot accept new player profiles from this panel.']);
+            }
+            $attributes['event_delegation_id'] = (int) $entry->event_delegation_id;
+        } elseif (empty($attributes['event_delegation_id'])) {
+            throw ValidationException::withMessages(['event_delegation_id' => 'Choose a department for this player.']);
+        }
+        unset($attributes['entry_id']);
+        $participant = $save->handle($request->user(), $event, $attributes);
+
+        if ($entry !== null) {
+            return $this->rosterRedirect($event, $entry)->with('selected_participant_ids', [(string) $participant->getKey()])->with('status', 'Player profile created. Add them to the roster when ready.');
+        }
 
         return back()->with('status', 'Participant registered without creating a login account.');
     }
 
+    public function storeDepartmentRoster(
+        Request $request,
+        Event $event,
+        Division $division,
+        EventDelegation $department,
+        CreateDepartmentRoster $create,
+    ): RedirectResponse {
+        $entry = $create->handle($request->user(), $event, $division, $department);
+
+        return $this->rosterRedirect($event, $entry)->with('status', 'Roster created.');
+    }
+
+    public function inspectParticipantImport(Request $request, Event $event, ParticipantCsvImporter $importer): \Illuminate\Http\JsonResponse
+    {
+        $this->assertWritable($request, $event);
+        $data = $request->validate([
+            'file' => ['required', 'file', 'max:2048', 'mimes:csv,txt'],
+            'department_id' => ['nullable', 'integer'],
+            'entry_id' => ['nullable', 'integer'],
+            'mapping' => ['nullable', 'array'],
+        ]);
+        $department = $this->importDepartment($event, $data['department_id'] ?? null, $data['entry_id'] ?? null);
+        $preview = $importer->inspect($data['file'], $event, $department, $data['mapping'] ?? []);
+
+        return response()->json($preview);
+    }
+
+    public function confirmParticipantImport(
+        Request $request,
+        Event $event,
+        ParticipantCsvImporter $importer,
+        SaveParticipant $save,
+    ): \Illuminate\Http\JsonResponse|RedirectResponse {
+        $this->assertWritable($request, $event);
+        $data = $request->validate([
+            'file' => ['required', 'file', 'max:2048', 'mimes:csv,txt'],
+            'department_id' => ['nullable', 'integer'],
+            'entry_id' => ['nullable', 'integer'],
+            'mapping' => ['nullable', 'array'],
+        ]);
+        $department = $this->importDepartment($event, $data['department_id'] ?? null, $data['entry_id'] ?? null);
+        $result = $importer->import($request->user(), $event, $data['file'], $department, $data['mapping'] ?? [], $save);
+        $selected = array_values(array_unique([...$result['created_ids'], ...$result['existing_ids']]));
+        $request->session()->flash('selected_participant_ids', $selected);
+        $payload = [...$result, 'selected_participant_ids' => $selected, 'status' => "Imported {$result['count']} player profile".($result['count'] === 1 ? '' : 's').'.'];
+
+        if ($request->expectsJson()) {
+            return response()->json($payload);
+        }
+
+        return back()->with('status', $payload['status']);
+    }
+
     public function updateParticipant(Request $request, Event $event, Participant $participant, SaveParticipant $save): RedirectResponse
     {
-        $save->handle($request->user(), $event, $this->participantAttributes($request), $participant);
+        $attributes = $this->participantAttributes($request);
+        $attributes['event_delegation_id'] ??= $participant->event_delegation_id;
+        $save->handle($request->user(), $event, $attributes, $participant);
 
         return back()->with('status', 'Participant profile updated.');
     }
@@ -223,6 +461,52 @@ class RegistrationController extends Controller
         return back()->with('status', 'Roster membership saved. Redraw any existing preview before publication.');
     }
 
+    public function updateRosterPlayer(
+        Request $request,
+        Event $event,
+        Entry $entry,
+        Participant $participant,
+        SaveRosterPlayer $save,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'profile' => ['sometimes', 'array'],
+            'profile.display_name' => ['sometimes', 'required', 'string', 'max:255'],
+            'profile.given_name' => ['nullable', 'string', 'max:255'],
+            'profile.family_name' => ['nullable', 'string', 'max:255'],
+            'profile.student_number' => ['nullable', 'string', 'max:100'],
+            'profile.email' => ['nullable', 'email', 'max:255'],
+            'profile.phone' => ['nullable', 'string', 'max:80'],
+            'profile.private_notes' => ['nullable', 'string', 'max:4000'],
+            'membership' => ['sometimes', 'array'],
+            'membership.role' => ['sometimes', Rule::enum(RosterMemberRole::class)],
+            'membership.is_active' => ['sometimes', 'boolean'],
+            'membership.notes' => ['nullable', 'string', 'max:1000'],
+            'eligibility' => ['sometimes', 'array'],
+            'eligibility.status' => ['sometimes', Rule::enum(EligibilityStatus::class)],
+            'eligibility.reason' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $save->handle($request->user(), $event, $entry, $participant, $data);
+
+        return $this->rosterRedirect($event, $entry)->with('status', 'Player changes saved.');
+    }
+
+    public function saveMembershipBatch(
+        Request $request,
+        Event $event,
+        Entry $entry,
+        SaveRosterMembershipBatch $save,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'members' => ['required', 'array', 'min:1', 'max:100'],
+            'members.*.participant_id' => ['required', 'integer', 'distinct'],
+            'members.*.role' => ['required', Rule::enum(RosterMemberRole::class)],
+        ]);
+        $save->handle($request->user(), $event, $entry, $data['members']);
+
+        return $this->rosterRedirect($event, $entry)->with('status', 'Players added to roster. Eligibility is pending review.');
+    }
+
     public function setEligibility(
         Request $request,
         Event $event,
@@ -246,6 +530,31 @@ class RegistrationController extends Controller
         return back()->with('status', 'Eligibility decision recorded with its actor and time.');
     }
 
+    public function setEligibilityBatch(
+        Request $request,
+        Event $event,
+        Entry $entry,
+        SetEligibilityBatch $set,
+    ): RedirectResponse {
+        $data = $request->validate([
+            'participant_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'participant_ids.*' => ['required', 'integer', 'distinct'],
+            'status' => ['required', Rule::enum(EligibilityStatus::class)],
+            'reason' => ['nullable', 'string', 'max:2000'],
+            'confirmed' => ['accepted'],
+        ]);
+        $set->handle(
+            $request->user(),
+            $event,
+            $entry,
+            array_map('intval', $data['participant_ids']),
+            EligibilityStatus::from($data['status']),
+            $data['reason'] ?? null,
+        );
+
+        return $this->rosterRedirect($event, $entry)->with('status', 'Eligibility decisions recorded.');
+    }
+
     public function transitionEntry(
         Request $request,
         Event $event,
@@ -255,6 +564,7 @@ class RegistrationController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::enum(EntryStatus::class)],
             'reason' => ['nullable', 'string', 'max:2000'],
+            'roster_review_confirmed' => ['nullable', 'boolean'],
         ]);
         $transition->handle(
             $request->user(),
@@ -262,16 +572,108 @@ class RegistrationController extends Controller
             $entry,
             EntryStatus::from($data['status']),
             $data['reason'] ?? null,
+            (bool) ($data['roster_review_confirmed'] ?? false),
         );
 
-        return back()->with('status', 'Entry state updated.');
+        return $this->rosterRedirect($event, $entry)->with('status', 'Entry state updated.');
+    }
+
+    public function saveCoachAssignment(Request $request, Event $event, Participant $participant, SaveCoachAssignment $save): RedirectResponse
+    {
+        $data = $request->validate([
+            'coach_type' => ['required', Rule::enum(CoachType::class)],
+            'title' => ['nullable', Rule::in(['Coach', 'Head Coach', 'Assistant Coach', 'Trainer', 'Team Captain'])],
+            'scope_type' => ['required', Rule::enum(CoachAssignmentScope::class)],
+            'scope_key' => ['required', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+        $save->handle($request->user(), $event, $participant, CoachType::from($data['coach_type']), CoachAssignmentScope::from($data['scope_type']), $data['scope_key'], $data['title'] ?? null, $data['notes'] ?? null);
+        return back()->with('status', 'Coach assignment saved.');
+    }
+
+    public function storeRosterCoachSupport(
+        Request $request,
+        Event $event,
+        Division $division,
+        EventDelegation $department,
+        SaveParticipant $participants,
+        SaveCoachAssignment $assignments,
+    ): RedirectResponse {
+        $this->assertWritable($request, $event);
+        $division->loadMissing('competition');
+        abort_unless(
+            (int) $division->competition->event_id === (int) $event->getKey()
+                && (int) $department->event_id === (int) $event->getKey()
+                && (bool) $department->is_active,
+            404,
+        );
+
+        $data = $request->validate([
+            'display_name' => ['required', 'string', 'max:255'],
+            'given_name' => ['nullable', 'string', 'max:255'],
+            'family_name' => ['nullable', 'string', 'max:255'],
+            'student_number' => ['nullable', 'string', 'max:100'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:80'],
+            'private_notes' => ['nullable', 'string', 'max:4000'],
+            'coach_type' => ['required', Rule::enum(CoachType::class)],
+            'title' => ['nullable', Rule::in(['Coach', 'Head Coach', 'Assistant Coach', 'Trainer', 'Team Captain'])],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($request, $event, $division, $department, $participants, $assignments, $data): void {
+            $participant = $participants->handle($request->user(), $event, [
+                'event_delegation_id' => $department->getKey(),
+                'display_name' => $data['display_name'],
+                'given_name' => $data['given_name'] ?? null,
+                'family_name' => $data['family_name'] ?? null,
+                'student_number' => $data['student_number'] ?? null,
+                'email' => $data['email'] ?? null,
+                'phone' => $data['phone'] ?? null,
+                'private_notes' => $data['private_notes'] ?? null,
+                'is_active' => true,
+                'is_competitor' => false,
+            ]);
+            $assignments->handle(
+                $request->user(),
+                $event,
+                $participant,
+                CoachType::from($data['coach_type']),
+                CoachAssignmentScope::Division,
+                (string) $division->getKey(),
+                $data['title'] ?? null,
+                $data['notes'] ?? null,
+            );
+        });
+
+        return redirect()->route('admin.sports.show', [
+            'event' => $event,
+            'sport' => $division->competition,
+            'tab' => 'rosters',
+            'division' => $division,
+            'department' => $department,
+        ])->with('status', 'Coach or support person added to this roster.');
+    }
+
+    public function deactivateCoachAssignment(Request $request, Event $event, CoachAssignment $assignment, DeactivateCoachAssignment $deactivate): RedirectResponse
+    {
+        $deactivate->handle($request->user(), $event, $assignment);
+        return back()->with('status', 'Coach assignment removed from active coverage.');
+    }
+
+    public function recordParticipationException(Request $request, Event $event, Entry $entry, Participant $participant, RecordParticipationException $record): RedirectResponse
+    {
+        $data = $request->validate(['type' => ['required', Rule::enum(ParticipationExceptionType::class), Rule::notIn([ParticipationExceptionType::Ineligible->value])], 'reason' => ['required', 'string', 'max:2000']]);
+        $record->handle($request->user(), $event, $entry, $participant, ParticipationExceptionType::from($data['type']), $data['reason']);
+        return $this->rosterRedirect($event, $entry)->with('status', 'Participation exception recorded.');
     }
 
     /** @return array<string, mixed> */
     private function participantAttributes(Request $request): array
     {
         return $request->validate([
-            'event_delegation_id' => ['required', 'integer', 'exists:event_delegations,id'],
+            'entry_id' => ['nullable', 'integer', 'exists:entries,id'],
+            'event_delegation_id' => ['nullable', 'integer', 'exists:event_delegations,id'],
             'display_name' => ['required', 'string', 'max:255'],
             'given_name' => ['nullable', 'string', 'max:255'],
             'family_name' => ['nullable', 'string', 'max:255'],
@@ -280,6 +682,7 @@ class RegistrationController extends Controller
             'phone' => ['nullable', 'string', 'max:80'],
             'private_notes' => ['nullable', 'string', 'max:4000'],
             'is_active' => ['required', 'boolean'],
+            'is_competitor' => ['sometimes', 'boolean'],
         ]);
     }
 
@@ -300,6 +703,52 @@ class RegistrationController extends Controller
         if (! $request->user()->hasAdminAccess($event)) {
             throw new AuthorizationException('The active Global Admin is required.');
         }
+    }
+
+    private function assertWritable(Request $request, Event $event): void
+    {
+        $this->assertAdmin($request, $event);
+        if ($event->isArchived()) {
+            throw new AuthorizationException('Archived events are read-only.');
+        }
+    }
+
+    private function importDepartment(Event $event, mixed $departmentId, mixed $entryId = null): ?EventDelegation
+    {
+        if ($entryId !== null && $entryId !== '') {
+            $entry = Entry::query()->with(['division.competition', 'division.tournaments'])->findOrFail((int) $entryId);
+            if ($entry->eventId() !== (int) $event->getKey()) {
+                throw new AuthorizationException('The selected roster does not belong to this Event.');
+            }
+            if ($entry->isLocked() || $entry->division->tournaments->contains(fn ($tournament): bool => $tournament->tournamentState() === TournamentState::Published)) {
+                throw ValidationException::withMessages(['entry_id' => 'A locked or published roster cannot accept imports.']);
+            }
+            if ($departmentId !== null && (int) $departmentId !== (int) $entry->event_delegation_id) {
+                throw new AuthorizationException('The import Department must match the selected roster.');
+            }
+            $departmentId = $entry->event_delegation_id;
+        }
+        if ($departmentId === null || $departmentId === '') {
+            return null;
+        }
+        $department = $event->delegations()->where('is_active', true)->whereKey((int) $departmentId)->first();
+        if ($department === null) {
+            throw new AuthorizationException('The selected Department does not belong to this Event.');
+        }
+        return $department;
+    }
+
+    private function rosterRedirect(Event $event, Entry $entry): RedirectResponse
+    {
+        $entry->loadMissing('division.competition');
+
+        return redirect()->route('admin.sports.show', [
+            'event' => $event,
+            'sport' => $entry->division->competition,
+            'tab' => 'rosters',
+            'division' => $entry->competition_division_id,
+            'department' => $entry->event_delegation_id,
+        ]);
     }
 
     /** @return array<string, mixed> */

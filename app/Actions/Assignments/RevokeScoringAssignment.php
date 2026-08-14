@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\ScoringAssignment;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -25,9 +26,7 @@ final class RevokeScoringAssignment
             $event = Event::query()->whereKey($assignment->event_id)->lockForUpdate()->firstOrFail();
             $actor = User::query()->whereKey($actor->getKey())->lockForUpdate()->firstOrFail();
 
-            if (! $actor->hasAdminAccess($event)) {
-                throw new AuthorizationException('The active Global Admin is required to revoke scoring assignments.');
-            }
+            EventOperationGuard::assertMutable($actor, $event, 'The active Global Admin is required to revoke scoring assignments.');
 
             if (! $assignment->isActive()) {
                 throw new \DomainException('The scoring assignment is already revoked.');

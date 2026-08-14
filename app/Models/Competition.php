@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['event_id', 'name', 'slug', 'is_active', 'deactivation_reason', 'deactivated_at'])]
+#[Fillable(['event_id', 'name', 'slug', 'programme_family', 'is_active', 'deactivation_reason', 'deactivated_at'])]
 class Competition extends Model
 {
     /** @use HasFactory<CompetitionFactory> */

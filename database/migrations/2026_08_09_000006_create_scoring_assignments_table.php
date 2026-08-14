@@ -24,10 +24,7 @@ return new class extends Migration
             $table->foreignId('user_id')
                 ->constrained('users')
                 ->restrictOnDelete();
-            $table->enum('scope_type', array_map(
-                static fn (ScoringAssignmentScope $scope): string => $scope->value,
-                ScoringAssignmentScope::cases(),
-            ));
+            $table->enum('scope_type', ['competition_division', 'contest', 'entry_scorecard']);
             $table->foreignId('competition_division_id')
                 ->nullable()
                 ->constrained('competition_divisions')

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CompetitionFormat;
+use App\Enums\TournamentFormat;
 use App\Enums\TournamentState;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'competition_division_id',
+    'discipline_id',
     'competition_rule_version_id',
     'format',
     'state',
@@ -21,9 +23,29 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 ])]
 class Tournament extends Model
 {
+    /**
+     * Accept the legacy CompetitionFormat enum at write boundaries while the
+     * persisted tournament draw model exposes its bounded TournamentFormat
+     * cast. The shared values are intentionally identical; unsupported
+     * competition-only formats still fail through the native enum cast.
+     */
+    public function setAttribute($key, $value)
+    {
+        if ($key === 'format' && $value instanceof CompetitionFormat) {
+            $value = TournamentFormat::tryFrom($value->value) ?? $value;
+        }
+
+        return parent::setAttribute($key, $value);
+    }
+
     public function division(): BelongsTo
     {
         return $this->belongsTo(Division::class, 'competition_division_id');
+    }
+
+    public function discipline(): BelongsTo
+    {
+        return $this->belongsTo(Discipline::class);
     }
 
     public function ruleVersion(): BelongsTo
@@ -46,13 +68,13 @@ class Tournament extends Model
         return $this->hasMany(BracketVersion::class);
     }
 
-    public function formatValue(): CompetitionFormat
+    public function formatValue(): TournamentFormat
     {
         $format = $this->getAttribute('format');
 
-        return $format instanceof CompetitionFormat
+        return $format instanceof TournamentFormat
             ? $format
-            : CompetitionFormat::from((string) $format);
+            : TournamentFormat::from((string) $format);
     }
 
     public function tournamentState(): TournamentState
@@ -67,7 +89,7 @@ class Tournament extends Model
     protected function casts(): array
     {
         return [
-            'format' => CompetitionFormat::class,
+            'format' => TournamentFormat::class,
             'state' => TournamentState::class,
             'draw_locked_at' => 'datetime',
             'published_at' => 'datetime',

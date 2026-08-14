@@ -38,11 +38,6 @@ class ScoringAssignment extends Model
         return $this->belongsTo(Division::class, 'competition_division_id');
     }
 
-    public function competitionDivision(): BelongsTo
-    {
-        return $this->division();
-    }
-
     public function contest(): BelongsTo
     {
         return $this->belongsTo(Contest::class);
@@ -95,8 +90,10 @@ class ScoringAssignment extends Model
         }
 
         return match ($this->scopeType()) {
-            ScoringAssignmentScope::CompetitionDivision => $target instanceof Contest
-                && (int) $this->competition_division_id === (int) $target->competition_division_id,
+            ScoringAssignmentScope::CompetitionDivision => ($target instanceof Division
+                && (int) $this->competition_division_id === (int) $target->getKey())
+                || ($target instanceof Contest
+                    && (int) $this->competition_division_id === (int) $target->competition_division_id),
             ScoringAssignmentScope::Contest => $target instanceof Contest
                 && (int) $this->contest_id === (int) $target->getKey(),
             ScoringAssignmentScope::EntryScorecard => $target instanceof EntryScorecard
@@ -117,7 +114,7 @@ class ScoringAssignment extends Model
 
     public static function eventIdForTarget(Model $target): ?int
     {
-        if ($target instanceof Division || $target instanceof CompetitionDivision) {
+        if ($target instanceof Division) {
             return $target->eventId();
         }
 

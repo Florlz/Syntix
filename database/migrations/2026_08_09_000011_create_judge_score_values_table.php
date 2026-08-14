@@ -25,10 +25,8 @@ return new class extends Migration
                 ->after('judge_id')
                 ->constrained('competition_rule_versions')
                 ->restrictOnDelete();
-            $table->enum('state', array_map(
-                static fn (ScorecardState $state): string => $state->value,
-                ScorecardState::cases(),
-            ))->default(ScorecardState::Draft->value)->index();
+            $table->enum('state', ['draft', 'completed', 'submitted', 'rejected', 'approved'])
+                ->default(ScorecardState::Draft->value)->index();
             $table->unsignedBigInteger('revision')->default(0);
             $table->decimal('calculated_total', 14, 4)->nullable();
             $table->json('payload')->nullable();

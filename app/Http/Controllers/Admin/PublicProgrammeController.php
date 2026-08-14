@@ -8,8 +8,10 @@ use App\Enums\ScheduleStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Competition;
 use App\Models\CompetitionCoverImage;
+use App\Models\Contest;
 use App\Models\Division;
 use App\Models\Event;
+use App\Models\BracketNode;
 use App\Models\Schedule;
 use App\Models\SchedulePublication;
 use App\Models\Venue;
@@ -32,17 +34,45 @@ class PublicProgrammeController extends Controller
     public function index(Request $request, Event $event): Response
     {
         $this->assertAdmin($request, $event);
+        $filters = $request->validate([
+            'competition' => ['nullable', 'integer'],
+            'division' => ['nullable', 'integer'],
+        ]);
         $event->load([
             'competitions' => fn ($query) => $query->orderBy('name'),
             'competitions.divisions' => fn ($query) => $query->orderBy('name'),
             'competitions.draftCoverImage',
             'competitions.publishedCoverImage',
             'venues' => fn ($query) => $query->orderBy('name'),
-            'schedules' => fn ($query) => $query->orderBy('starts_at'),
+            // Keep the event id and the division graph in agreement. The
+            // latter guard prevents malformed/cross-event rows from leaking
+            // into the event-wide admin projection.
+            'schedules' => fn ($query) => $query
+                ->whereHas('division.competition', fn ($competitionQuery) => $competitionQuery->where('event_id', $event->getKey()))
+                ->orderBy('starts_at'),
             'schedules.division.competition',
+            'schedules.contest',
             'schedules.venue',
             'schedules.currentPublication',
         ]);
+
+        $competition = ($filters['competition'] ?? null) === null
+            ? null
+            : $event->competitions->firstWhere('id', (int) $filters['competition']);
+        $division = ($filters['division'] ?? null) === null
+            ? null
+            : $event->competitions->flatMap->divisions->firstWhere('id', (int) $filters['division']);
+        if (($filters['competition'] ?? null) !== null && $competition === null) {
+            abort(404);
+        }
+        if (($filters['division'] ?? null) !== null && ($division === null || ($competition !== null && (int) $division->competition_id !== (int) $competition->getKey()))) {
+            abort(404);
+        }
+        $schedules = $event->schedules
+            ->when($division !== null, fn ($items) => $items->where('competition_division_id', $division->getKey()))
+            ->when($division === null && $competition !== null, fn ($items) => $items->filter(fn (Schedule $schedule): bool => (int) $schedule->division?->competition_id === (int) $competition->getKey()))
+            ->values();
+        $matches = $this->activeBracketMatches($event, $competition, $division);
 
         return Inertia::render('Admin/Events/PublicProgramme', [
             'event' => [
@@ -69,9 +99,11 @@ class PublicProgrammeController extends Controller
                 'description' => $venue->description,
                 'is_active' => (bool) $venue->is_active,
             ])->values()->all(),
-            'schedules' => $event->schedules->map(fn (Schedule $schedule) => [
+            'schedules' => $schedules->map(fn (Schedule $schedule) => [
                 'id' => (string) $schedule->getKey(),
+                'contest_id' => $schedule->contest_id === null ? null : (string) $schedule->contest_id,
                 'competition_division_id' => (string) $schedule->competition_division_id,
+                'competition_id' => $schedule->division?->competition?->getKey() === null ? null : (string) $schedule->division->competition->getKey(),
                 'competition' => $schedule->division?->competition?->name,
                 'division' => $schedule->division?->name,
                 'venue_id' => $schedule->venue_id === null ? null : (string) $schedule->venue_id,
@@ -85,6 +117,7 @@ class PublicProgrammeController extends Controller
                 'publication' => $this->adminSchedulePublication($schedule->currentPublication),
                 'has_unpublished_changes' => $this->scheduleHasUnpublishedChanges($schedule),
             ])->values()->all(),
+            'matches' => $matches->values()->all(),
             'schedule_statuses' => array_map(
                 static fn (ScheduleStatus $status): array => [
                     'value' => $status->value,
@@ -92,7 +125,94 @@ class PublicProgrammeController extends Controller
                 ],
                 ScheduleStatus::cases(),
             ),
+            'scope' => [
+                'competition' => $competition?->name ?? $division?->competition?->name,
+                'division' => $division?->name,
+                'competition_id' => $competition === null ? ($division?->competition?->getKey() === null ? null : (string) $division->competition->getKey()) : (string) $competition->getKey(),
+                'division_id' => $division === null ? null : (string) $division->getKey(),
+            ],
         ]);
+    }
+
+    /**
+     * Build the operational agenda from the latest active draw. A schedule is
+     * deliberately attached to a contest, rather than creating a second game
+     * record which can drift away from the bracket.
+     */
+    private function activeBracketMatches(Event $event, ?Competition $competition, ?Division $division)
+    {
+        $divisions = $event->competitions
+            ->when($competition !== null, fn ($items) => $items->where('id', $competition->getKey()))
+            ->flatMap->divisions
+            ->when($division !== null, fn ($items) => $items->where('id', $division->getKey()))
+            ->values();
+        $matches = collect();
+
+        foreach ($divisions as $currentDivision) {
+            $tournament = $currentDivision->tournaments()
+                ->whereIn('state', ['preview', 'published', 'uncontested'])
+                ->latest('id')
+                ->first();
+            $bracket = $tournament?->bracketVersions()
+                ->whereIn('state', ['preview', 'published'])
+                ->latest('version')
+                ->first();
+            if ($bracket === null) {
+                continue;
+            }
+            $bracket->load([
+                'nodes' => fn ($query) => $query->whereIn('node_type', ['contest', 'third_place', 'reset_final'])->orderBy('round_number')->orderBy('sequence'),
+                'nodes.contest',
+                'nodes.slots.entry',
+            ]);
+            foreach ($bracket->nodes as $node) {
+                if ($node->contest === null) {
+                    continue;
+                }
+                $contest = $node->contest;
+                // The contest is reached through the event's division graph,
+                // but keep this guard explicit for cross-event safety.
+                if ((int) $contest->division?->competition?->event_id !== (int) $event->getKey()
+                    || (int) $contest->competition_division_id !== (int) $currentDivision->getKey()) {
+                    continue;
+                }
+                $schedule = $event->schedules->firstWhere('contest_id', $contest->getKey());
+                $slots = $node->slots->sortBy('slot_number')->values();
+                $teams = $slots->map(function ($slot): string {
+                    if ($slot->entry !== null) {
+                        return $slot->entry->name;
+                    }
+                    return $slot->label ?: 'TBD';
+                })->pad(2, 'TBD')->take(2)->values();
+                $matches->push([
+                    'id' => (string) $contest->getKey(),
+                    'contest_id' => (string) $contest->getKey(),
+                    'node_key' => $node->node_key,
+                    'round' => $node->round_number === null ? 'Bracket' : 'Round '.$node->round_number,
+                    'sequence' => (int) ($node->sequence ?? 0),
+                    'competition' => $currentDivision->competition?->name,
+                    'competition_id' => (string) $currentDivision->competition_id,
+                    'division' => $currentDivision->name,
+                    'division_id' => (string) $currentDivision->getKey(),
+                    'teams' => $teams->all(),
+                    'contest_state' => $contest->state instanceof \BackedEnum ? $contest->state->value : (string) $contest->state,
+                    'schedule' => $schedule === null ? null : [
+                        'id' => (string) $schedule->getKey(),
+                        'venue_id' => $schedule->venue_id === null ? null : (string) $schedule->venue_id,
+                        'title' => $schedule->title,
+                        'starts_at' => $schedule->starts_at?->toIso8601String(),
+                        'ends_at' => $schedule->ends_at?->toIso8601String(),
+                        'status' => $schedule->status instanceof ScheduleStatus ? $schedule->status->value : (string) $schedule->status,
+                        'notes' => $schedule->notes,
+                        'venue' => $schedule->venue?->name,
+                        'publication' => $this->adminSchedulePublication($schedule->currentPublication),
+                        'has_unpublished_changes' => $this->scheduleHasUnpublishedChanges($schedule),
+                    ],
+                ]);
+            }
+        }
+
+        return $matches->sortBy(fn ($match) => [$match['schedule']['starts_at'] ?? '9999-12-31T23:59:59Z', $match['division'], $match['sequence']])->values();
     }
 
     public function storeVenue(Request $request, Event $event, AuditLogger $audit): RedirectResponse
@@ -134,11 +254,66 @@ class PublicProgrammeController extends Controller
         $this->assertAdmin($request, $event);
         $this->assertMutableEvent($event);
         $this->assertBelongsToEvent($schedule->event_id, $event);
+        $this->assertScheduleGraph($schedule, $event);
         $before = $this->scheduleAuditData($schedule);
-        $schedule->update($this->validateSchedule($request, $event));
+        $schedule->update($this->validateSchedule($request, $event, $schedule));
         $audit->record($request->user(), AuditAction::ScheduleUpdated, $schedule, $event, before: $before, after: $this->scheduleAuditData($schedule));
 
         return back()->with('status', 'Schedule draft updated. Republish to change the public programme.');
+    }
+
+    public function publishCompetitionSchedules(Request $request, Event $event, Competition $competition, AuditLogger $audit): RedirectResponse
+    {
+        $this->assertAdmin($request, $event);
+        $this->assertMutableEvent($event);
+        $this->assertBelongsToEvent($competition->event_id, $event);
+
+        $count = 0;
+        // A sport can retain schedules for superseded draws. Only contests
+        // in the latest active bracket are publishable from this bulk action.
+        $activeContestIds = $this->activeBracketMatches($event, $competition, null)
+            ->pluck('contest_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        DB::transaction(function () use ($request, $event, $competition, $audit, $activeContestIds, &$count): void {
+            $schedules = Schedule::query()
+                ->with(['division.competition', 'venue'])
+                ->where('event_id', $event->getKey())
+                ->whereHas('division', fn ($query) => $query->where('competition_id', $competition->getKey()))
+                ->whereHas('contest', fn ($query) => $query->whereColumn('contests.competition_division_id', 'schedules.competition_division_id'))
+                ->whereNotNull('contest_id')
+                ->whereIn('contest_id', $activeContestIds->all())
+                ->lockForUpdate()
+                ->get();
+            foreach ($schedules as $schedule) {
+                if ($schedule->starts_at === null || ! $schedule->hasUnpublishedChanges()) {
+                    continue;
+                }
+                $publications = $schedule->publications()->lockForUpdate();
+                $revision = ((int) (clone $publications)->max('revision')) + 1;
+                (clone $publications)->where('state', PublicationState::Published->value)->update(['state' => PublicationState::Superseded->value]);
+                $publication = $schedule->publications()->create([
+                    'revision' => $revision,
+                    'competition_name' => $schedule->division?->competition?->name,
+                    'division_name' => $schedule->division?->name,
+                    'title' => $schedule->title,
+                    'starts_at' => $schedule->starts_at,
+                    'ends_at' => $schedule->ends_at,
+                    'status' => $schedule->status,
+                    'venue_name' => $schedule->venue?->name,
+                    'venue_location' => $schedule->venue?->location,
+                    'state' => PublicationState::Published,
+                    'published_by' => $request->user()->getKey(),
+                    'published_at' => now(),
+                ]);
+                $audit->record($request->user(), AuditAction::SchedulePublished, $publication, $event, after: ['schedule_id' => (string) $schedule->getKey(), 'revision' => $revision, 'bulk' => true]);
+                $count++;
+            }
+        });
+
+        return back()->with('status', $count === 0 ? 'No changed bracket schedules were ready to publish.' : $count.' schedule'.($count === 1 ? '' : 's').' published for '.$competition->name.'.');
     }
 
     public function uploadCover(Request $request, Event $event, Competition $competition, AuditLogger $audit): RedirectResponse
@@ -335,6 +510,7 @@ class PublicProgrammeController extends Controller
         $this->assertAdmin($request, $event);
         $this->assertMutableEvent($event);
         $this->assertBelongsToEvent($schedule->event_id, $event);
+        $this->assertScheduleGraph($schedule, $event);
 
         DB::transaction(function () use ($request, $event, $schedule, $audit): void {
             $lockedSchedule = Schedule::query()
@@ -417,10 +593,11 @@ class PublicProgrammeController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function validateSchedule(Request $request, Event $event): array
+    private function validateSchedule(Request $request, Event $event, ?Schedule $schedule = null): array
     {
         $data = $request->validate([
-            'competition_division_id' => ['required', 'integer', 'exists:competition_divisions,id'],
+            'competition_division_id' => ['nullable', 'integer', 'exists:competition_divisions,id'],
+            'contest_id' => ['nullable', 'integer', 'exists:contests,id', Rule::unique('schedules', 'contest_id')->ignore($schedule?->getKey())],
             'venue_id' => ['nullable', 'integer', 'exists:venues,id'],
             'title' => ['required', 'string', 'max:255'],
             'starts_at' => ['required', 'date'],
@@ -428,6 +605,38 @@ class PublicProgrammeController extends Controller
             'status' => ['required', Rule::enum(ScheduleStatus::class)],
             'notes' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        // Once a schedule is attached to a bracket contest, editing its
+        // timing must not silently move it to another match (or detach it).
+        // A previously manual schedule may be linked once, which preserves
+        // the legacy event-wide programme route.
+        if ($schedule !== null && $schedule->contest_id !== null) {
+            if (! array_key_exists('contest_id', $data) || $data['contest_id'] === null) {
+                $data['contest_id'] = $schedule->contest_id;
+            } elseif ((int) $data['contest_id'] !== (int) $schedule->contest_id) {
+                throw ValidationException::withMessages([
+                    'contest_id' => 'A schedule cannot be reassigned to a different bracket match.',
+                ]);
+            }
+        }
+
+        if (empty($data['contest_id']) && empty($data['competition_division_id'])) {
+            if ($schedule !== null) {
+                $data['competition_division_id'] = $schedule->competition_division_id;
+            } else {
+                throw ValidationException::withMessages([
+                    'competition_division_id' => 'Select a division or link this schedule to a contest.',
+                ]);
+            }
+        }
+        if (! empty($data['contest_id'])) {
+            $contest = Contest::query()->with('division.competition')->findOrFail($data['contest_id']);
+            $this->assertBelongsToEvent($contest->division?->competition?->event_id, $event);
+            if (! empty($data['competition_division_id']) && (int) $data['competition_division_id'] !== (int) $contest->competition_division_id) {
+                throw ValidationException::withMessages(['contest_id' => 'The selected match belongs to a different division.']);
+            }
+            $data['competition_division_id'] = $contest->competition_division_id;
+        }
         $division = Division::query()->with('competition')->findOrFail($data['competition_division_id']);
         $this->assertBelongsToEvent($division->competition?->event_id, $event);
 
@@ -457,6 +666,19 @@ class PublicProgrammeController extends Controller
     {
         if ((string) $eventId !== (string) $event->getKey()) {
             throw new AuthorizationException('The selected record does not belong to this Event.');
+        }
+    }
+
+    private function assertScheduleGraph(Schedule $schedule, Event $event): void
+    {
+        $schedule->loadMissing('division.competition', 'contest.division.competition');
+        $this->assertBelongsToEvent($schedule->division?->competition?->event_id, $event);
+
+        if ($schedule->contest !== null) {
+            $this->assertBelongsToEvent($schedule->contest->division?->competition?->event_id, $event);
+            if ((int) $schedule->contest->competition_division_id !== (int) $schedule->competition_division_id) {
+                throw new AuthorizationException('The schedule and bracket match belong to different divisions.');
+            }
         }
     }
 
@@ -504,21 +726,7 @@ class PublicProgrammeController extends Controller
 
     private function scheduleHasUnpublishedChanges(Schedule $schedule): bool
     {
-        $publication = $schedule->currentPublication;
-
-        if ($publication === null) {
-            return true;
-        }
-
-        return $publication->competition_name !== $schedule->division?->competition?->name
-            || $publication->division_name !== $schedule->division?->name
-            || $publication->title !== $schedule->title
-            || $publication->starts_at?->toIso8601String() !== $schedule->starts_at?->toIso8601String()
-            || $publication->ends_at?->toIso8601String() !== $schedule->ends_at?->toIso8601String()
-            || ($publication->status instanceof ScheduleStatus ? $publication->status->value : (string) $publication->status)
-                !== ($schedule->status instanceof ScheduleStatus ? $schedule->status->value : (string) $schedule->status)
-            || $publication->venue_name !== $schedule->venue?->name
-            || $publication->venue_location !== $schedule->venue?->location;
+        return $schedule->hasUnpublishedChanges();
     }
 
     /** @return array<string, mixed> */

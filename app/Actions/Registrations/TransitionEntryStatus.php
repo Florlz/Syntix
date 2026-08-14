@@ -3,23 +3,28 @@
 namespace App\Actions\Registrations;
 
 use App\Enums\AuditAction;
-use App\Enums\EligibilityStatus;
 use App\Enums\EntryStatus;
-use App\Enums\RosterMemberRole;
 use App\Enums\TournamentState;
 use App\Models\Entry;
 use App\Models\Event;
+use App\Models\RosterApproval;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\CoachAssignmentResolver;
+use App\Services\RosterReadiness;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 final class TransitionEntryStatus
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly RosterReadiness $readiness,
+        private readonly CoachAssignmentResolver $coaches,
+    ) {}
 
-    public function handle(User $actor, Event $event, Entry $entry, EntryStatus $target, ?string $reason = null): Entry
+    public function handle(User $actor, Event $event, Entry $entry, EntryStatus $target, ?string $reason = null, bool $rosterReviewConfirmed = false): Entry
     {
         if (! $actor->hasAdminAccess($event) || $event->isArchived() || $entry->eventId() !== (int) $event->getKey()) {
             throw new AuthorizationException('The active Global Admin is required for this Event.');
@@ -27,7 +32,7 @@ final class TransitionEntryStatus
 
         $reason = trim((string) $reason) ?: null;
 
-        return DB::transaction(function () use ($actor, $event, $entry, $target, $reason): Entry {
+        return DB::transaction(function () use ($actor, $event, $entry, $target, $reason, $rosterReviewConfirmed): Entry {
             $record = Entry::query()->with([
                 'division.governingRuleVersion',
                 'division.tournaments',
@@ -62,7 +67,11 @@ final class TransitionEntryStatus
             }
 
             if ($target === EntryStatus::Locked) {
-                $this->assertReadyToLock($record);
+                if (! $rosterReviewConfirmed) throw ValidationException::withMessages(['roster_review_confirmed' => 'Confirm that the roster and required documents were reviewed before locking.']);
+                $readiness = $this->readiness->forEntry($record);
+                if (! $readiness['ready']) {
+                    throw ValidationException::withMessages(['entry' => implode(' ', $readiness['blockers'])]);
+                }
             } elseif (! $this->isAllowedTransition($from, $target)) {
                 throw ValidationException::withMessages(['status' => "An Entry cannot move from {$from->value} to {$target->value}."]);
             }
@@ -77,6 +86,17 @@ final class TransitionEntryStatus
                 'locked_by' => $target === EntryStatus::Locked ? $actor->getKey() : null,
                 'status_reason' => $reason,
             ]);
+            if ($target === EntryStatus::Locked) {
+                $players = $record->rosterMembers->filter(fn ($member) => $member->is_active && in_array($member->roleType()->value, ['student_athlete', 'reserve'], true))->map(fn ($member) => ['participant_id' => (string) $member->participant_id, 'display_name' => $member->participant?->display_name, 'role' => $member->roleType()->value])->values()->all();
+                $coaches = $this->coaches->forEntry($record)->map(fn ($assignment) => ['participant_id' => (string) $assignment->participant_id, 'display_name' => $assignment->participant?->display_name, 'coach_type' => $assignment->coach_type->value, 'title' => $assignment->title, 'scope_type' => $assignment->scope_type->value, 'scope_key' => $assignment->scope_key])->values()->all();
+                $approval = RosterApproval::create([
+                    'event_id' => $event->getKey(), 'entry_id' => $record->getKey(), 'revision' => ((int) $record->rosterApprovals()->max('revision')) + 1,
+                    'players_snapshot' => $players, 'coaches_snapshot' => $coaches,
+                    'limits_snapshot' => ['minimum' => $record->division->governingRuleVersion?->min_roster_size, 'maximum' => $record->division->governingRuleVersion?->max_roster_size, 'roles' => $record->division->governingRuleVersion?->roster_role_limits ?? []],
+                    'source_context' => ['source_reference' => $record->division->governingRuleVersion?->source_reference], 'approved_by' => $actor->getKey(), 'approved_at' => now(),
+                ]);
+                $this->audit->record($actor, AuditAction::RosterApproved, $approval, $event, after: ['entry_id' => (string) $record->getKey(), 'revision' => $approval->revision, 'player_count' => count($players), 'coach_count' => count($coaches)]);
+            }
             $this->audit->record(
                 $actor,
                 AuditAction::EntryStatusChanged,
@@ -96,44 +116,8 @@ final class TransitionEntryStatus
                 ],
             );
 
-            return $record->fresh(['rosterMembers.participant', 'eligibilityRecords']);
+            return $record->fresh(['rosterMembers.participant', 'rosterApprovals']);
         });
-    }
-
-    private function assertReadyToLock(Entry $entry): void
-    {
-        $rule = $entry->division->governingRuleVersion
-            ?? $entry->division->ruleVersions()->latest('version')->first();
-
-        if ($rule === null) {
-            throw ValidationException::withMessages(['entry' => 'A governing roster rule is required before lock.']);
-        }
-
-        $athleteRoles = [RosterMemberRole::StudentAthlete, RosterMemberRole::Reserve];
-        $athletes = $entry->rosterMembers
-            ->filter(fn ($member): bool => $member->is_active && in_array($member->roleType(), $athleteRoles, true));
-
-        if ($athletes->count() < (int) ($rule->min_roster_size ?? 1)) {
-            throw ValidationException::withMessages(['entry' => "At least {$rule->min_roster_size} active athlete is required before lock."]);
-        }
-
-        if ($rule->max_roster_size !== null && $athletes->count() > (int) $rule->max_roster_size) {
-            throw ValidationException::withMessages(['entry' => "The roster exceeds its {$rule->max_roster_size}-athlete limit."]);
-        }
-
-        $notEligible = $athletes->filter(function ($member) use ($entry): bool {
-            $eligibility = $entry->eligibilityRecords->firstWhere('participant_id', $member->participant_id);
-
-            return $eligibility === null || $eligibility->eligibilityStatus() !== EligibilityStatus::Eligible;
-        });
-
-        if ($notEligible->isNotEmpty()) {
-            throw ValidationException::withMessages(['entry' => 'Every active athlete must be marked eligible before lock.']);
-        }
-
-        if ($athletes->contains(fn ($member): bool => ! (bool) $member->participant?->is_active)) {
-            throw ValidationException::withMessages(['entry' => 'Inactive Participants cannot be included when an Entry is locked.']);
-        }
     }
 
     private function isAllowedTransition(EntryStatus $from, EntryStatus $target): bool

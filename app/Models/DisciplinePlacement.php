@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\DisciplineResultState;
+use App\Enums\DisciplinePlacementState;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -41,20 +41,20 @@ class DisciplinePlacement extends Model
         return $this->hasMany(DivisionSubPoint::class, 'discipline_placement_id');
     }
 
-    public function placementState(): DisciplineResultState
+    public function placementState(): DisciplinePlacementState
     {
         $state = $this->getAttribute('state');
 
-        return $state instanceof DisciplineResultState
+        return $state instanceof DisciplinePlacementState
             ? $state
-            : DisciplineResultState::from((string) $state);
+            : DisciplinePlacementState::from((string) $state);
     }
 
     protected function casts(): array
     {
         return [
             'sub_points' => 'decimal:4',
-            'state' => DisciplineResultState::class,
+            'state' => DisciplinePlacementState::class,
             'approved_at' => 'datetime',
         ];
     }

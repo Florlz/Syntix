@@ -6,36 +6,48 @@ use App\Enums\AuditAction;
 use App\Enums\BracketNodeType;
 use App\Enums\BracketVersionState;
 use App\Enums\CompetitionFormat;
+use App\Enums\TournamentFormat;
 use App\Enums\EntryStatus;
 use App\Enums\RuleVersionState;
 use App\Enums\TournamentState;
 use App\Models\Contest;
+use App\Models\Discipline;
 use App\Models\Division;
 use App\Models\Tournament;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\TournamentScope;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
 final class GenerateRoundRobinSchedule
 {
+    private ?Discipline $discipline = null;
+
     public function __construct(private readonly ?AuditLogger $audit = null) {}
 
     /**
      * @param  list<int>  $drawOrder
      */
-    public function handle(User $actor, Division $division, array $drawOrder, string $source = 'manual_draw'): Tournament
+    public function handle(User $actor, Division $division, array $drawOrder, string $source = 'manual_draw', ?Discipline $discipline = null): Tournament
     {
         $division->loadMissing('competition.event');
         $event = $division->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can generate a round-robin schedule.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can generate a round-robin schedule.');
 
-        return DB::transaction(function () use ($actor, $division, $drawOrder, $source, $event): Tournament {
+        return DB::transaction(function () use ($actor, $division, $drawOrder, $source, $event, $discipline): Tournament {
             $division = Division::query()->whereKey($division->getKey())->lockForUpdate()->firstOrFail();
             $division->load('competition.event');
+            if ($discipline !== null) {
+                $discipline = Discipline::query()
+                    ->whereKey($discipline->getKey())
+                    ->where('competition_division_id', $division->getKey())
+                    ->firstOrFail();
+            }
+            $this->discipline = $discipline;
+            $scope = new TournamentScope($division, $discipline);
             $version = $division->ruleVersions()
                 ->where('is_governing', true)
                 ->lockForUpdate()
@@ -50,7 +62,12 @@ final class GenerateRoundRobinSchedule
             $drawOrder = array_map('intval', array_values($drawOrder));
             $entries = $division->entries()
                 ->whereIn('id', $drawOrder)
-                ->whereIn('status', [EntryStatus::Active->value, EntryStatus::Locked->value])
+                ->when($discipline === null,
+                    fn ($query) => $query->whereIn('status', [EntryStatus::Active->value, EntryStatus::Locked->value]),
+                    fn ($query) => $query->where('status', EntryStatus::Locked->value))
+                ->when($discipline !== null, fn ($query) => $query->whereHas('disciplineEntries', fn ($query) => $query
+                    ->where('discipline_id', $discipline->getKey())
+                    ->where('state', 'locked')))
                 ->get()
                 ->keyBy(fn ($entry): int => (int) $entry->getKey());
 
@@ -58,14 +75,15 @@ final class GenerateRoundRobinSchedule
                 throw new \DomainException('Round-robin schedules require a unique eligible draw order.');
             }
 
-            if ($division->tournaments()->whereIn('state', [TournamentState::Preview->value, TournamentState::Published->value])->exists()) {
+            if ($scope->tournamentQuery()->whereIn('state', [TournamentState::Preview->value, TournamentState::Published->value])->exists()) {
                 throw new \DomainException('A preview or published tournament already exists for this Division.');
             }
 
             $tournament = Tournament::create([
                 'competition_division_id' => $division->getKey(),
+                'discipline_id' => $discipline?->getKey(),
                 'competition_rule_version_id' => $version->getKey(),
-                'format' => CompetitionFormat::RoundRobin,
+                'format' => TournamentFormat::RoundRobin,
                 'state' => TournamentState::Preview,
                 'eligible_entry_count' => count($drawOrder),
                 'created_by' => $actor->getKey(),
@@ -104,6 +122,7 @@ final class GenerateRoundRobinSchedule
 
                     $contest = Contest::create([
                         'competition_division_id' => $division->getKey(),
+                        'discipline_id' => $discipline?->getKey(),
                         'competition_rule_version_id' => $version->getKey(),
                         'name' => 'Round '.$round.' contest '.($index + 1),
                         'state' => 'scheduled',
@@ -135,7 +154,7 @@ final class GenerateRoundRobinSchedule
                 $bracket,
                 event: $event,
                 after: [
-                    'format' => CompetitionFormat::RoundRobin->value,
+                    'format' => TournamentFormat::RoundRobin->value,
                     'contest_count' => $bracket->nodes()->count(),
                     'rest_slots_are_not_contests' => true,
                 ],

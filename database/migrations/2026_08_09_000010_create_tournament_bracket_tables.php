@@ -20,14 +20,9 @@ return new class extends Migration
             $table->foreignId('competition_rule_version_id')
                 ->constrained('competition_rule_versions')
                 ->restrictOnDelete();
-            $table->enum('format', array_map(
-                static fn (CompetitionFormat $format): string => $format->value,
-                [CompetitionFormat::SingleElimination, CompetitionFormat::DoubleElimination, CompetitionFormat::RoundRobin],
-            ));
-            $table->enum('state', array_map(
-                static fn (TournamentState $state): string => $state->value,
-                TournamentState::cases(),
-            ))->default(TournamentState::Draft->value)->index();
+            $table->enum('format', ['single_elimination', 'double_elimination', 'round_robin']);
+            $table->enum('state', ['draft', 'preview', 'published', 'uncontested', 'archived'])
+                ->default(TournamentState::Draft->value)->index();
             $table->unsignedInteger('eligible_entry_count')->default(0);
             $table->foreignId('created_by')
                 ->constrained('users')
@@ -58,10 +53,8 @@ return new class extends Migration
                 ->constrained('tournaments')
                 ->restrictOnDelete();
             $table->unsignedInteger('version');
-            $table->enum('state', array_map(
-                static fn (BracketVersionState $state): string => $state->value,
-                BracketVersionState::cases(),
-            ))->default(BracketVersionState::Preview->value)->index();
+            $table->enum('state', ['preview', 'published', 'replaced'])
+                ->default(BracketVersionState::Preview->value)->index();
             $table->string('generation_algorithm_version');
             $table->json('draw_order');
             $table->json('generation_inputs');
@@ -79,10 +72,7 @@ return new class extends Migration
                 ->constrained('bracket_versions')
                 ->restrictOnDelete();
             $table->string('node_key');
-            $table->enum('node_type', array_map(
-                static fn (BracketNodeType $type): string => $type->value,
-                BracketNodeType::cases(),
-            ));
+            $table->enum('node_type', ['contest', 'bye', 'third_place', 'reset_final']);
             $table->unsignedInteger('round_number')->nullable();
             $table->unsignedInteger('sequence')->nullable();
             $table->string('state')->default('pending');

@@ -49,7 +49,7 @@ class RoundRobinGenerationTest extends TestCase
 
         $bracket = $tournament->bracketVersions()->firstOrFail();
         $this->assertSame(7, $bracket->nodes()->count());
-        $this->assertSame(1, $bracket->nodes()->where('node_type', 'reset_final')->where('state', 'conditional')->count());
+        $this->assertSame(1, $bracket->nodes()->where('node_type', 'reset_final')->where('state', 'pending')->count());
         $this->assertDatabaseHas('bracket_versions', [
             'id' => $bracket->getKey(),
             'generation_algorithm_version' => 'double-elimination-2-4-8-v1',

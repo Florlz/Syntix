@@ -1,0 +1,41 @@
+services:
+  postgres-contract:
+    image: postgres:18-alpine
+    profiles: [contract]
+    environment:
+      POSTGRES_DB: syntix_contract
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d syntix_contract']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  contract:
+    profiles: [contract]
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /var/www/html
+    command: >-
+      sh -lc "php artisan migrate:fresh --force
+      && php artisan test -c phpunit.postgres.xml"
+    environment:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres-contract
+      DB_PORT: 5432
+      DB_DATABASE: syntix_contract
+      DB_USERNAME: postgres
+      DB_PASSWORD: password
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+      SESSION_DRIVER: array
+    volumes:
+      - ./:/var/www/html
+      - syntix-vendor:/var/www/html/vendor
+    depends_on:
+      postgres-contract:
+        condition: service_healthy

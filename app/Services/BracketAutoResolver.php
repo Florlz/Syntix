@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\BracketNodeType;
+use App\Enums\BracketNodeState;
 use App\Models\BracketNode;
 use App\Models\BracketVersion;
 use App\Models\Contest;
@@ -21,20 +22,20 @@ final class BracketAutoResolver
                 ->get();
 
             foreach ($nodes as $node) {
-                if ($node->state === 'bye_resolved') {
+                if ($node->nodeState() === BracketNodeState::ByeResolved) {
                     $changed = $this->propagateWinner($node) || $changed;
 
                     continue;
                 }
 
-                if ($node->state !== 'pending' || $node->nodeType() === BracketNodeType::ResetFinal) {
+                if ($node->nodeState() !== BracketNodeState::Pending || $node->nodeType() === BracketNodeType::ResetFinal) {
                     continue;
                 }
 
                 $sourceSlots = $node->slots->whereNotNull('source_node_id');
 
                 if ($sourceSlots->isEmpty() || $sourceSlots->contains(
-                    fn ($slot): bool => ! in_array($slot->sourceNode?->state, ['resolved', 'bye_resolved'], true)
+                    fn ($slot): bool => ! in_array($slot->sourceNode?->nodeState(), [BracketNodeState::Resolved, BracketNodeState::ByeResolved], true)
                 )) {
                     continue;
                 }

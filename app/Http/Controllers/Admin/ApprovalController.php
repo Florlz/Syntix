@@ -26,26 +26,43 @@ class ApprovalController extends Controller
             throw new AuthorizationException('Only the active Global Admin can review approvals.');
         }
 
+        $filters = $request->validate([
+            'competition' => ['nullable', 'integer'],
+            'division' => ['nullable', 'integer'],
+        ]);
+        $competition = ($filters['competition'] ?? null) === null
+            ? null
+            : $event->competitions()->whereKey((int) $filters['competition'])->first();
+        $division = ($filters['division'] ?? null) === null
+            ? null
+            : Division::query()
+                ->whereKey((int) $filters['division'])
+                ->whereHas('competition', fn ($query) => $query->where('event_id', $event->getKey()))
+                ->with('competition')
+                ->first();
+
+        if (($filters['competition'] ?? null) !== null && $competition === null) {
+            abort(404);
+        }
+        if (($filters['division'] ?? null) !== null && ($division === null || ($competition !== null && (int) $division->competition_id !== (int) $competition->getKey()))) {
+            abort(404);
+        }
+
         $submissions = ResultSubmission::query()
             ->where('state', 'submitted')
             ->whereHas('contest.division.competition', fn ($query) => $query->where('event_id', $event->getKey()))
-            ->with('contest.division.competition', 'submitter')
+            ->when($competition !== null, fn ($query) => $query->whereHas('contest.division', fn ($query) => $query->where('competition_id', $competition->getKey())))
+            ->when($division !== null, fn ($query) => $query->whereHas('contest', fn ($query) => $query->where('competition_division_id', $division->getKey())))
+            ->with('contest.division.competition', 'contest.entries.entry.delegation', 'submitter')
             ->orderBy('submitted_at')
             ->get()
-            ->map(fn (ResultSubmission $submission) => [
-                'id' => (string) $submission->getKey(),
-                'competition' => $submission->contest?->division?->competition?->name,
-                'division' => $submission->contest?->division?->name,
-                'contest' => $submission->contest?->name,
-                'revision' => (int) $submission->contest_revision,
-                'submitted_by' => $submission->submitter?->name,
-                'submitted_at' => $submission->submitted_at?->toIso8601String(),
-                'payload' => $submission->payload ?? [],
-            ])->values()->all();
+            ->map(fn (ResultSubmission $submission) => $this->resultSubmissionData($submission))->values()->all();
 
         $placements = DivisionPlacement::query()
             ->where('state', 'submitted')
             ->whereHas('division.competition', fn ($query) => $query->where('event_id', $event->getKey()))
+            ->when($competition !== null, fn ($query) => $query->whereHas('division', fn ($query) => $query->where('competition_id', $competition->getKey())))
+            ->when($division !== null, fn ($query) => $query->where('competition_division_id', $division->getKey()))
             ->with('division.competition', 'submitter', 'items.entry', 'items.delegation')
             ->orderBy('submitted_at')
             ->get()
@@ -70,7 +87,56 @@ class ApprovalController extends Controller
             'event' => ['id' => (string) $event->getKey(), 'name' => $event->name],
             'result_submissions' => $submissions,
             'division_placements' => $placements,
+            'filters' => [
+                'competition' => $competition === null ? null : (string) $competition->getKey(),
+                'division' => $division === null ? null : (string) $division->getKey(),
+            ],
+            'scope' => [
+                'competition' => $competition?->name ?? $division?->competition?->name,
+                'division' => $division?->name,
+                'competition_id' => $competition === null ? ($division?->competition?->getKey() === null ? null : (string) $division->competition->getKey()) : (string) $competition->getKey(),
+                'division_id' => $division === null ? null : (string) $division->getKey(),
+            ],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resultSubmissionData(ResultSubmission $submission): array
+    {
+        $payload = $submission->payload ?? [];
+        $slots = $submission->contest?->entries?->sortBy('slot')->values() ?? collect();
+        $home = $slots->firstWhere('slot', 1);
+        $away = $slots->firstWhere('slot', 2);
+        $entryName = fn ($slot, string $fallback): string => $slot?->entry?->name ?? $fallback;
+        $winnerId = isset($payload['winner_entry_id']) ? (int) $payload['winner_entry_id'] : null;
+
+        return [
+            'id' => (string) $submission->getKey(),
+            'competition' => $submission->contest?->division?->competition?->name,
+            'division' => $submission->contest?->division?->name,
+            'contest' => $submission->contest?->name,
+            'revision' => (int) $submission->contest_revision,
+            'submitted_by' => $submission->submitter?->name,
+            'submitted_at' => $submission->submitted_at?->toIso8601String(),
+            'outcome_type' => $payload['outcome_type'] ?? null,
+            'result' => $payload['result'] ?? null,
+            'home' => [
+                'id' => $home?->entry_id === null ? null : (string) $home->entry_id,
+                'name' => $entryName($home, 'Home side'),
+                'score' => $payload['home'] ?? null,
+            ],
+            'away' => [
+                'id' => $away?->entry_id === null ? null : (string) $away->entry_id,
+                'name' => $entryName($away, 'Away side'),
+                'score' => $payload['away'] ?? null,
+            ],
+            'winner' => $winnerId === null
+                ? null
+                : ($slots->firstWhere('entry_id', $winnerId)?->entry?->name ?? 'Winner recorded'),
+            'technical_payload' => $payload,
+        ];
     }
 
     public function approveResult(

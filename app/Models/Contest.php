@@ -35,9 +35,9 @@ class Contest extends Model
         return $this->belongsTo(Division::class, 'competition_division_id');
     }
 
-    public function competitionDivision(): BelongsTo
+    public function discipline(): BelongsTo
     {
-        return $this->division();
+        return $this->belongsTo(Discipline::class);
     }
 
     public function scorecards(): HasMany

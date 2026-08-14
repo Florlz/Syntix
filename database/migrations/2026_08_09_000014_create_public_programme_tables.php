@@ -24,10 +24,8 @@ return new class extends Migration
             $table->unsignedInteger('width');
             $table->unsignedInteger('height');
             $table->string('alt_text', 180);
-            $table->enum('state', array_map(
-                static fn (PublicationState $state): string => $state->value,
-                PublicationState::cases(),
-            ))->default(PublicationState::Draft->value)->index();
+            $table->enum('state', ['draft', 'published', 'superseded', 'withdrawn'])
+                ->default(PublicationState::Draft->value)->index();
             $table->foreignId('created_by')
                 ->constrained('users')
                 ->restrictOnDelete();
@@ -58,16 +56,11 @@ return new class extends Migration
             $table->string('title');
             $table->timestamp('starts_at');
             $table->timestamp('ends_at')->nullable();
-            $table->enum('status', array_map(
-                static fn (ScheduleStatus $status): string => $status->value,
-                ScheduleStatus::cases(),
-            ));
+            $table->enum('status', ['scheduled', 'postponed', 'cancelled', 'completed']);
             $table->string('venue_name')->nullable();
             $table->string('venue_location')->nullable();
-            $table->enum('state', array_map(
-                static fn (PublicationState $state): string => $state->value,
-                PublicationState::cases(),
-            ))->default(PublicationState::Published->value)->index();
+            $table->enum('state', ['draft', 'published', 'superseded', 'withdrawn'])
+                ->default(PublicationState::Published->value)->index();
             $table->foreignId('published_by')
                 ->constrained('users')
                 ->restrictOnDelete();

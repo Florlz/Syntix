@@ -68,7 +68,7 @@ final class SaveParticipant
             $record->fill([
                 ...Arr::only($attributes, [
                     'event_delegation_id', 'display_name', 'given_name', 'family_name',
-                    'email', 'phone', 'private_notes', 'is_active',
+                    'email', 'phone', 'private_notes', 'is_active', 'is_competitor',
                 ]),
                 'display_name' => trim((string) $attributes['display_name']),
                 'given_name' => $this->nullableString($attributes['given_name'] ?? null),

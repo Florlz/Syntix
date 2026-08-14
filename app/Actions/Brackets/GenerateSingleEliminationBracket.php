@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Enums\BracketNodeType;
 use App\Enums\BracketVersionState;
 use App\Enums\CompetitionFormat;
+use App\Enums\TournamentFormat;
 use App\Enums\EntryStatus;
 use App\Enums\RuleVersionState;
 use App\Enums\TournamentState;
@@ -13,10 +14,13 @@ use App\Models\BracketNode;
 use App\Models\BracketVersion;
 use App\Models\CompetitionRuleVersion;
 use App\Models\Contest;
+use App\Models\Discipline;
 use App\Models\Division;
 use App\Models\Tournament;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\TournamentScope;
+use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -27,18 +31,23 @@ final class GenerateSingleEliminationBracket
     /**
      * @param  list<int>  $drawOrder
      */
-    public function handle(User $actor, Division $division, array $drawOrder, string $source = 'manual_draw'): Tournament
+    public function handle(User $actor, Division $division, array $drawOrder, string $source = 'manual_draw', ?Discipline $discipline = null): Tournament
     {
         $division->loadMissing('competition.event');
         $event = $division->competition?->event;
 
-        if ($event === null || ! $actor->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the active Global Admin can generate a bracket.');
-        }
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can generate a bracket.');
 
-        return DB::transaction(function () use ($actor, $division, $drawOrder, $source, $event): Tournament {
+        return DB::transaction(function () use ($actor, $division, $drawOrder, $source, $event, $discipline): Tournament {
             $division = Division::query()->whereKey($division->getKey())->lockForUpdate()->firstOrFail();
             $division->load('competition.event');
+            if ($discipline !== null) {
+                $discipline = Discipline::query()
+                    ->whereKey($discipline->getKey())
+                    ->where('competition_division_id', $division->getKey())
+                    ->firstOrFail();
+            }
+            $scope = new TournamentScope($division, $discipline);
             $version = $division->ruleVersions()
                 ->where('is_governing', true)
                 ->lockForUpdate()
@@ -50,7 +59,7 @@ final class GenerateSingleEliminationBracket
                 throw new \DomainException('Only a governing single-elimination rule version can generate a bracket.');
             }
 
-            $existing = $division->tournaments()
+            $existing = $scope->tournamentQuery()
                 ->whereIn('state', [TournamentState::Published->value, TournamentState::Preview->value])
                 ->exists();
 
@@ -66,7 +75,12 @@ final class GenerateSingleEliminationBracket
 
             $entries = $division->entries()
                 ->whereIn('id', $drawOrder)
-                ->whereIn('status', [EntryStatus::Active->value, EntryStatus::Locked->value])
+                ->when($discipline === null,
+                    fn ($query) => $query->whereIn('status', [EntryStatus::Active->value, EntryStatus::Locked->value]),
+                    fn ($query) => $query->where('status', EntryStatus::Locked->value))
+                ->when($discipline !== null, fn ($query) => $query->whereHas('disciplineEntries', fn ($query) => $query
+                    ->where('discipline_id', $discipline->getKey())
+                    ->where('state', 'locked')))
                 ->get()
                 ->keyBy(fn ($entry): int => (int) $entry->getKey());
 
@@ -80,8 +94,9 @@ final class GenerateSingleEliminationBracket
 
             $tournament = Tournament::create([
                 'competition_division_id' => $division->getKey(),
+                'discipline_id' => $discipline?->getKey(),
                 'competition_rule_version_id' => $version->getKey(),
-                'format' => CompetitionFormat::SingleElimination,
+                'format' => TournamentFormat::SingleElimination,
                 'state' => count($drawOrder) === 1 ? TournamentState::Uncontested : TournamentState::Preview,
                 'eligible_entry_count' => count($drawOrder),
                 'created_by' => $actor->getKey(),
@@ -140,6 +155,7 @@ final class GenerateSingleEliminationBracket
                     $bracket,
                     $division,
                     $version,
+                    discipline: $discipline,
                     round: 1,
                     sequence: $index + 1,
                     type: $isBye ? BracketNodeType::Bye : BracketNodeType::Contest,
@@ -167,6 +183,7 @@ final class GenerateSingleEliminationBracket
                         $bracket,
                         $division,
                         $version,
+                        discipline: $discipline,
                         round: $round,
                         sequence: $index + 1,
                         type: BracketNodeType::Contest,
@@ -225,6 +242,7 @@ final class GenerateSingleEliminationBracket
                     $bracket,
                     $division,
                     $version,
+                    discipline: $discipline,
                     round: $roundCount,
                     sequence: 3,
                     type: BracketNodeType::ThirdPlace,
@@ -266,6 +284,7 @@ final class GenerateSingleEliminationBracket
         BracketVersion $bracket,
         Division $division,
         CompetitionRuleVersion $version,
+        ?Discipline $discipline,
         int $round,
         int $sequence,
         BracketNodeType $type,
@@ -277,6 +296,7 @@ final class GenerateSingleEliminationBracket
         if (in_array($type, [BracketNodeType::Contest, BracketNodeType::ThirdPlace], true)) {
             $contest = Contest::create([
                 'competition_division_id' => $division->getKey(),
+                'discipline_id' => $discipline?->getKey(),
                 'competition_rule_version_id' => $version->getKey(),
                 'name' => $name,
                 'state' => 'scheduled',

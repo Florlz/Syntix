@@ -54,6 +54,9 @@ class Event extends Model
         return $this->hasMany(Participant::class);
     }
 
+    public function coachAssignments(): HasMany { return $this->hasMany(CoachAssignment::class); }
+    public function rosterApprovals(): HasMany { return $this->hasMany(RosterApproval::class); }
+
     public function venues(): HasMany
     {
         return $this->hasMany(Venue::class);

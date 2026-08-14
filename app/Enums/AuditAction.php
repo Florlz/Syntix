@@ -21,6 +21,7 @@ enum AuditAction: string
     case ContestStarted = 'contest.started';
     case ContestScoreRecorded = 'contest.score_recorded';
     case ContestCompleted = 'contest.completed';
+    case ContestReopenedForCorrection = 'contest.reopened_for_correction';
     case ResultSubmitted = 'result.submitted';
     case ResultRejected = 'result.rejected';
     case ContestOutcomeApproved = 'contest_outcome.approved';
@@ -60,4 +61,10 @@ enum AuditAction: string
     case EntryStatusChanged = 'entry.status_changed';
     case RosterMembershipSaved = 'roster_membership.saved';
     case EligibilitySet = 'eligibility.set';
+    case CoachAssignmentSaved = 'coach_assignment.saved';
+    case CoachAssignmentDeactivated = 'coach_assignment.deactivated';
+    case RosterApproved = 'roster.approved';
+    case ParticipationExceptionRecorded = 'participation_exception.recorded';
+    case DisciplineEntrySaved = 'discipline_entry.saved';
+    case DisciplineEntryStateChanged = 'discipline_entry.state_changed';
 }
