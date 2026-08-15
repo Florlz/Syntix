@@ -49,6 +49,12 @@ class HandleInertiaRequests extends Middleware
             ->first();
         $activeEvent = $activeRole?->event;
         $globalAdmin = $user?->isGlobalAdmin() ?? false;
+        $accessibleEventIds = $user === null
+            ? collect()
+            : ($globalAdmin
+                ? Event::query()->pluck('id')
+                : $user->eventRoles()->active()->pluck('event_id')->unique()->values());
+        $preferences = $user?->normalizedPreferences($accessibleEventIds);
 
         if ($activeEvent === null && $globalAdmin) {
             $routeEvent = $request->route('event');
@@ -57,6 +63,9 @@ class HandleInertiaRequests extends Middleware
                 : $request->integer('event');
             $activeEvent = $requestedEventId
                 ? Event::query()->find($requestedEventId)
+                : null;
+            $activeEvent ??= isset($preferences['default_event_id']) && $preferences['default_event_id'] !== null
+                ? Event::query()->find((int) $preferences['default_event_id'])
                 : null;
             $activeEvent ??= Event::query()->latest('created_at')->first();
         }
@@ -97,6 +106,7 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'email_verified' => $user->email_verified_at !== null,
+                    'preferences' => $preferences,
                 ],
                 'active_event' => $activeEvent === null ? null : [
                     'id' => (string) $activeEvent->getKey(),

@@ -12,8 +12,10 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SportController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\TournamentController;
+use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Judge\ScorecardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\PublicArea\BracketController;
 use App\Http\Controllers\PublicArea\LandingController;
 use App\Http\Controllers\PublicArea\ScoreboardController;
@@ -114,6 +116,11 @@ Route::middleware('auth')->group(function () {
         ->name('tabulator.contests.show');
     Route::post('/tabulator/contests/{contest}/commands', [ContestController::class, 'command'])
         ->name('tabulator.contests.command');
+    Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
+    Route::patch('/settings/profile', [ProfileController::class, 'update'])->name('settings.profile.update');
+    Route::put('/settings/password', [PasswordController::class, 'update'])->name('settings.password.update');
+    Route::patch('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences.update');
+    Route::delete('/settings/sessions', [SettingsController::class, 'destroyOtherSessions'])->name('settings.sessions.destroy');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });

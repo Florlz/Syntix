@@ -12,6 +12,7 @@ use App\Models\EligibilityRecord;
 use App\Models\ScoringAssignment;
 use App\Models\User;
 use App\Services\TournamentStandingCalculator;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -19,16 +20,38 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, TournamentStandingCalculator $standings): Response
+    public function __invoke(Request $request, TournamentStandingCalculator $standings): Response|RedirectResponse
     {
         $user = $request->user();
         $globalAdmin = $user->isGlobalAdmin();
         $events = $this->availableEvents($user, $globalAdmin);
+        $preferences = $user->normalizedPreferences($events->pluck('id'));
         $requestedEventId = $request->integer('event');
-        $event = $events->firstWhere('id', $requestedEventId) ?? $events->first();
+        $preferredEventId = $preferences['default_event_id'] === null
+            ? null
+            : (int) $preferences['default_event_id'];
+        $event = $events->firstWhere('id', $requestedEventId)
+            ?? ($preferredEventId === null ? null : $events->firstWhere('id', $preferredEventId))
+            ?? $events->first();
 
         if ($event === null) {
             return Inertia::render('Dashboard', $this->emptyPayload($globalAdmin));
+        }
+
+        // A saved first page should only guide the initial landing. Explicit
+        // event links (including the sidebar) always keep their normal target.
+        if ($globalAdmin && ! $request->filled('event') && $preferences['default_landing'] !== 'overview') {
+            $landingRoute = match ($preferences['default_landing']) {
+                'sports' => 'admin.sports.index',
+                'departments' => 'admin.departments.index',
+                'staff' => 'admin.staff.index',
+                'results' => 'admin.approvals.index',
+                default => null,
+            };
+
+            if ($landingRoute !== null) {
+                return redirect()->route($landingRoute, ['event' => $event->getKey()]);
+            }
         }
 
         $roles = $globalAdmin

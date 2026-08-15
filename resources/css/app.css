@@ -1,3 +1,34 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Account preferences are applied to the document by AuthenticatedLayout. */
+html[data-text-size='large'] {
+    font-size: 112.5%;
+}
+
+html[data-text-size='x-large'] {
+    font-size: 125%;
+}
+
+html[data-contrast='high'] {
+    color-scheme: light;
+}
+
+html[data-contrast='high'] body {
+    background-color: #ffffff;
+    color: #0b1720;
+}
+
+html[data-contrast='high'] :focus-visible {
+    outline: 3px solid #b17e00 !important;
+    outline-offset: 3px !important;
+}
+
+html[data-reduce-motion='true'],
+html[data-reduce-motion='true'] * {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+}

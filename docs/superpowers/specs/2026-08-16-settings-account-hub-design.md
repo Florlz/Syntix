@@ -21,7 +21,7 @@ The page is reorganised into four dashboard-hub categories:
 
 ### Account hub
 
-The page starts with a compact account header and status summary, followed by four Signal cards. The cards are the primary in-page navigation; selecting one opens its focused work area immediately beneath the hub.
+The page starts with a compact account header and status summary, followed by four compact Signal buttons. The buttons are the primary in-page navigation; selecting one opens its focused work area immediately beneath the hub.
 
 The initially selected category is **Profile**. Choosing another category changes only the focused work area and does not discard unsaved values already entered in another form. The selected card is visibly active and labels the currently open work area.
 
@@ -31,7 +31,7 @@ Each work area preserves its own submit action and its existing inline validatio
 - Accessibility and Workspace use their existing independent preference submissions.
 - Security keeps distinct password and other-session actions in the same category.
 
-### Visual direction: Signal cards
+### Visual direction: Signal buttons
 
 The existing Syntix visual language remains the foundation:
 
@@ -41,9 +41,9 @@ The existing Syntix visual language remains the foundation:
 - Paper background: `#F4F5F2`
 - Serif headings, compact uppercase utility labels, and rounded surfaces
 
-The account banner uses navy with a restrained gold radial accent. Each Signal card has a clear teal icon, concise summary, action verb, and optional status label. Soft category-specific background motifs distinguish the cards while the detailed form area remains quiet and functional.
+The account banner uses navy with a restrained gold radial accent. Each Signal button has a clear teal icon and concise label. The selected button carries the teal active state, while the detailed form area remains quiet and functional.
 
-The hub is a two-by-two grid from small screens upward. On narrow screens it stays readable as a two-column grid and the selected work area follows immediately after the grid. Motion is limited to a short selected-state transition and respects the existing reduced-motion preference.
+The hub wraps compact buttons as space permits. On narrow screens the selected work area follows immediately after the button group. Motion is limited to a short selected-state transition and respects the existing reduced-motion preference.
 
 ## Component boundaries
 

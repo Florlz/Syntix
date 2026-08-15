@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
@@ -27,10 +28,25 @@ use Illuminate\Support\Str;
     'disable_reason',
     'disabled_at',
     'disabled_by',
+    'preferences',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
+    /**
+     * Keep account preferences deliberately small and predictable. These
+     * values are also used when a legacy/null JSON value is encountered.
+     *
+     * @var array<string, mixed>
+     */
+    public const DEFAULT_PREFERENCES = [
+        'text_size' => 'default',
+        'contrast' => 'default',
+        'reduce_motion' => false,
+        'default_event_id' => null,
+        'default_landing' => 'overview',
+    ];
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
@@ -128,6 +144,64 @@ class User extends Authenticatable
     public function hasAnyAdminAccess(): bool
     {
         return $this->isGlobalAdmin();
+    }
+
+    /**
+     * Return safe preference values for this account.
+     *
+     * When an event list is provided, a deleted or no-longer-accessible
+     * default event falls back to the first available event. The raw JSON is
+     * never returned directly to the browser.
+     *
+     * @param  Collection<int, int|string>|array<int, int|string>|null  $accessibleEventIds
+     * @return array<string, mixed>
+     */
+    public function normalizedPreferences(Collection|array|null $accessibleEventIds = null): array
+    {
+        $stored = $this->getAttribute('preferences');
+        $stored = is_array($stored) ? $stored : [];
+
+        $textSize = in_array($stored['text_size'] ?? null, ['default', 'large', 'x-large'], true)
+            ? $stored['text_size']
+            : self::DEFAULT_PREFERENCES['text_size'];
+        $contrast = in_array($stored['contrast'] ?? null, ['default', 'high'], true)
+            ? $stored['contrast']
+            : self::DEFAULT_PREFERENCES['contrast'];
+        $defaultLanding = in_array($stored['default_landing'] ?? null, [
+            'overview',
+            'sports',
+            'departments',
+            'staff',
+            'results',
+        ], true)
+            ? $stored['default_landing']
+            : self::DEFAULT_PREFERENCES['default_landing'];
+
+        $defaultEventId = $stored['default_event_id'] ?? null;
+        if ($defaultEventId !== null && filter_var($defaultEventId, FILTER_VALIDATE_INT) === false) {
+            $defaultEventId = null;
+        } elseif ($defaultEventId !== null) {
+            $defaultEventId = (string) ((int) $defaultEventId);
+        }
+
+        if ($accessibleEventIds !== null) {
+            $available = collect($accessibleEventIds)
+                ->map(fn ($id): string => (string) $id)
+                ->filter(fn (string $id): bool => $id !== '')
+                ->values();
+
+            if ($defaultEventId === null || ! $available->contains($defaultEventId)) {
+                $defaultEventId = $available->first();
+            }
+        }
+
+        return [
+            'text_size' => $textSize,
+            'contrast' => $contrast,
+            'reduce_motion' => (bool) ($stored['reduce_motion'] ?? self::DEFAULT_PREFERENCES['reduce_motion']),
+            'default_event_id' => $defaultEventId,
+            'default_landing' => $defaultLanding,
+        ];
     }
 
     public function canScoreContest(Contest $contest): bool
@@ -237,6 +311,7 @@ class User extends Authenticatable
             'account_state' => AccountState::class,
             'is_global_admin' => 'boolean',
             'disabled_at' => 'datetime',
+            'preferences' => 'array',
         ];
     }
 }
