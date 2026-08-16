@@ -81,6 +81,16 @@ test('selecting a settings tab updates the query string and preserves entered va
     expect(screen.getByLabelText('Name')).toHaveValue('Updated name');
 });
 
+test('keeps section grouping in accessible link labels without off-screen helpers', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+
+    const profileLink = screen.getByRole('link', { name: /Profile/i });
+    expect(profileLink).toHaveAttribute('aria-label', 'Profile, Account');
+    expect(profileLink.querySelector('.sr-only')).toBeNull();
+});
+
 test('uses a compact settings header instead of the dashboard hero and summary strip', async () => {
     const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
 

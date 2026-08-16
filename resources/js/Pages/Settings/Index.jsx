@@ -118,6 +118,7 @@ function SettingsTab({ section, selectedSection, selectSection }) {
 
     return <a
         href={`${route('settings.edit')}?section=${section.id}`}
+        aria-label={`${section.title}, ${section.group}`}
         aria-current={selected ? 'page' : undefined}
         data-settings-section={section.id}
         onClick={(event) => {
@@ -128,7 +129,6 @@ function SettingsTab({ section, selectedSection, selectSection }) {
     >
         <AppIcon name={section.icon} className="size-4 shrink-0" />
         <span>{section.title}</span>
-        <span className="sr-only">{section.group}</span>
     </a>;
 }
 
