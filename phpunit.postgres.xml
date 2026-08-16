@@ -4,7 +4,8 @@
          bootstrap="vendor/autoload.php"
          colors="true">
     <testsuites>
-        <testsuite name="PostgreSQL contract">
+        <testsuite name="PostgreSQL Settings and contract">
+            <file>tests/Feature/SettingsTest.php</file>
             <file>tests/Feature/Backend/PostgresContractTest.php</file>
         </testsuite>
     </testsuites>

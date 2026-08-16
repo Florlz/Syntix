@@ -45,7 +45,7 @@ class PostgresContractTest extends TestCase
                 'text_size' => 'large',
                 'contrast' => 'high',
                 'reduce_motion' => true,
-                'default_event_id' => null,
+                'default_event_id' => 42,
                 'default_landing' => 'overview',
             ],
         ]);
@@ -54,7 +54,10 @@ class PostgresContractTest extends TestCase
 
         self::assertSame('large', $preferences['text_size']);
         self::assertTrue($preferences['reduce_motion']);
-        self::assertNull($preferences['default_event_id']);
+        self::assertSame(42, $preferences['default_event_id']);
+
+        $user->update(['preferences' => null]);
+        self::assertNull($user->fresh()->preferences);
 
         $legacy = User::factory()->create(['preferences' => null]);
         self::assertSame(User::DEFAULT_PREFERENCES, $legacy->fresh()->normalizedPreferences(collect()));
