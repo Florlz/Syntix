@@ -80,6 +80,42 @@ class ResultApprovalTest extends TestCase
         $this->assertSame('25', (string) $context['delegation']->fresh()->ledgerEntries()->sum('amount'));
     }
 
+    public function test_result_and_final_placement_submissions_notify_the_global_admin_once_per_transition(): void
+    {
+        $context = $this->context();
+
+        $started = (new StartContest)->handle($context['tabulator'], $context['contest']);
+        $completed = (new CompleteContest)->handle($context['tabulator'], $started, [
+            'outcome_type' => OutcomeType::Played->value,
+            'winner_entry_id' => $context['entry']->getKey(),
+            'home' => 10,
+            'away' => 8,
+        ], 1);
+
+        (new SubmitContestResult)->handle($context['tabulator'], $completed);
+        $this->assertSame(1, $context['admin']->notifications()->where('type', \App\Notifications\AdminActivityNotification::class)->count());
+
+        // Replaying an already-submitted transition must not duplicate the alert.
+        (new SubmitContestResult)->handle($context['tabulator'], $completed);
+        $this->assertSame(1, $context['admin']->notifications()->where('type', \App\Notifications\AdminActivityNotification::class)->count());
+
+        (new SubmitDivisionPlacement)->handle(
+            $context['admin'],
+            $context['division'],
+            [[
+                'entry_id' => $context['entry']->getKey(),
+                'rank' => 1,
+                'placement_key' => 'champion',
+            ]],
+        );
+
+        $this->assertSame(2, $context['admin']->notifications()->where('type', \App\Notifications\AdminActivityNotification::class)->count());
+        $this->assertEqualsCanonicalizing(
+            ['approval_result', 'approval_placement'],
+            $context['admin']->notifications()->get()->map(fn ($notification): string => $notification->data['kind'])->all(),
+        );
+    }
+
     public function test_returning_a_result_for_correction_reopens_the_contest_for_resubmission(): void
     {
         $context = $this->context();

@@ -35,4 +35,22 @@ class DevelopmentAdminLoginTest extends TestCase
             ->where('capabilities.global_admin', true)
             ->has('programme', 42));
     }
+
+    public function test_successful_global_admin_login_creates_one_security_notification_without_page_view_duplicates(): void
+    {
+        $this->seed(SiklabReferenceSeeder::class);
+        $this->seed(DevelopmentAdminSeeder::class);
+
+        $this->post('/login', [
+            'email' => 'admin@syntix.test',
+            'password' => 'password',
+        ])->assertRedirect('/dashboard');
+
+        $admin = User::query()->where('email', 'admin@syntix.test')->firstOrFail();
+        $this->assertSame(1, $admin->notifications()->count());
+        $this->assertSame('security_login', $admin->notifications()->firstOrFail()->data['kind']);
+
+        $this->get('/dashboard')->assertOk();
+        $this->assertSame(1, $admin->fresh()->notifications()->count());
+    }
 }

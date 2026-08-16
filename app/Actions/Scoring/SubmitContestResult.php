@@ -9,6 +9,7 @@ use App\Models\Contest;
 use App\Models\ResultSubmission;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Support\GlobalAdminNotifier;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +23,8 @@ final class SubmitContestResult
             throw new AuthorizationException('The Tabulator is not assigned to this contest.');
         }
 
-        return DB::transaction(function () use ($actor, $contest): ResultSubmission {
+        $created = false;
+        $submission = DB::transaction(function () use ($actor, $contest, &$created): ResultSubmission {
             $contest = Contest::query()->whereKey($contest->getKey())->lockForUpdate()->firstOrFail();
 
             if ($contest->state !== ContestState::Completed) {
@@ -48,6 +50,7 @@ final class SubmitContestResult
                 'payload' => $contest->result_payload ?? [],
                 'submitted_at' => now(),
             ]);
+            $created = true;
 
             ($this->audit ?? new AuditLogger)->record(
                 $actor,
@@ -62,5 +65,11 @@ final class SubmitContestResult
 
             return $submission;
         });
+
+        if ($created) {
+            GlobalAdminNotifier::resultSubmitted($submission);
+        }
+
+        return $submission;
     }
 }

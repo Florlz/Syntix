@@ -15,6 +15,7 @@ use App\Models\DisciplineEntry;
 use App\Models\DisciplinePlacement;
 use App\Models\Tournament;
 use App\Models\User;
+use App\Notifications\AdminActivityNotification;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -61,6 +62,37 @@ class PostgresContractTest extends TestCase
 
         $legacy = User::factory()->create(['preferences' => null]);
         self::assertSame(User::DEFAULT_PREFERENCES, $legacy->fresh()->normalizedPreferences(collect()));
+    }
+
+    public function test_nested_notification_preferences_and_database_read_state_round_trip(): void
+    {
+        $user = User::factory()->create([
+            'preferences' => [
+                'theme' => 'dark',
+                'notifications' => [
+                    'approvals' => false,
+                    'security' => true,
+                ],
+            ],
+        ]);
+
+        $preferences = $user->fresh()->normalizedPreferences(collect());
+        self::assertSame('dark', $preferences['theme']);
+        self::assertFalse($preferences['notifications']['approvals']);
+        self::assertTrue($preferences['notifications']['security']);
+
+        $user->notify(new AdminActivityNotification([
+            'kind' => 'security_login',
+            'title' => 'New administrator sign-in',
+            'message' => 'Chrome · Windows',
+        ]));
+
+        $notification = $user->fresh()->notifications()->firstOrFail();
+        self::assertSame('security_login', $notification->data['kind']);
+        self::assertNull($notification->read_at);
+
+        $notification->markAsRead();
+        self::assertNotNull($notification->fresh()->read_at);
     }
 
     public function test_state_constraints_are_present_with_frozen_values(): void

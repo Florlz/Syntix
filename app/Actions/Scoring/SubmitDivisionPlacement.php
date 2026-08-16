@@ -10,6 +10,7 @@ use App\Models\DivisionPlacement;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Support\EventOperationGuard;
+use App\Support\GlobalAdminNotifier;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 
@@ -32,7 +33,7 @@ final class SubmitDivisionPlacement
             throw new \InvalidArgumentException('A Division Placement requires at least one placed entry.');
         }
 
-        return DB::transaction(function () use ($actor, $division, $items, $evidence, $event): DivisionPlacement {
+        $placement = DB::transaction(function () use ($actor, $division, $items, $evidence, $event): DivisionPlacement {
             $division = Division::query()->whereKey($division->getKey())->lockForUpdate()->firstOrFail();
             $version = $division->ruleVersions()
                 ->where('is_governing', true)
@@ -116,5 +117,9 @@ final class SubmitDivisionPlacement
 
             return $placement->load('items');
         });
+
+        GlobalAdminNotifier::placementSubmitted($placement);
+
+        return $placement;
     }
 }

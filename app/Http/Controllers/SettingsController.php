@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Event;
 use App\Models\User;
+use App\Support\SessionDevicePresenter;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -37,6 +39,11 @@ class SettingsController extends Controller
                 'state' => $event->eventState()->value,
             ])->values(),
             'preference_options' => [
+                'themes' => [
+                    ['value' => 'light', 'label' => 'Light'],
+                    ['value' => 'dark', 'label' => 'Dark'],
+                    ['value' => 'system', 'label' => 'System'],
+                ],
                 'text_sizes' => [
                     ['value' => 'default', 'label' => 'Default'],
                     ['value' => 'large', 'label' => 'Large'],
@@ -54,6 +61,7 @@ class SettingsController extends Controller
                     ['value' => 'results', 'label' => 'Results'],
                 ],
             ],
+            'sessions' => $this->sessions($request),
             'other_session_count' => $this->otherSessionCount($request),
             'status' => session('status'),
         ]);
@@ -69,6 +77,7 @@ class SettingsController extends Controller
         $events = $this->availableEvents($user);
 
         $validated = $request->validate([
+            'theme' => ['sometimes', 'required', Rule::in(['light', 'dark', 'system'])],
             'text_size' => ['sometimes', 'required', Rule::in(['default', 'large', 'x-large'])],
             'contrast' => ['sometimes', 'required', Rule::in(['default', 'high'])],
             'reduce_motion' => ['sometimes', 'required', 'boolean'],
@@ -83,10 +92,15 @@ class SettingsController extends Controller
                 'required',
                 Rule::in(['overview', 'sports', 'departments', 'staff', 'results']),
             ],
+            'notifications' => ['sometimes', 'required', 'array'],
+            'notifications.approvals' => ['sometimes', 'required', 'boolean'],
+            'notifications.security' => ['sometimes', 'required', 'boolean'],
         ]);
 
         $current = $user->normalizedPreferences($events->modelKeys());
+        $notificationInput = $validated['notifications'] ?? [];
         $user->preferences = [
+            'theme' => $validated['theme'] ?? $current['theme'],
             'text_size' => $validated['text_size'] ?? $current['text_size'],
             'contrast' => $validated['contrast'] ?? $current['contrast'],
             'reduce_motion' => array_key_exists('reduce_motion', $validated)
@@ -96,6 +110,12 @@ class SettingsController extends Controller
                 ? ($validated['default_event_id'] === null ? null : (int) $validated['default_event_id'])
                 : $current['default_event_id'],
             'default_landing' => $validated['default_landing'] ?? $current['default_landing'],
+            'notifications' => [
+                'approvals' => array_key_exists('approvals', $notificationInput)
+                    ? (bool) $notificationInput['approvals']
+                    : $current['notifications']['approvals'],
+                'security' => true,
+            ],
         ];
         $user->save();
 
@@ -124,6 +144,39 @@ class SettingsController extends Controller
     }
 
     /**
+     * Revoke one non-current session after password confirmation.
+     */
+    public function destroySession(Request $request, string $session): RedirectResponse
+    {
+        $this->assertActive($request);
+
+        $request->validate([
+            'current_password' => ['required', 'current_password'],
+        ]);
+
+        $currentSessionId = $request->session()->getId();
+        $match = DB::table($this->sessionTable())
+            ->where('user_id', $request->user()->getKey())
+            ->get(['id'])
+            ->first(fn ($row): bool => hash_equals($this->sessionKey((string) $row->id), $session));
+
+        if ($match === null) {
+            return back()->withErrors(['session' => 'That session could not be found.']);
+        }
+
+        if ((string) $match->id === (string) $currentSessionId) {
+            return back()->withErrors(['session' => 'The current session cannot be signed out here.']);
+        }
+
+        DB::table($this->sessionTable())
+            ->where('user_id', $request->user()->getKey())
+            ->where('id', $match->id)
+            ->delete();
+
+        return back()->with('status', 'Session signed out.');
+    }
+
+    /**
      * @return Collection<int, Event>
      */
     private function availableEvents(User $user): Collection
@@ -146,6 +199,36 @@ class SettingsController extends Controller
             ->where('user_id', $request->user()->getKey())
             ->where('id', '!=', $request->session()->getId())
             ->count();
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function sessions(Request $request): array
+    {
+        $currentSessionId = (string) $request->session()->getId();
+
+        return DB::table($this->sessionTable())
+            ->where('user_id', $request->user()->getKey())
+            ->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$currentSessionId])
+            ->orderByDesc('last_activity')
+            ->get(['id', 'ip_address', 'user_agent', 'last_activity'])
+            ->map(fn ($session): array => [
+                'key' => $this->sessionKey((string) $session->id),
+                'browser' => SessionDevicePresenter::browser($session->user_agent),
+                'platform' => SessionDevicePresenter::platform($session->user_agent),
+                'device_type' => SessionDevicePresenter::deviceType($session->user_agent),
+                'ip_address' => $session->ip_address,
+                'last_active_at' => Carbon::createFromTimestamp((int) $session->last_activity)->toIso8601String(),
+                'is_current' => (string) $session->id === $currentSessionId,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function sessionKey(string $sessionId): string
+    {
+        return hash_hmac('sha256', $sessionId, (string) config('app.key'));
     }
 
     private function sessionTable(): string

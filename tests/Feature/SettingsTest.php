@@ -200,11 +200,16 @@ class SettingsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame([
+            'theme' => 'system',
             'text_size' => 'x-large',
             'contrast' => 'high',
             'reduce_motion' => true,
             'default_event_id' => $accessible->getKey(),
             'default_landing' => 'sports',
+            'notifications' => [
+                'approvals' => true,
+                'security' => true,
+            ],
         ], $user->refresh()->preferences);
 
         $this->actingAs($user)
@@ -216,6 +221,60 @@ class SettingsTest extends TestCase
                 'default_landing' => 'overview',
             ])
             ->assertSessionHasErrors(['text_size', 'default_event_id']);
+    }
+
+    public function test_theme_accepts_supported_values_rejects_invalid_values_and_preserves_other_preferences(): void
+    {
+        $user = User::factory()->create([
+            'preferences' => [
+                'theme' => 'system',
+                'text_size' => 'large',
+                'default_landing' => 'sports',
+            ],
+        ]);
+
+        $this->actingAs($user)
+            ->patch('/settings/preferences', ['theme' => 'dark'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('dark', $user->refresh()->preferences['theme']);
+        $this->assertSame('large', $user->preferences['text_size']);
+        $this->assertSame('sports', $user->preferences['default_landing']);
+
+        $this->actingAs($user)
+            ->patch('/settings/preferences', ['theme' => 'sepia'])
+            ->assertSessionHasErrors('theme');
+
+        $this->assertSame('dark', $user->refresh()->preferences['theme']);
+    }
+
+    public function test_notification_preferences_preserve_other_preferences_and_keep_security_alerts_on(): void
+    {
+        $user = User::factory()->create([
+            'preferences' => [
+                'theme' => 'dark',
+                'default_landing' => 'sports',
+                'notifications' => [
+                    'approvals' => true,
+                    'security' => false,
+                ],
+            ],
+        ]);
+
+        $this->actingAs($user)
+            ->patch('/settings/preferences', [
+                'notifications' => [
+                    'approvals' => false,
+                    'security' => false,
+                ],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $preferences = $user->refresh()->preferences;
+        $this->assertSame('dark', $preferences['theme']);
+        $this->assertSame('sports', $preferences['default_landing']);
+        $this->assertFalse($preferences['notifications']['approvals']);
+        $this->assertTrue($preferences['notifications']['security']);
     }
 
     public function test_archived_accessible_workspace_can_remain_the_read_only_default(): void
@@ -369,11 +428,16 @@ class SettingsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame([
+            'theme' => 'system',
             'text_size' => 'x-large',
             'contrast' => 'default',
             'reduce_motion' => false,
             'default_event_id' => null,
             'default_landing' => 'sports',
+            'notifications' => [
+                'approvals' => true,
+                'security' => true,
+            ],
         ], $user->refresh()->preferences);
 
         $this->actingAs($user)
@@ -384,11 +448,16 @@ class SettingsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame([
+            'theme' => 'system',
             'text_size' => 'x-large',
             'contrast' => 'default',
             'reduce_motion' => false,
             'default_event_id' => null,
             'default_landing' => 'departments',
+            'notifications' => [
+                'approvals' => true,
+                'security' => true,
+            ],
         ], $user->refresh()->preferences);
     }
 
@@ -484,6 +553,92 @@ class SettingsTest extends TestCase
             ->assertSessionHasNoErrors();
         $this->assertDatabaseHas('sessions', ['id' => $currentSessionId]);
         $this->assertDatabaseMissing('sessions', ['id' => 'other-session']);
+    }
+
+    public function test_settings_exposes_safe_session_metadata_without_raw_session_ids(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->withSession(['settings_test' => true])->get('/settings');
+        $currentSessionId = app('session.store')->getId();
+
+        DB::table('sessions')->insert([
+            [
+                'id' => $currentSessionId,
+                'user_id' => $user->getKey(),
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Edg/126.0.0.0',
+                'payload' => 'current',
+                'last_activity' => now()->timestamp,
+            ],
+            [
+                'id' => 'other-session',
+                'user_id' => $user->getKey(),
+                'ip_address' => '10.0.0.8',
+                'user_agent' => 'Mozilla/5.0 (Linux; Android 14) Chrome/126.0.0.0 Mobile Safari/537.36',
+                'payload' => 'other',
+                'last_activity' => now()->subHours(2)->timestamp,
+            ],
+        ]);
+
+        $this->withCookie(config('session.cookie'), $currentSessionId)
+            ->get('/settings')
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('sessions.0.is_current', true)
+                ->where('sessions.0.browser', 'Microsoft Edge')
+                ->where('sessions.1.device_type', 'Mobile')
+                ->where('sessions.1.key', hash_hmac('sha256', 'other-session', config('app.key')))
+                ->missing('sessions.0.id')
+                ->missing('sessions.1.id'));
+    }
+
+    public function test_user_can_revoke_only_their_own_non_current_session_with_password_confirmation(): void
+    {
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+
+        $this->actingAs($user)->withSession(['settings_test' => true])->get('/settings');
+        $currentSessionId = app('session.store')->getId();
+        DB::table('sessions')->insert([
+            [
+                'id' => $currentSessionId,
+                'user_id' => $user->getKey(),
+                'payload' => 'current',
+                'last_activity' => now()->timestamp,
+            ],
+            [
+                'id' => 'other-session',
+                'user_id' => $user->getKey(),
+                'payload' => 'other',
+                'last_activity' => now()->subHour()->timestamp,
+            ],
+            [
+                'id' => 'different-user-session',
+                'user_id' => $otherUser->getKey(),
+                'payload' => 'other-user',
+                'last_activity' => now()->subHour()->timestamp,
+            ],
+        ]);
+
+        $targetKey = hash_hmac('sha256', 'other-session', config('app.key'));
+
+        $this->withCookie(config('session.cookie'), $currentSessionId)
+            ->delete("/settings/sessions/{$targetKey}", ['current_password' => 'wrong-password'])
+            ->assertSessionHasErrors('current_password');
+        $this->assertDatabaseHas('sessions', ['id' => 'other-session']);
+
+        $this->withCookie(config('session.cookie'), $currentSessionId)
+            ->delete("/settings/sessions/{$targetKey}", ['current_password' => 'password'])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('sessions', ['id' => $currentSessionId]);
+        $this->assertDatabaseMissing('sessions', ['id' => 'other-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'different-user-session']);
+
+        $currentKey = hash_hmac('sha256', $currentSessionId, config('app.key'));
+        $this->withCookie(config('session.cookie'), $currentSessionId)
+            ->delete("/settings/sessions/{$currentKey}", ['current_password' => 'password'])
+            ->assertSessionHasErrors('session');
+        $this->assertDatabaseHas('sessions', ['id' => $currentSessionId]);
     }
 
     public function test_signing_out_other_sessions_does_not_touch_other_users_and_is_idempotent(): void

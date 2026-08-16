@@ -6,9 +6,9 @@ import { Head, router } from '@inertiajs/react';
 import Rosters from './Rosters';
 import { getSportArtwork } from '@/Support/sportArtwork';
 
-const panel = 'rounded-2xl border border-[#DDE2E0] bg-white shadow-[0_8px_24px_rgba(17,38,51,0.05)]';
-const primary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#0B536D] px-4 text-sm font-bold text-white transition hover:bg-[#083e52] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D5A21F] focus-visible:ring-offset-2 motion-reduce:transition-none';
-const quiet = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#B8C3C0] bg-white px-4 text-sm font-bold text-[#0B536D] transition hover:border-[#0B536D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D5A21F] focus-visible:ring-offset-2 motion-reduce:transition-none';
+const panel = 'rounded-2xl border border-border bg-surface shadow-sm';
+const primary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none';
+const quiet = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 text-sm font-bold text-primary transition hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none';
 
 /**
  * Build a sport hub URL. Legacy tab arguments are accepted for callers that
@@ -46,9 +46,9 @@ function humanize(value, fallback = 'Not started') {
 
 function statusClass(value) {
     const text = String(value || '').toLowerCase();
-    if (['published', 'complete', 'ready', 'uncontested'].includes(text)) return 'text-emerald-700';
-    if (['draft', 'preview', 'not_generated', 'not_scheduled', 'missing'].includes(text)) return 'text-amber-800';
-    return 'text-[#17212B]';
+    if (['published', 'complete', 'ready', 'uncontested'].includes(text)) return 'text-primary';
+    if (['draft', 'preview', 'not_generated', 'not_scheduled', 'missing'].includes(text)) return 'text-accent-foreground';
+    return 'text-foreground';
 }
 
 function divisionHref(event, sport, division = null) {
@@ -215,9 +215,9 @@ function RosterEditorFrame({ event, sport, division, selectedDepartment, rosterW
                     : 'Draft';
     return <div className="space-y-5">
         <section aria-label="Roster context">
-            <Link href={backHref} className="inline-flex min-h-10 items-center gap-2 rounded-lg text-sm font-bold text-[#0B536D] underline decoration-[#D5A21F] decoration-2 underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D5A21F] focus-visible:ring-offset-2"><AppIcon name="arrow-right" className="size-4 rotate-180" />{backLabel}</Link>
+            <Link href={backHref} className="inline-flex min-h-10 items-center gap-2 rounded-lg text-sm font-bold text-primary underline decoration-accent decoration-2 underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"><AppIcon name="arrow-right" className="size-4 rotate-180" />{backLabel}</Link>
             <h2 className="mt-3 font-serif text-3xl font-bold tracking-tight sm:text-4xl">{sport.name} {division.name} roster</h2>
-            <p className="mt-1 text-sm font-medium text-[#68767E]">{departmentId ? departmentName : 'All departments'} <span className="mx-1.5 text-[#9AA5A8]" aria-hidden="true">/</span> {status}</p>
+            <p className="mt-1 text-sm font-medium text-muted">{departmentId ? departmentName : 'All departments'} <span className="mx-1.5 text-muted" aria-hidden="true">/</span> {status}</p>
         </section>
         <Rosters event={event} sport={sport} division={division} selectedDepartment={selectedDepartment} workspace={rosterWorkspace} options={rosterOptions} archived={event.archived} departmentName={departmentName} />
     </div>;
@@ -227,8 +227,8 @@ export default function Workspace({ event, sport, divisions = [], selected_divis
     const division = divisions.find((item) => String(item.id) === String(selectedDivision)) ?? null;
     const focusedRosterEditor = activeTab === 'rosters' && division !== null;
     const scopedRosterEditor = focusedRosterEditor && selectedDepartment !== null && selectedDepartment !== '';
-    return <AuthenticatedLayout activeSection={scopedRosterEditor ? 'departments' : null} header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0B536D]">{event.name}</p><h1 className="font-serif text-2xl font-bold">{scopedRosterEditor ? 'Department roster' : sport.name}</h1></div>}>
+    return <AuthenticatedLayout activeSection={scopedRosterEditor ? 'departments' : null} header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">{scopedRosterEditor ? 'Department roster' : sport.name}</h1></div>}>
         <Head title={`${sport.name} / Sports Directory`} />
-        <main className="p-4 sm:p-7 lg:p-8"><div className="mx-auto max-w-[96rem]">{scopedRosterEditor ? null : <SportHeader event={event} sport={sport} divisions={divisions} selectedDivision={selectedDivision} />}{focusedRosterEditor ? <RosterEditorFrame event={event} sport={sport} division={division} selectedDepartment={selectedDepartment} rosterWorkspace={rosterWorkspace} rosterOptions={rosterOptions} /> : division ? <SelectedDivisionHub event={event} sport={sport} division={division} /> : <AllDivisionsHub event={event} sport={sport} divisions={divisions} />}</div></main>
+        <main className="bg-background p-4 sm:p-7 lg:p-8"><div className="mx-auto max-w-[96rem]">{scopedRosterEditor ? null : <SportHeader event={event} sport={sport} divisions={divisions} selectedDivision={selectedDivision} />}{focusedRosterEditor ? <RosterEditorFrame event={event} sport={sport} division={division} selectedDepartment={selectedDepartment} rosterWorkspace={rosterWorkspace} rosterOptions={rosterOptions} /> : division ? <SelectedDivisionHub event={event} sport={sport} division={division} /> : <AllDivisionsHub event={event} sport={sport} divisions={divisions} />}</div></main>
     </AuthenticatedLayout>;
 }

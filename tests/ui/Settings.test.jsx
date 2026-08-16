@@ -3,13 +3,15 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 const forms = [];
+const formWith = (key, predicate = () => true) => forms.find((form) => Object.prototype.hasOwnProperty.call(form.data, key) && predicate(form));
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     usePage: () => ({
         props: {
             auth: {
-                user: { name: 'Admin User', email: 'admin@syntix.test', email_verified: false, email_verified_at: '2026-01-01' },
+                global_admin: true,
+                user: { name: 'Admin User', email: 'admin@syntix.test', email_verified: false, email_verified_at: '2026-01-01', account_state: 'active', created_at: '2026-01-01T00:00:00+00:00' },
                 preferences: { text_size: 'large', contrast: 'high', reduce_motion: true, default_event_id: 2, default_landing: 'sports' },
             },
         },
@@ -20,11 +22,13 @@ vi.mock('@inertiajs/react', () => ({
         if (!formRef.current) {
             const form = {
                 data: { ...initial },
+                isDirty: false,
                 errors: {},
                 processing: false,
                 recentlySuccessful: false,
                 setData: (key, value) => {
                     form.data = { ...form.data, [key]: value };
+                    form.isDirty = true;
                     rerender();
                 },
                 patch: vi.fn(),
@@ -53,7 +57,11 @@ vi.mock('@/Components/PrefetchLink', () => ({ default: ({ children, ...props }) 
 beforeEach(() => {
     window.history.replaceState({}, '', '/settings');
     forms.length = 0;
-    globalThis.route = (name) => name === 'settings.edit' ? '/settings' : `/${name}`;
+    globalThis.route = (name, params) => {
+        if (name === 'settings.edit') return '/settings';
+        if (name === 'settings.sessions.destroy-one') return `/settings/sessions/${params.session}`;
+        return `/${name}`;
+    };
     document.documentElement.removeAttribute('data-text-size');
     document.documentElement.removeAttribute('data-contrast');
     document.documentElement.removeAttribute('data-reduce-motion');
@@ -65,8 +73,22 @@ test('opens the section named by the settings query string', async () => {
 
     render(<Settings events={[]} />);
 
-    expect(screen.getByRole('link', { name: /Password & sessions/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: /Security/i })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('heading', { name: 'Security', level: 2 })).toBeVisible();
+});
+
+test('renders the complete Global Admin settings navigation', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+
+    expect(screen.getAllByRole('link')).toHaveLength(6);
+    expect(screen.getByRole('link', { name: /Profile/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Appearance/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Accessibility/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Notifications/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Security/i })).toBeInTheDocument();
 });
 
 test('selecting a settings tab updates the query string and preserves entered values', async () => {
@@ -97,9 +119,20 @@ test('uses a compact settings header instead of the dashboard hero and summary s
     render(<Settings events={[]} />);
 
     expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText('Manage your account, preferences, and security.')).toBeInTheDocument();
+    expect(screen.getByText('Manage your account, appearance, and preferences.')).toBeInTheDocument();
     expect(screen.queryByText('Make Syntix work for you.')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Current preferences')).not.toBeInTheDocument();
+});
+
+test('shows profile role, verification, account status, and creation date', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+
+    expect(screen.getByText('Global Administrator')).toBeInTheDocument();
+    expect(screen.getByText('Email not verified')).toBeInTheDocument();
+    expect(screen.getByText('Account active')).toBeInTheDocument();
+    expect(screen.getByText(/Member since/)).toBeInTheDocument();
 });
 
 test('renders Reduce Motion as a switch and updates its checked state', async () => {
@@ -140,13 +173,26 @@ test('shows the saving label and disables the active section action while proces
     expect(screen.getByRole('button', { name: 'Saving...' })).toBeDisabled();
 });
 
+test('keeps unchanged settings actions disabled until a form is edited', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+
+    const saveButton = screen.getAllByRole('button', { name: 'Save changes' })[0];
+    expect(saveButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Edited admin' } });
+
+    expect(saveButton).toBeEnabled();
+});
+
 test('renders the settings navigation with profile selected and applies saved preferences', async () => {
     const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
 
     render(<Settings events={[{ id: 1, name: 'SIKLAB 2026' }, { id: 2, name: 'Freshers Cup' }]} />);
 
     expect(screen.getByRole('navigation', { name: 'Settings sections' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link')).toHaveLength(4);
+    expect(screen.getAllByRole('link')).toHaveLength(6);
     expect(screen.getByRole('link', { name: /Profile/ })).toHaveAttribute('aria-current', 'page');
     expect(document.querySelector('[data-settings-panel="profile"]')).not.toHaveAttribute('hidden');
     expect(screen.getByRole('heading', { name: 'Profile', level: 2 })).toBeInTheDocument();
@@ -162,6 +208,38 @@ test('shows the verification prompt from the shared verification flag', async ()
     render(<Settings mustVerifyEmail events={[]} />);
 
     expect(screen.getByText('Your email is not verified.')).toBeInTheDocument();
+});
+
+test('theme choices update Appearance state and submit only the theme preference', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+    fireEvent.click(screen.getByRole('link', { name: /Appearance/i }));
+
+    const darkTheme = screen.getByRole('radio', { name: /Dark/ });
+    expect(darkTheme).not.toBeChecked();
+    fireEvent.click(darkTheme);
+    expect(darkTheme).toBeChecked();
+
+    fireEvent.submit(darkTheme.closest('form'));
+    const appearanceForm = formWith('theme');
+    const request = appearanceForm.patch.mock.calls.at(-1)[1];
+    expect(request.transform(appearanceForm.data)).toEqual({ theme: 'dark' });
+});
+
+test('Notifications saves approval activity without changing security alerts', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+    fireEvent.click(screen.getByRole('link', { name: /Notifications/i }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Approval activity' }));
+    fireEvent.submit(screen.getByRole('switch', { name: 'Approval activity' }).closest('form'));
+
+    const notificationForm = formWith('approvals');
+    const request = notificationForm.patch.mock.calls.at(-1)[1];
+    expect(request.transform(notificationForm.data)).toEqual({
+        notifications: { approvals: false, security: true },
+    });
 });
 
 test('switches focused panels while preserving entered values', async () => {
@@ -192,6 +270,40 @@ test('selecting a settings link opens its matching panel', async () => {
     expect(screen.getByRole('heading', { name: 'Workspace' })).toBeVisible();
 });
 
+test('renders current and other active sessions from the safe session projection', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} other_session_count={1} sessions={[
+        { key: 'current-key', browser: 'Microsoft Edge', platform: 'Windows', device_type: 'Desktop', ip_address: '127.0.0.1', last_active_at: '2026-08-16T06:00:00+00:00', is_current: true },
+        { key: 'other-key', browser: 'Chrome', platform: 'Android', device_type: 'Mobile', ip_address: '10.0.0.8', last_active_at: '2026-08-16T04:00:00+00:00', is_current: false },
+    ]} />);
+    fireEvent.click(screen.getByRole('link', { name: /Security/i }));
+
+    expect(screen.getByText('Microsoft Edge')).toBeInTheDocument();
+    expect(screen.getByText('Chrome')).toBeInTheDocument();
+    expect(screen.getByText('This device')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign out Chrome session' })).toBeInTheDocument();
+});
+
+test('confirms an individual session sign-out with the current password', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} sessions={[
+        { key: 'current-key', browser: 'Microsoft Edge', platform: 'Windows', device_type: 'Desktop', ip_address: '127.0.0.1', last_active_at: '2026-08-16T06:00:00+00:00', is_current: true },
+        { key: 'other-key', browser: 'Chrome', platform: 'Android', device_type: 'Mobile', ip_address: '10.0.0.8', last_active_at: '2026-08-16T04:00:00+00:00', is_current: false },
+    ]} />);
+    fireEvent.click(screen.getByRole('link', { name: /Security/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out Chrome session' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('Sign out Chrome session');
+    fireEvent.change(screen.getByLabelText('Confirm your current password'), { target: { value: 'password' } });
+    fireEvent.submit(dialog.querySelector('form'));
+
+    const sessionForm = forms.filter((form) => Object.prototype.hasOwnProperty.call(form.data, 'current_password')).at(-1);
+    expect(sessionForm.delete).toHaveBeenCalledWith('/settings/sessions/other-key', expect.objectContaining({ preserveScroll: true }));
+});
+
 test('each card uses its own approved settings action', async () => {
     const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
 
@@ -203,10 +315,10 @@ test('each card uses its own approved settings action', async () => {
     fireEvent.submit(screen.getByRole('button', { name: 'Sign out other sessions', hidden: true }).closest('form'));
 
     expect(forms[0].patch).toHaveBeenCalledWith('/settings.profile.update', { preserveScroll: true });
-    expect(forms[3].put).toHaveBeenCalledWith('/settings.password.update', expect.objectContaining({ preserveScroll: true }));
-    expect(forms[1].patch).toHaveBeenCalledWith('/settings.preferences.update', expect.objectContaining({ preserveScroll: true }));
-    expect(forms[2].patch).toHaveBeenCalledWith('/settings.preferences.update', expect.objectContaining({ preserveScroll: true }));
-    expect(forms[4].delete).toHaveBeenCalledWith('/settings.sessions.destroy', expect.objectContaining({ preserveScroll: true }));
+    expect(formWith('password').put).toHaveBeenCalledWith('/settings.password.update', expect.objectContaining({ preserveScroll: true }));
+    expect(formWith('text_size').patch).toHaveBeenCalledWith('/settings.preferences.update', expect.objectContaining({ preserveScroll: true }));
+    expect(formWith('default_event_id').patch).toHaveBeenCalledWith('/settings.preferences.update', expect.objectContaining({ preserveScroll: true }));
+    expect(formWith('current_password', (form) => !Object.prototype.hasOwnProperty.call(form.data, 'password')).delete).toHaveBeenCalledWith('/settings.sessions.destroy', expect.objectContaining({ preserveScroll: true }));
 });
 
 test('accessibility and workspace saves submit only their own preference fields', async () => {
@@ -219,8 +331,9 @@ test('accessibility and workspace saves submit only their own preference fields'
     const accessibilityForm = screen.getByLabelText('Text size').closest('form');
     fireEvent.submit(accessibilityForm);
 
-    const accessibilityRequest = forms[1].patch.mock.calls.at(-1)[1];
-    expect(accessibilityRequest.transform(forms[1].data)).toEqual({
+    const accessibilityFormState = formWith('text_size');
+    const accessibilityRequest = accessibilityFormState.patch.mock.calls.at(-1)[1];
+    expect(accessibilityRequest.transform(accessibilityFormState.data)).toEqual({
         text_size: 'x-large',
         contrast: 'high',
         reduce_motion: true,
@@ -230,8 +343,9 @@ test('accessibility and workspace saves submit only their own preference fields'
     const workspaceForm = screen.getByLabelText('Default event', { selector: 'select' }).closest('form');
     fireEvent.submit(workspaceForm);
 
-    const workspaceRequest = forms[2].patch.mock.calls.at(-1)[1];
-    expect(workspaceRequest.transform(forms[2].data)).toEqual({
+    const workspaceFormState = formWith('default_event_id');
+    const workspaceRequest = workspaceFormState.patch.mock.calls.at(-1)[1];
+    expect(workspaceRequest.transform(workspaceFormState.data)).toEqual({
         default_event_id: '2',
         default_landing: 'sports',
     });

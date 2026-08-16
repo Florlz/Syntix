@@ -7,15 +7,15 @@ const dateTime = (value) => value
     ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
     : 'Time unavailable';
 
-const buttonPrimary = 'inline-flex min-h-11 items-center justify-center rounded-xl bg-[#0b2e4f] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#123c61] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d5a21f] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
-const buttonDanger = 'inline-flex min-h-11 items-center justify-center rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-bold text-rose-800 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
-const noteInput = 'min-h-11 min-w-0 w-full rounded-xl border-slate-300 text-sm text-slate-800 focus:border-[#0B536D] focus:ring-[#0B536D]';
+const buttonPrimary = 'inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
+const buttonDanger = 'inline-flex min-h-11 items-center justify-center rounded-xl border border-danger bg-danger-surface px-4 py-2.5 text-sm font-bold text-danger transition hover:border-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
+const noteInput = 'min-h-11 min-w-0 w-full rounded-xl border-border bg-surface text-sm text-foreground focus:border-primary focus:ring-primary';
 
 function StatusPill({ children, tone = 'amber' }) {
     const tones = {
         amber: 'border-amber-200 bg-amber-50 text-amber-800',
         green: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-        navy: 'border-[#0b2e4f]/15 bg-[#0b2e4f]/5 text-[#0b2e4f]',
+        navy: 'border-primary/20 bg-primary/5 text-primary',
     };
 
     return <span className={`inline-flex rounded-full border px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.1em] ${tones[tone]}`}>{children}</span>;
@@ -25,10 +25,10 @@ function ScopeHeader({ event, scope }) {
     const isScoped = Boolean(scope?.competition_id || scope?.division_id);
 
     return (
-        <section className="overflow-hidden rounded-3xl bg-[#0b2e4f] p-6 text-white shadow-xl shadow-slate-900/10 sm:p-8">
+        <section className="overflow-hidden rounded-3xl bg-sidebar p-6 text-white shadow-sm sm:p-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-[#ffe197]">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-accent">
                         <span>{event.name}</span>
                         {isScoped ? <><span className="text-white/35">/</span><span>{scope.competition}</span>{scope.division ? <><span className="text-white/35">/</span><span>{scope.division}</span></> : null}</> : null}
                     </div>
@@ -56,28 +56,28 @@ function OutcomeReview({ submission }) {
     const hasScore = homeScore !== null && homeScore !== undefined && awayScore !== null && awayScore !== undefined;
 
     return (
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <article className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#0B536D]">
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-primary">
                         <span>{submission.competition}</span><span className="text-slate-300">/</span><span>{submission.division}</span>
                     </div>
-                    <h3 className="mt-2 font-serif text-xl font-bold text-[#17212b]">{submission.contest || 'Match result'}</h3>
-                    <p className="mt-2 text-sm text-slate-500">Revision {submission.revision} · submitted by {submission.submitted_by || 'Unknown'} · {dateTime(submission.submitted_at)}</p>
+                    <h3 className="mt-2 font-serif text-xl font-bold text-foreground">{submission.contest || 'Match result'}</h3>
+                    <p className="mt-2 text-sm text-muted">Revision {submission.revision} · submitted by {submission.submitted_by || 'Unknown'} · {dateTime(submission.submitted_at)}</p>
                 </div>
                 <StatusPill>Needs review</StatusPill>
             </div>
 
-            <div className="mt-5 grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                <div><p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">{submission.home?.name || 'Home side'}</p><p className="mt-1 font-mono text-3xl font-bold text-[#17212b]">{homeScore ?? '—'}</p></div>
-                <span className="text-center text-xs font-bold uppercase tracking-[0.14em] text-slate-400">{hasScore ? 'Final' : 'Result'}</span>
-                <div className="text-left sm:text-right"><p className="text-xs font-bold uppercase tracking-[0.1em] text-slate-500">{submission.away?.name || 'Away side'}</p><p className="mt-1 font-mono text-3xl font-bold text-[#17212b]">{awayScore ?? '—'}</p></div>
+            <div className="mt-5 grid gap-3 rounded-2xl bg-surface-muted p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                <div><p className="text-xs font-bold uppercase tracking-[0.1em] text-muted">{submission.home?.name || 'Home side'}</p><p className="mt-1 font-mono text-3xl font-bold text-foreground">{homeScore ?? '—'}</p></div>
+                <span className="text-center text-xs font-bold uppercase tracking-[0.14em] text-muted">{hasScore ? 'Final' : 'Result'}</span>
+                <div className="text-left sm:text-right"><p className="text-xs font-bold uppercase tracking-[0.1em] text-muted">{submission.away?.name || 'Away side'}</p><p className="mt-1 font-mono text-3xl font-bold text-foreground">{awayScore ?? '—'}</p></div>
             </div>
-            <p className="mt-3 text-sm text-slate-600">Winner: <span className="font-bold text-slate-900">{submission.winner || (submission.result === 'draw' ? 'Draw' : 'Not recorded')}</span></p>
+            <p className="mt-3 text-sm text-muted">Winner: <span className="font-bold text-foreground">{submission.winner || (submission.result === 'draw' ? 'Draw' : 'Not recorded')}</span></p>
 
-            <details className="mt-5 rounded-xl border border-slate-200 bg-white">
-                <summary className="cursor-pointer px-4 py-3 text-sm font-bold text-slate-700">Technical details</summary>
-                <pre className="max-h-56 overflow-auto border-t border-slate-200 bg-slate-50 p-4 text-xs leading-5 text-slate-600">{JSON.stringify(submission.technical_payload || {}, null, 2)}</pre>
+            <details className="mt-5 rounded-xl border border-border bg-surface">
+                <summary className="cursor-pointer px-4 py-3 text-sm font-bold text-foreground">Technical details</summary>
+                <pre className="max-h-56 overflow-auto border-t border-border bg-surface-muted p-4 text-xs leading-5 text-muted">{JSON.stringify(submission.technical_payload || {}, null, 2)}</pre>
             </details>
 
             <div className="mt-5 grid gap-4 border-t border-slate-100 pt-5 lg:grid-cols-2">
@@ -98,9 +98,9 @@ function PlacementReview({ placement }) {
     const form = useForm({ reason: '' });
 
     return (
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <article className="rounded-2xl border border-border bg-surface p-5 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div><div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#9A7210]"><span>{placement.competition}</span><span className="text-slate-300">/</span><span>{placement.division}</span></div><h3 className="mt-2 font-serif text-xl font-bold text-[#17212b]">Final standings</h3><p className="mt-2 text-sm text-slate-500">Revision {placement.revision} · submitted by {placement.submitted_by || 'Unknown'} · {dateTime(placement.submitted_at)}</p></div>
+                <div><div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-accent-foreground"><span>{placement.competition}</span><span className="text-muted">/</span><span>{placement.division}</span></div><h3 className="mt-2 font-serif text-xl font-bold text-foreground">Final standings</h3><p className="mt-2 text-sm text-muted">Revision {placement.revision} · submitted by {placement.submitted_by || 'Unknown'} · {dateTime(placement.submitted_at)}</p></div>
                 <StatusPill>Needs review</StatusPill>
             </div>
             <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[34rem] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-[0.1em] text-slate-500"><tr><th className="px-4 py-3">Rank</th><th className="px-4 py-3">Entry</th><th className="px-4 py-3">Delegation</th><th className="px-4 py-3 text-right">Points</th></tr></thead><tbody className="divide-y divide-slate-100">{placement.items.map((item) => <tr key={item.id}><td className="px-4 py-3 font-mono font-bold">{item.rank}</td><td className="px-4 py-3 font-semibold">{item.entry || 'Entry'}</td><td className="px-4 py-3 text-slate-600">{item.delegation || 'Delegation'}</td><td className="px-4 py-3 text-right font-mono font-bold">{item.points}</td></tr>)}</tbody></table></div>
@@ -118,17 +118,17 @@ export default function Index({ event, result_submissions: submissions = [], div
     const officialSportHref = canonicalSportHref(event, scope);
 
     return (
-        <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0B536D]">{scopeLabel || event.name}</p><h1 className="font-serif text-2xl font-bold">Results</h1></div>}>
+        <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{scopeLabel || event.name}</p><h1 className="font-serif text-2xl font-bold">Results</h1></div>}>
             <Head title={`${event.name} Results`} />
-            <main className="min-h-[calc(100vh-4rem)] bg-[#f7f8f7] p-4 sm:p-7 lg:p-8"><div className="mx-auto max-w-6xl space-y-6">
+            <main className="min-h-[calc(100vh-4rem)] bg-background p-4 sm:p-7 lg:p-8"><div className="mx-auto max-w-6xl space-y-6">
                 <ScopeHeader event={event} scope={scope}/>
                 {isScoped ? <SportContextNav event={event} competitionId={scope.competition_id} competitionName={scope.competition} divisionId={scope.division_id} divisionName={scope.division} currentTask="results" /> : null}
-                {flash?.status ? <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{flash.status}</div> : null}
-                {errors?.approval ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">{errors.approval}</div> : null}
+                {flash?.status ? <div role="status" className="rounded-xl border border-primary bg-primary/10 px-4 py-3 text-sm font-semibold text-primary">{flash.status}</div> : null}
+                {errors?.approval ? <div role="alert" className="rounded-xl border border-danger bg-danger-surface px-4 py-3 text-sm font-semibold text-danger">{errors.approval}</div> : null}
 
-                <div className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm" role="tablist" aria-label="Results queues">
-                    <button type="button" role="tab" aria-selected={queue === 'needs'} onClick={() => setQueue('needs')} className={`rounded-xl px-4 py-2.5 text-sm font-bold ${queue === 'needs' ? 'bg-[#0b2e4f] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Needs review <span className="ml-1 opacity-70">{needsCount}</span></button>
-                    <button type="button" role="tab" aria-selected={queue === 'official'} onClick={() => setQueue('official')} className={`rounded-xl px-4 py-2.5 text-sm font-bold ${queue === 'official' ? 'bg-[#0b2e4f] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>Official results</button>
+                <div className="flex flex-wrap gap-2 rounded-2xl border border-border bg-surface p-2 shadow-sm" role="tablist" aria-label="Results queues">
+                    <button type="button" role="tab" aria-selected={queue === 'needs'} onClick={() => setQueue('needs')} className={`rounded-xl px-4 py-2.5 text-sm font-bold ${queue === 'needs' ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-surface-muted'}`}>Needs review <span className="ml-1 opacity-70">{needsCount}</span></button>
+                    <button type="button" role="tab" aria-selected={queue === 'official'} onClick={() => setQueue('official')} className={`rounded-xl px-4 py-2.5 text-sm font-bold ${queue === 'official' ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-surface-muted'}`}>Official results</button>
                 </div>
 
                 {queue === 'needs' ? <>

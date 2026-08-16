@@ -105,6 +105,33 @@ class HandleInertiaRequests extends Middleware
                 + DivisionPlacement::query()->where('state', 'submitted')->whereHas('division.competition', fn ($query) => $query->where('event_id', $eventId))->count();
         }
 
+        $notifications = null;
+        if ($globalAdmin && $user !== null) {
+            $notifications = [
+                'unread_count' => $user->unreadNotifications()->count(),
+                'recent' => $user->notifications()
+                    ->latest()
+                    ->limit(6)
+                    ->get()
+                    ->map(function ($notification): array {
+                        $data = is_array($notification->data) ? $notification->data : [];
+
+                        return [
+                            'id' => (string) $notification->getKey(),
+                            'kind' => (string) ($data['kind'] ?? 'general'),
+                            'title' => (string) ($data['title'] ?? 'Notification'),
+                            'message' => (string) ($data['message'] ?? ''),
+                            'event_id' => isset($data['event_id']) ? (string) $data['event_id'] : null,
+                            'action' => $data['action'] ?? null,
+                            'read_at' => $notification->read_at?->toIso8601String(),
+                            'created_at' => $notification->created_at?->toIso8601String(),
+                        ];
+                    })
+                    ->values()
+                    ->all(),
+            ];
+        }
+
         return [
             ...$shared,
             'selected_participant_ids' => $public || $user === null ? [] : $request->session()->get('selected_participant_ids', []),
@@ -114,6 +141,8 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'email_verified' => $user->email_verified_at !== null,
+                    'account_state' => $user->accountState()->value,
+                    'created_at' => $user->created_at?->toIso8601String(),
                     'preferences' => $preferences,
                 ],
                 'active_event' => $activeEvent === null ? null : [
@@ -139,6 +168,7 @@ class HandleInertiaRequests extends Middleware
                 'selected_participant_ids' => $request->session()->get('selected_participant_ids', []),
             ],
             'nav_badges' => $navBadges,
+            'notifications' => $notifications,
         ];
     }
 }

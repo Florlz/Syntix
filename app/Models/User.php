@@ -40,11 +40,16 @@ class User extends Authenticatable
      * @var array<string, mixed>
      */
     public const DEFAULT_PREFERENCES = [
+        'theme' => 'system',
         'text_size' => 'default',
         'contrast' => 'default',
         'reduce_motion' => false,
         'default_event_id' => null,
         'default_landing' => 'overview',
+        'notifications' => [
+            'approvals' => true,
+            'security' => true,
+        ],
     ];
 
     /** @use HasFactory<UserFactory> */
@@ -161,6 +166,9 @@ class User extends Authenticatable
         $stored = $this->getAttribute('preferences');
         $stored = is_array($stored) ? $stored : [];
 
+        $theme = in_array($stored['theme'] ?? null, ['light', 'dark', 'system'], true)
+            ? $stored['theme']
+            : self::DEFAULT_PREFERENCES['theme'];
         $textSize = in_array($stored['text_size'] ?? null, ['default', 'large', 'x-large'], true)
             ? $stored['text_size']
             : self::DEFAULT_PREFERENCES['text_size'];
@@ -202,12 +210,27 @@ class User extends Authenticatable
                 ? filter_var($reduceMotion, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
                 : null);
 
+        $storedNotifications = is_array($stored['notifications'] ?? null)
+            ? $stored['notifications']
+            : [];
+        $approvals = $storedNotifications['approvals'] ?? null;
+        $approvals = is_bool($approvals)
+            ? $approvals
+            : ((is_int($approvals) || is_string($approvals))
+                ? filter_var($approvals, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+                : null);
+
         return [
+            'theme' => $theme,
             'text_size' => $textSize,
             'contrast' => $contrast,
             'reduce_motion' => $reduceMotion ?? self::DEFAULT_PREFERENCES['reduce_motion'],
             'default_event_id' => $defaultEventId,
             'default_landing' => $defaultLanding,
+            'notifications' => [
+                'approvals' => $approvals ?? self::DEFAULT_PREFERENCES['notifications']['approvals'],
+                'security' => true,
+            ],
         ];
     }
 

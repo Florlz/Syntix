@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\TournamentController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Judge\ScorecardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\PublicArea\BracketController;
 use App\Http\Controllers\PublicArea\LandingController;
@@ -120,7 +121,10 @@ Route::middleware('auth')->group(function () {
     Route::patch('/settings/profile', [ProfileController::class, 'update'])->name('settings.profile.update');
     Route::put('/settings/password', [PasswordController::class, 'update'])->name('settings.password.update');
     Route::patch('/settings/preferences', [SettingsController::class, 'updatePreferences'])->name('settings.preferences.update');
+    Route::delete('/settings/sessions/{session}', [SettingsController::class, 'destroySession'])->name('settings.sessions.destroy-one');
     Route::delete('/settings/sessions', [SettingsController::class, 'destroyOtherSessions'])->name('settings.sessions.destroy');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });
