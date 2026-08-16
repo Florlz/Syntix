@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 const forms = [];
@@ -31,6 +31,10 @@ vi.mock('@inertiajs/react', () => ({
                 put: vi.fn(),
                 delete: vi.fn(),
                 reset: vi.fn(),
+                setProcessing: (value) => {
+                    form.processing = value;
+                    rerender();
+                },
             };
             formRef.current = form;
             forms.push(form);
@@ -77,17 +81,66 @@ test('selecting a settings tab updates the query string and preserves entered va
     expect(screen.getByLabelText('Name')).toHaveValue('Updated name');
 });
 
-test('renders the account hub with profile selected and applies saved preferences', async () => {
+test('uses a compact settings header instead of the dashboard hero and summary strip', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+
+    expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument();
+    expect(screen.getByText('Manage your account, preferences, and security.')).toBeInTheDocument();
+    expect(screen.queryByText('Make Syntix work for you.')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Current preferences')).not.toBeInTheDocument();
+});
+
+test('renders Reduce Motion as a switch and updates its checked state', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+    fireEvent.click(screen.getByRole('link', { name: /Accessibility/i }));
+
+    const toggle = screen.getByRole('switch', { name: 'Reduce motion' });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+});
+
+test('labels archived and empty workspace states without blocking account settings', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[{ id: 1, name: 'SIKLAB 2025', state: 'archived' }]} />);
+    fireEvent.click(screen.getByRole('link', { name: /Workspace/i }));
+    expect(screen.getByRole('option', { name: /SIKLAB 2025.*Archived/i })).toBeInTheDocument();
+});
+
+test('shows an empty workspace state without blocking account settings', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+    fireEvent.click(screen.getByRole('link', { name: /Workspace/i }));
+    expect(screen.getByText('No events available.')).toBeInTheDocument();
+    expect(screen.getByLabelText('First page')).toBeEnabled();
+});
+
+test('shows the saving label and disables the active section action while processing', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+    act(() => forms[0].setProcessing(true));
+
+    expect(screen.getByRole('button', { name: 'Saving...' })).toBeDisabled();
+});
+
+test('renders the settings navigation with profile selected and applies saved preferences', async () => {
     const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
 
     render(<Settings events={[{ id: 1, name: 'SIKLAB 2026' }, { id: 2, name: 'Freshers Cup' }]} />);
 
-    expect(screen.getByRole('tablist', { name: 'Settings categories' })).toBeInTheDocument();
-    expect(screen.getAllByRole('tab')).toHaveLength(4);
-    expect(screen.getByRole('tab', { name: /Profile/ })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'profile-panel');
+    expect(screen.getByRole('navigation', { name: 'Settings sections' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link')).toHaveLength(4);
+    expect(screen.getByRole('link', { name: /Profile/ })).toHaveAttribute('aria-current', 'page');
+    expect(document.querySelector('[data-settings-panel="profile"]')).not.toHaveAttribute('hidden');
     expect(screen.getByRole('heading', { name: 'Profile', level: 2 })).toBeInTheDocument();
-    expect(screen.getByLabelText('Text size')).toHaveValue('large');
+    expect(screen.getByLabelText('Text size', { selector: 'select', hidden: true })).toHaveValue('large');
     expect(document.documentElement).toHaveAttribute('data-text-size', 'large');
     expect(document.documentElement).toHaveAttribute('data-contrast', 'high');
     expect(document.documentElement).toHaveAttribute('data-reduce-motion', 'true');
@@ -106,28 +159,27 @@ test('switches focused panels while preserving entered values', async () => {
 
     render(<Settings events={[{ id: 1, name: 'SIKLAB 2026' }]} />);
 
-    const accessibilityTab = screen.getByRole('tab', { name: /Accessibility/ });
-    fireEvent.click(accessibilityTab);
-    expect(accessibilityTab).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'accessibility-panel');
+    const accessibilityLink = screen.getByRole('link', { name: /Accessibility/ });
+    fireEvent.click(accessibilityLink);
+    expect(accessibilityLink).toHaveAttribute('aria-current', 'page');
+    expect(document.querySelector('[data-settings-panel="accessibility"]')).not.toHaveAttribute('hidden');
 
     fireEvent.change(screen.getByLabelText('Text size'), { target: { value: 'x-large' } });
-    fireEvent.click(screen.getByRole('tab', { name: /Profile/ }));
-    fireEvent.click(accessibilityTab);
+    fireEvent.click(screen.getByRole('link', { name: /Profile/ }));
+    fireEvent.click(accessibilityLink);
     expect(screen.getByLabelText('Text size')).toHaveValue('x-large');
 });
 
-test('keyboard selection focuses the newly opened panel heading', async () => {
+test('selecting a settings link opens its matching panel', async () => {
     const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
 
     render(<Settings events={[{ id: 1, name: 'SIKLAB 2026' }]} />);
 
-    const workspaceTab = screen.getByRole('tab', { name: /Workspace/ });
-    workspaceTab.focus();
-    fireEvent.keyDown(workspaceTab, { key: 'Enter', code: 'Enter' });
-    fireEvent.click(workspaceTab, { detail: 0 });
+    const workspaceLink = screen.getByRole('link', { name: /Workspace/ });
+    fireEvent.click(workspaceLink);
 
-    expect(screen.getByRole('heading', { name: 'Workspace' })).toHaveFocus();
+    expect(workspaceLink).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('heading', { name: 'Workspace' })).toBeVisible();
 });
 
 test('each card uses its own approved settings action', async () => {
@@ -152,7 +204,7 @@ test('accessibility and workspace saves submit only their own preference fields'
 
     render(<Settings events={[{ id: 1, name: 'SIKLAB 2026' }, { id: 2, name: 'Freshers Cup' }]} />);
 
-    fireEvent.click(screen.getByRole('tab', { name: /Accessibility/ }));
+    fireEvent.click(screen.getByRole('link', { name: /Accessibility/ }));
     fireEvent.change(screen.getByLabelText('Text size'), { target: { value: 'x-large' } });
     const accessibilityForm = screen.getByLabelText('Text size').closest('form');
     fireEvent.submit(accessibilityForm);
@@ -164,8 +216,8 @@ test('accessibility and workspace saves submit only their own preference fields'
         reduce_motion: true,
     });
 
-    fireEvent.click(screen.getByRole('tab', { name: /Workspace/ }));
-    const workspaceForm = screen.getByLabelText('Default event', { selector: 'select', hidden: true }).closest('form');
+    fireEvent.click(screen.getByRole('link', { name: /Workspace/ }));
+    const workspaceForm = screen.getByLabelText('Default event', { selector: 'select' }).closest('form');
     fireEvent.submit(workspaceForm);
 
     const workspaceRequest = forms[2].patch.mock.calls.at(-1)[1];
