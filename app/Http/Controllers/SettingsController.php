@@ -85,7 +85,7 @@ class SettingsController extends Controller
             ],
         ]);
 
-        $current = $user->normalizedPreferences();
+        $current = $user->normalizedPreferences($events->modelKeys());
         $user->preferences = [
             'text_size' => $validated['text_size'] ?? $current['text_size'],
             'contrast' => $validated['contrast'] ?? $current['contrast'],

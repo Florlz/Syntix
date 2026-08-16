@@ -279,6 +279,37 @@ class SettingsTest extends TestCase
                 ->has('events', 1));
     }
 
+    public function test_partial_preference_update_repairs_a_stale_default_event_before_persisting(): void
+    {
+        $user = User::factory()->create([
+            'preferences' => [
+                'text_size' => 'default',
+                'contrast' => 'default',
+                'reduce_motion' => false,
+                'default_event_id' => 999999,
+                'default_landing' => 'sports',
+            ],
+        ]);
+        $accessible = Event::factory()->create(['name' => 'Accessible event']);
+
+        EventUserRole::query()->create([
+            'event_id' => $accessible->getKey(),
+            'user_id' => $user->getKey(),
+            'role' => EventRole::Admin,
+            'granted_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->patch('/settings/preferences', ['text_size' => 'large'])
+            ->assertSessionHasNoErrors();
+
+        $preferences = $user->refresh()->preferences;
+
+        $this->assertSame('large', $preferences['text_size']);
+        $this->assertSame((string) $accessible->getKey(), $preferences['default_event_id']);
+        $this->assertSame('sports', $preferences['default_landing']);
+    }
+
     public function test_account_without_workspaces_can_still_open_settings_and_save_account_preferences(): void
     {
         $user = User::factory()->create(['preferences' => null]);
