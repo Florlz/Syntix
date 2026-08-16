@@ -195,10 +195,17 @@ class User extends Authenticatable
             }
         }
 
+        $reduceMotion = $stored['reduce_motion'] ?? null;
+        $reduceMotion = is_bool($reduceMotion)
+            ? $reduceMotion
+            : ((is_int($reduceMotion) || is_string($reduceMotion))
+                ? filter_var($reduceMotion, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)
+                : null);
+
         return [
             'text_size' => $textSize,
             'contrast' => $contrast,
-            'reduce_motion' => (bool) ($stored['reduce_motion'] ?? self::DEFAULT_PREFERENCES['reduce_motion']),
+            'reduce_motion' => $reduceMotion ?? self::DEFAULT_PREFERENCES['reduce_motion'],
             'default_event_id' => $defaultEventId,
             'default_landing' => $defaultLanding,
         ];

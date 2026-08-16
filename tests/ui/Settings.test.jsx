@@ -9,7 +9,7 @@ vi.mock('@inertiajs/react', () => ({
     usePage: () => ({
         props: {
             auth: {
-                user: { name: 'Admin User', email: 'admin@syntix.test', email_verified_at: '2026-01-01' },
+                user: { name: 'Admin User', email: 'admin@syntix.test', email_verified: false, email_verified_at: '2026-01-01' },
                 preferences: { text_size: 'large', contrast: 'high', reduce_motion: true, default_event_id: 2, default_landing: 'sports' },
             },
         },
@@ -70,6 +70,14 @@ test('renders the account hub with profile selected and applies saved preference
     expect(document.documentElement).toHaveAttribute('data-reduce-motion', 'true');
 });
 
+test('shows the verification prompt from the shared verification flag', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings mustVerifyEmail events={[]} />);
+
+    expect(screen.getByText('Your email is not verified.')).toBeInTheDocument();
+});
+
 test('switches focused panels while preserving entered values', async () => {
     const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
 
@@ -114,4 +122,32 @@ test('each card uses its own approved settings action', async () => {
     expect(forms[1].patch).toHaveBeenCalledWith('/settings.preferences.update', expect.objectContaining({ preserveScroll: true }));
     expect(forms[2].patch).toHaveBeenCalledWith('/settings.preferences.update', expect.objectContaining({ preserveScroll: true }));
     expect(forms[4].delete).toHaveBeenCalledWith('/settings.sessions.destroy', expect.objectContaining({ preserveScroll: true }));
+});
+
+test('accessibility and workspace saves submit only their own preference fields', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[{ id: 1, name: 'SIKLAB 2026' }, { id: 2, name: 'Freshers Cup' }]} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: /Accessibility/ }));
+    fireEvent.change(screen.getByLabelText('Text size'), { target: { value: 'x-large' } });
+    const accessibilityForm = screen.getByLabelText('Text size').closest('form');
+    fireEvent.submit(accessibilityForm);
+
+    const accessibilityRequest = forms[1].patch.mock.calls.at(-1)[1];
+    expect(accessibilityRequest.transform(forms[1].data)).toEqual({
+        text_size: 'x-large',
+        contrast: 'high',
+        reduce_motion: true,
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: /Workspace/ }));
+    const workspaceForm = screen.getByLabelText('Default event', { selector: 'select', hidden: true }).closest('form');
+    fireEvent.submit(workspaceForm);
+
+    const workspaceRequest = forms[2].patch.mock.calls.at(-1)[1];
+    expect(workspaceRequest.transform(forms[2].data)).toEqual({
+        default_event_id: '2',
+        default_landing: 'sports',
+    });
 });

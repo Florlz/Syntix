@@ -47,7 +47,7 @@ class HandleInertiaRequests extends Middleware
             ->with('event')
             ->latest('granted_at')
             ->first();
-        $activeEvent = $activeRole?->event;
+        $fallbackEvent = $activeRole?->event;
         $globalAdmin = $user?->isGlobalAdmin() ?? false;
         $accessibleEventIds = $user === null
             ? collect()
@@ -56,19 +56,27 @@ class HandleInertiaRequests extends Middleware
                 : $user->eventRoles()->active()->pluck('event_id')->unique()->values());
         $preferences = $user?->normalizedPreferences($accessibleEventIds);
 
-        if ($activeEvent === null && $globalAdmin) {
-            $routeEvent = $request->route('event');
-            $requestedEventId = $routeEvent instanceof Event
-                ? $routeEvent->getKey()
-                : $request->integer('event');
-            $activeEvent = $requestedEventId
-                ? Event::query()->find($requestedEventId)
-                : null;
-            $activeEvent ??= isset($preferences['default_event_id']) && $preferences['default_event_id'] !== null
-                ? Event::query()->find((int) $preferences['default_event_id'])
-                : null;
-            $activeEvent ??= Event::query()->latest('created_at')->first();
+        $routeEvent = $request->route('event');
+        $requestedEventId = $routeEvent instanceof Event
+            ? $routeEvent->getKey()
+            : ($request->filled('event') ? $request->integer('event') : null);
+        $activeEvent = null;
+
+        if ($requestedEventId !== null
+            && ($globalAdmin || $accessibleEventIds->contains((int) $requestedEventId))) {
+            $activeEvent = Event::query()->find((int) $requestedEventId);
         }
+
+        if ($activeEvent === null
+            && isset($preferences['default_event_id'])
+            && $preferences['default_event_id'] !== null) {
+            $activeEvent = Event::query()->find((int) $preferences['default_event_id']);
+        }
+
+        $activeEvent ??= $fallbackEvent;
+        $activeEvent ??= $globalAdmin
+            ? Event::query()->latest('created_at')->first()
+            : null;
 
         $roles = $activeEvent === null
             ? []

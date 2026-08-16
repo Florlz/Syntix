@@ -69,28 +69,33 @@ class SettingsController extends Controller
         $events = $this->availableEvents($user);
 
         $validated = $request->validate([
-            'text_size' => ['required', Rule::in(['default', 'large', 'x-large'])],
-            'contrast' => ['required', Rule::in(['default', 'high'])],
-            'reduce_motion' => ['required', 'boolean'],
+            'text_size' => ['sometimes', 'required', Rule::in(['default', 'large', 'x-large'])],
+            'contrast' => ['sometimes', 'required', Rule::in(['default', 'high'])],
+            'reduce_motion' => ['sometimes', 'required', 'boolean'],
             'default_event_id' => [
+                'sometimes',
                 'nullable',
                 'integer',
                 Rule::in($events->modelKeys()),
             ],
             'default_landing' => [
+                'sometimes',
                 'required',
                 Rule::in(['overview', 'sports', 'departments', 'staff', 'results']),
             ],
         ]);
 
+        $current = $user->normalizedPreferences();
         $user->preferences = [
-            'text_size' => $validated['text_size'],
-            'contrast' => $validated['contrast'],
-            'reduce_motion' => (bool) $validated['reduce_motion'],
-            'default_event_id' => $validated['default_event_id'] === null
-                ? null
-                : (int) $validated['default_event_id'],
-            'default_landing' => $validated['default_landing'],
+            'text_size' => $validated['text_size'] ?? $current['text_size'],
+            'contrast' => $validated['contrast'] ?? $current['contrast'],
+            'reduce_motion' => array_key_exists('reduce_motion', $validated)
+                ? (bool) $validated['reduce_motion']
+                : $current['reduce_motion'],
+            'default_event_id' => array_key_exists('default_event_id', $validated)
+                ? ($validated['default_event_id'] === null ? null : (int) $validated['default_event_id'])
+                : $current['default_event_id'],
+            'default_landing' => $validated['default_landing'] ?? $current['default_landing'],
         ];
         $user->save();
 

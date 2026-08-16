@@ -173,7 +173,7 @@ function ProfileCard({ user, mustVerifyEmail, status }) {
         <form onSubmit={submit} className="space-y-4">
             <TextField id="settings-name" label="Name" value={profile.data.name} onChange={(value) => profile.setData('name', value)} error={profile.errors.name} autoComplete="name" />
             <TextField id="settings-email" label="Email" type="email" value={profile.data.email} onChange={(value) => profile.setData('email', value)} error={profile.errors.email} autoComplete="email" />
-            {mustVerifyEmail && user.email_verified_at === null ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">Your email is not verified. <Link href={route('verification.send')} method="post" as="button" className="font-semibold underline underline-offset-2">Send a new link</Link>{status === 'verification-link-sent' ? <span className="mt-1 block font-semibold text-emerald-700">A new link was sent.</span> : null}</div> : null}
+            {mustVerifyEmail && user.email_verified === false ? <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-5 text-amber-900">Your email is not verified. <Link href={route('verification.send')} method="post" as="button" className="font-semibold underline underline-offset-2">Send a new link</Link>{status === 'verification-link-sent' ? <span className="mt-1 block font-semibold text-emerald-700">A new link was sent.</span> : null}</div> : null}
             <div className="flex flex-wrap items-center gap-3 pt-1"><SaveButton processing={profile.processing} /><StatusMessage visible={profile.recentlySuccessful}>Saved.</StatusMessage></div>
             <InputError message={profile.errors.form} />
         </form>
@@ -212,8 +212,6 @@ function AccessibilityCard({ initial }) {
         text_size: initial.text_size,
         contrast: initial.contrast,
         reduce_motion: initial.reduce_motion,
-        default_event_id: initial.default_event_id,
-        default_landing: initial.default_landing,
     });
 
     useEffect(() => {
@@ -227,7 +225,11 @@ function AccessibilityCard({ initial }) {
         event.preventDefault();
         preferences.patch(route('settings.preferences.update'), {
             preserveScroll: true,
-            transform: (data) => ({ ...data, default_event_id: data.default_event_id || null }),
+            transform: (data) => ({
+                text_size: data.text_size,
+                contrast: data.contrast,
+                reduce_motion: data.reduce_motion,
+            }),
         });
     };
 
@@ -246,9 +248,6 @@ function AccessibilityCard({ initial }) {
 
 function DashboardPreferencesCard({ initial, events }) {
     const dashboard = useForm({
-        text_size: initial.text_size,
-        contrast: initial.contrast,
-        reduce_motion: initial.reduce_motion,
         default_event_id: initial.default_event_id === null ? '' : String(initial.default_event_id),
         default_landing: initial.default_landing,
     });
@@ -256,7 +255,13 @@ function DashboardPreferencesCard({ initial, events }) {
 
     const submit = (event) => {
         event.preventDefault();
-        dashboard.patch(route('settings.preferences.update'), { preserveScroll: true, transform: (data) => ({ ...data, default_event_id: data.default_event_id || null }) });
+        dashboard.patch(route('settings.preferences.update'), {
+            preserveScroll: true,
+            transform: (data) => ({
+                default_event_id: data.default_event_id || null,
+                default_landing: data.default_landing,
+            }),
+        });
     };
 
     return <Card id="dashboard-preferences-title" icon="calendar" eyebrow="Start in the right place" title="Dashboard preferences" description="Choose the event and page you want to see first.">

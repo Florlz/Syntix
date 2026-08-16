@@ -14,6 +14,7 @@ use App\Models\BracketSlot;
 use App\Models\DisciplineEntry;
 use App\Models\DisciplinePlacement;
 use App\Models\Tournament;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -35,6 +36,28 @@ class PostgresContractTest extends TestCase
         self::assertSame(BracketNodeState::class, (new BracketNode)->getCasts()['state']);
         self::assertSame(AdvancementOutcome::class, (new AdvancementRule)->getCasts()['outcome']);
         self::assertSame(BracketSlotSource::class, (new BracketSlot)->getCasts()['source_result']);
+    }
+
+    public function test_user_preferences_round_trip_as_nullable_json(): void
+    {
+        $user = User::factory()->create([
+            'preferences' => [
+                'text_size' => 'large',
+                'contrast' => 'high',
+                'reduce_motion' => true,
+                'default_event_id' => null,
+                'default_landing' => 'overview',
+            ],
+        ]);
+
+        $preferences = $user->fresh()->preferences;
+
+        self::assertSame('large', $preferences['text_size']);
+        self::assertTrue($preferences['reduce_motion']);
+        self::assertNull($preferences['default_event_id']);
+
+        $legacy = User::factory()->create(['preferences' => null]);
+        self::assertSame(User::DEFAULT_PREFERENCES, $legacy->fresh()->normalizedPreferences(collect()));
     }
 
     public function test_state_constraints_are_present_with_frozen_values(): void
