@@ -2,6 +2,8 @@ import React from 'react';
 import AppIcon from '@/Components/AppIcon';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Link from '@/Components/PrefetchLink';
+import { applyTheme, clearTheme } from '@/lib/theme';
+import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
@@ -9,7 +11,6 @@ function NavItem({ href, icon, label, active, badge, external = false, onNavigat
     const classes = `group flex min-h-11 items-center gap-3 border-l-[3px] px-4 py-2.5 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${active ? 'border-accent bg-white/10 text-white' : 'border-transparent text-white/65 hover:bg-white/5 hover:text-white'}`;
     return <Link href={href} onClick={onNavigate} aria-current={active ? 'page' : undefined} className={`${classes} ${className}`}><AppIcon name={icon} className="size-5 shrink-0 text-white/50 group-hover:text-accent"/><span className="min-w-0 flex-1">{label}</span>{badge > 0 ? <span className="rounded-full bg-accent px-2 py-0.5 font-mono text-[0.65rem] text-accent-foreground">{badge}</span> : null}{external ? <AppIcon name="external" className="size-4 text-white/35"/> : null}</Link>;
 }
-
 function NavGroup({ href, icon, label, active, badge, children, onNavigate, id }) {
     const [expanded, setExpanded] = useState(active);
     useEffect(() => { if (active) setExpanded(true); }, [active]);
@@ -20,13 +21,6 @@ function NavGroup({ href, icon, label, active, badge, children, onNavigate, id }
         </div>
         {expanded ? <div id={id} className="ml-5 border-l border-white/15 py-1">{children}</div> : null}
     </div>;
-}
-
-function resolveTheme(theme) {
-    if (theme === 'dark') return 'dark';
-    if (theme === 'light') return 'light';
-
-    return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'dark' : 'light';
 }
 
 function formatNotificationTime(value) {
@@ -43,8 +37,17 @@ function formatNotificationTime(value) {
     }).format(date);
 }
 
+function notificationActionHref(action) {
+    if (!action?.route) return null;
+
+    try {
+        return route(action.route, action.params ?? {});
+    } catch (_) {
+        return null;
+    }
+}
+
 function NotificationBell({ notifications }) {
-    const [open, setOpen] = useState(false);
     const recent = Array.isArray(notifications?.recent) ? notifications.recent : [];
     const unreadCount = Number(notifications?.unread_count ?? 0);
 
@@ -58,44 +61,66 @@ function NotificationBell({ notifications }) {
         router.post(route('notifications.read', { notification: notification.id }), {}, { preserveScroll: true });
     };
 
-    return <div className="relative">
-        <button
-            type="button"
+    const openNotification = (notification) => {
+        const href = notificationActionHref(notification.action);
+
+        if (!href) {
+            markRead(notification);
+            return;
+        }
+
+        if (notification.read_at) {
+            router.visit(href);
+            return;
+        }
+
+        router.post(route('notifications.read', { notification: notification.id }), {}, {
+            preserveScroll: true,
+            onSuccess: () => router.visit(href),
+        });
+    };
+
+    return <Popover className="relative">
+        <PopoverButton
             aria-label="Open notifications"
-            aria-expanded={open}
-            aria-controls="notifications-popover"
-            onClick={() => setOpen((value) => !value)}
             className="relative grid size-10 place-items-center rounded-lg text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
             <AppIcon name="bell" className="size-5" />
             {unreadCount > 0 ? <span className="absolute right-0.5 top-0.5 min-w-4 rounded-full bg-accent px-1 text-center font-mono text-[0.62rem] font-bold leading-4 text-accent-foreground">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}
-        </button>
+        </PopoverButton>
 
-        {open ? <div id="notifications-popover" role="dialog" aria-label="Notifications" className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-surface shadow-xl">
+        <PopoverPanel anchor="bottom end" className="z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-border bg-surface shadow-xl">
             <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
                 <div>
                     <h2 className="font-serif text-lg text-foreground">Notifications</h2>
                     <p className="mt-0.5 text-xs text-muted">Recent admin activity</p>
                 </div>
-                <button type="button" onClick={markAllRead} className="rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">Mark all read</button>
+                {unreadCount > 0 ? <button type="button" onClick={markAllRead} className="rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">Mark all read</button> : null}
             </div>
             <div className="max-h-96 overflow-y-auto p-2">
-                {recent.length > 0 ? recent.map((notification) => <button key={notification.id} type="button" onClick={() => markRead(notification)} className={`block w-full rounded-lg px-3 py-3 text-left transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${notification.read_at ? '' : 'bg-primary/5'}`}>
-                    <div className="flex items-start gap-3">
-                        <span className={`mt-1.5 size-2 shrink-0 rounded-full ${notification.read_at ? 'bg-border' : 'bg-accent'}`} aria-hidden="true" />
-                        <span className="min-w-0 flex-1">
-                            <span className="block text-sm font-semibold text-foreground">{notification.title}</span>
-                            {notification.message ? <span className="mt-1 block text-xs leading-5 text-muted">{notification.message}</span> : null}
-                            <span className="mt-1.5 block text-[0.68rem] text-muted">{formatNotificationTime(notification.created_at)}</span>
-                        </span>
-                    </div>
-                </button>) : <p className="px-3 py-8 text-center text-sm text-muted">You’re all caught up.</p>}
+                {recent.length > 0 ? recent.map((notification) => {
+                    const actionHref = notificationActionHref(notification.action);
+
+                    return <article key={notification.id} className={`rounded-lg px-3 py-3 ${notification.read_at ? '' : 'bg-primary/5'}`}>
+                        <button type="button" onClick={() => openNotification(notification)} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                            <span className="flex items-start gap-3">
+                                <span className={`mt-1.5 size-2 shrink-0 rounded-full ${notification.read_at ? 'bg-border' : 'bg-accent'}`} aria-hidden="true" />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-sm font-semibold text-foreground">{notification.title}</span>
+                                    {notification.message ? <span className="mt-1 block text-xs leading-5 text-muted">{notification.message}</span> : null}
+                                    <span className="mt-1.5 block text-[0.68rem] text-muted">{formatNotificationTime(notification.created_at)}</span>
+                                </span>
+                            </span>
+                        </button>
+                        {actionHref ? <button type="button" onClick={() => openNotification(notification)} className="mt-3 rounded-md px-2 py-1 text-xs font-semibold text-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">{notification.action.label} <span aria-hidden="true">→</span></button> : null}
+                    </article>;
+                }) : <p className="px-3 py-8 text-center text-sm text-muted">You're all caught up.</p>}
             </div>
             <div className="border-t border-border px-4 py-3">
-                <Link href={route('settings.edit', { section: 'notifications' })} onClick={() => setOpen(false)} className="text-xs font-semibold text-primary hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">Notification settings</Link>
+                <Link href={route('settings.edit', { section: 'notifications' })} className="text-xs font-semibold text-primary hover:text-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">Notification settings</Link>
             </div>
-        </div> : null}
-    </div>;
+        </PopoverPanel>
+    </Popover>;
 }
 
 function Sidebar({ onNavigate, activeSection = null }) {
@@ -134,9 +159,9 @@ export default function AuthenticatedLayout({ header, children, activeSection = 
     useEffect(() => {
         const root = document.documentElement;
         const theme = preferences.theme ?? 'system';
-        const applyTheme = () => root.classList.toggle('dark', resolveTheme(theme) === 'dark');
+        const applyCurrentTheme = () => applyTheme(theme);
 
-        applyTheme();
+        applyCurrentTheme();
         try {
             window.localStorage.setItem('syntix-theme', theme);
         } catch (_) {}
@@ -144,16 +169,17 @@ export default function AuthenticatedLayout({ header, children, activeSection = 
         const media = theme === 'system' && window.matchMedia
             ? window.matchMedia('(prefers-color-scheme: dark)')
             : null;
-        if (media?.addEventListener) media.addEventListener('change', applyTheme);
-        else media?.addListener?.(applyTheme);
+        if (media?.addEventListener) media.addEventListener('change', applyCurrentTheme);
+        else media?.addListener?.(applyCurrentTheme);
 
         root.dataset.textSize = preferences.text_size ?? 'default';
         root.dataset.contrast = preferences.contrast ?? 'default';
         root.dataset.reduceMotion = preferences.reduce_motion ? 'true' : 'false';
 
         return () => {
-            if (media?.removeEventListener) media.removeEventListener('change', applyTheme);
-            else media?.removeListener?.(applyTheme);
+            if (media?.removeEventListener) media.removeEventListener('change', applyCurrentTheme);
+            else media?.removeListener?.(applyCurrentTheme);
+            clearTheme();
             delete root.dataset.textSize;
             delete root.dataset.contrast;
             delete root.dataset.reduceMotion;

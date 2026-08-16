@@ -4,6 +4,7 @@ import InputError from '@/Components/InputError';
 import Modal from '@/Components/Modal';
 import Link from '@/Components/PrefetchLink';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { applyTheme } from '@/lib/theme';
 import { Head, useForm, usePage } from '@inertiajs/react';
 
 const DEFAULT_PREFERENCES = {
@@ -33,24 +34,24 @@ const SETTINGS_SECTIONS = [
     { id: 'security', group: 'Security', icon: 'shield', title: 'Security', summary: 'Password and sessions' },
 ];
 
-const SETTINGS_SECTION_IDS = SETTINGS_SECTIONS.map((section) => section.id);
-
-function readSettingsSection() {
+function readSettingsSection(sections) {
     const value = new URLSearchParams(window.location.search).get('section');
-    return SETTINGS_SECTION_IDS.includes(value) ? value : 'profile';
+    return sections.some((section) => section.id === value) ? value : 'profile';
 }
 
-function useSettingsSection() {
-    const [selectedSection, setSelectedSection] = useState(readSettingsSection);
+function useSettingsSection(sections) {
+    const [selectedSection, setSelectedSection] = useState(() => readSettingsSection(sections));
 
     useEffect(() => {
-        const handlePopState = () => setSelectedSection(readSettingsSection());
+        const syncSection = () => setSelectedSection(readSettingsSection(sections));
+        syncSection();
+        const handlePopState = () => syncSection();
         window.addEventListener('popstate', handlePopState);
         return () => window.removeEventListener('popstate', handlePopState);
-    }, []);
+    }, [sections]);
 
     const selectSection = (section) => {
-        if (!SETTINGS_SECTION_IDS.includes(section)) return;
+        if (!sections.some((item) => item.id === section)) return;
         const url = new URL(window.location.href);
         url.searchParams.set('section', section);
         window.history.pushState({ section }, '', `${url.pathname}${url.search}${url.hash}`);
@@ -116,10 +117,10 @@ function SectionDivider({ children }) {
     </div>;
 }
 
-function SettingsTabs({ selectedSection, selectSection }) {
+function SettingsTabs({ sections, selectedSection, selectSection }) {
     return <nav aria-label="Settings sections" className="border-b border-border">
         <div className="flex gap-1 overflow-x-auto pb-px">
-            {SETTINGS_SECTIONS.map((section) => <SettingsTab key={section.id} section={section} selectedSection={selectedSection} selectSection={selectSection} />)}
+            {sections.map((section) => <SettingsTab key={section.id} section={section} selectedSection={selectedSection} selectSection={selectSection} />)}
         </div>
     </nav>;
 }
@@ -283,6 +284,8 @@ const THEME_OPTIONS = [
 function AppearanceCard({ initial }) {
     const appearance = useForm({ theme: initial.theme });
 
+    useEffect(() => () => applyTheme(initial.theme), [initial.theme]);
+
     const submit = (event) => {
         event.preventDefault();
         appearance.patch(route('settings.preferences.update'), {
@@ -305,7 +308,10 @@ function AppearanceCard({ initial }) {
                                 name="settings-theme"
                                 value={option.value}
                                 checked={selected}
-                                onChange={() => appearance.setData('theme', option.value)}
+                                onChange={() => {
+                                    appearance.setData('theme', option.value);
+                                    applyTheme(option.value);
+                                }}
                                 className="peer sr-only"
                             />
                             <span className={`flex min-h-32 flex-col justify-between rounded-lg border p-4 transition group-hover:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-accent ${selected ? 'border-primary bg-primary/10' : 'border-border bg-surface-muted'}`}>
@@ -508,8 +514,20 @@ export default function Settings({ events: passedEvents = [], available_events: 
     const user = auth.user ?? {};
     const initial = normalizePreferences({ ...(auth.preferences ?? {}), ...passedPreferences });
     const events = passedEvents.length ? passedEvents : availableEvents;
-    const { selectedSection, selectSection } = useSettingsSection();
+    const sections = useMemo(
+        () => SETTINGS_SECTIONS.filter((section) => section.id !== 'notifications' || auth.global_admin),
+        [auth.global_admin],
+    );
+    const { selectedSection, selectSection } = useSettingsSection(sections);
     const selectedHeadingRef = useRef(null);
+    const panelContent = {
+        profile: <ProfileCard user={user} globalAdmin={auth.global_admin} mustVerifyEmail={mustVerifyEmail} status={status} />,
+        appearance: <AppearanceCard initial={initial} />,
+        accessibility: <AccessibilityCard initial={initial} />,
+        workspace: <DashboardPreferencesCard initial={initial} events={events} />,
+        notifications: <NotificationsCard initial={initial} />,
+        security: <div className="space-y-8"><PasswordCard /><SecurityCard otherSessionCount={otherSessionCount} sessions={passedSessions} /></div>,
+    };
 
     return <AuthenticatedLayout header={<div className="flex items-center gap-2 text-sm">
         <span className="font-semibold text-muted">Account</span>
@@ -522,14 +540,9 @@ export default function Settings({ events: passedEvents = [], available_events: 
                 <h1 className="font-serif text-3xl font-bold text-foreground">Settings</h1>
                 <p className="mt-2 max-w-xl text-sm leading-6 text-muted">Manage your account, appearance, and preferences.</p>
             </section>
-            <SettingsTabs selectedSection={selectedSection} selectSection={selectSection} />
+            <SettingsTabs sections={sections} selectedSection={selectedSection} selectSection={selectSection} />
             <div>
-                <FocusedPanel item={SETTINGS_SECTIONS[0]} active={selectedSection === 'profile'} headingRef={selectedSection === 'profile' ? selectedHeadingRef : undefined}><ProfileCard user={user} globalAdmin={auth.global_admin} mustVerifyEmail={mustVerifyEmail} status={status} /></FocusedPanel>
-                <FocusedPanel item={SETTINGS_SECTIONS[1]} active={selectedSection === 'appearance'} headingRef={selectedSection === 'appearance' ? selectedHeadingRef : undefined}><AppearanceCard initial={initial} /></FocusedPanel>
-                <FocusedPanel item={SETTINGS_SECTIONS[2]} active={selectedSection === 'accessibility'} headingRef={selectedSection === 'accessibility' ? selectedHeadingRef : undefined}><AccessibilityCard initial={initial} /></FocusedPanel>
-                <FocusedPanel item={SETTINGS_SECTIONS[3]} active={selectedSection === 'workspace'} headingRef={selectedSection === 'workspace' ? selectedHeadingRef : undefined}><DashboardPreferencesCard initial={initial} events={events} /></FocusedPanel>
-                <FocusedPanel item={SETTINGS_SECTIONS[4]} active={selectedSection === 'notifications'} headingRef={selectedSection === 'notifications' ? selectedHeadingRef : undefined}><NotificationsCard initial={initial} /></FocusedPanel>
-                <FocusedPanel item={SETTINGS_SECTIONS[5]} active={selectedSection === 'security'} headingRef={selectedSection === 'security' ? selectedHeadingRef : undefined}><div className="space-y-8"><PasswordCard /><SecurityCard otherSessionCount={otherSessionCount} sessions={passedSessions} /></div></FocusedPanel>
+                {sections.map((section) => <FocusedPanel key={section.id} item={section} active={selectedSection === section.id} headingRef={selectedSection === section.id ? selectedHeadingRef : undefined}>{panelContent[section.id]}</FocusedPanel>)}
             </div>
         </div></main>
     </AuthenticatedLayout>;

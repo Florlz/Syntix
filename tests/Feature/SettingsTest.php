@@ -251,6 +251,7 @@ class SettingsTest extends TestCase
     public function test_notification_preferences_preserve_other_preferences_and_keep_security_alerts_on(): void
     {
         $user = User::factory()->create([
+            'is_global_admin' => true,
             'preferences' => [
                 'theme' => 'dark',
                 'default_landing' => 'sports',
@@ -275,6 +276,32 @@ class SettingsTest extends TestCase
         $this->assertSame('sports', $preferences['default_landing']);
         $this->assertFalse($preferences['notifications']['approvals']);
         $this->assertTrue($preferences['notifications']['security']);
+    }
+
+    public function test_non_global_admin_cannot_update_global_admin_notification_preferences(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->patch('/settings/preferences', [
+                'notifications' => ['approvals' => false],
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_inertia_theme_scope_is_admin_only_even_for_an_authenticated_public_visit(): void
+    {
+        $admin = User::factory()->create(['is_global_admin' => true]);
+
+        $this->actingAs($admin)
+            ->get('/')
+            ->assertInertia(fn ($page) => $page
+                ->where('ui.theme_scope', 'public'));
+
+        $this->actingAs($admin)
+            ->get('/settings')
+            ->assertInertia(fn ($page) => $page
+                ->where('ui.theme_scope', 'admin'));
     }
 
     public function test_archived_accessible_workspace_can_remain_the_read_only_default(): void

@@ -27,4 +27,15 @@ class SessionDevicePresenterTest extends TestCase
         $this->assertSame('Unknown platform', SessionDevicePresenter::platform('syntix-client/1.0'));
         $this->assertSame('Unknown device', SessionDevicePresenter::deviceType('syntix-client/1.0'));
     }
+
+    public function test_it_recognizes_ios_browser_variants_and_android_tablets(): void
+    {
+        $chromeIos = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 CriOS/126.0.6478.108 Mobile/15E148 Safari/604.1';
+        $firefoxIos = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 FxiOS/126.0 Mobile/15E148 Safari/605.1.15';
+        $androidTablet = 'Mozilla/5.0 (Linux; Android 14; SM-X700) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36';
+
+        $this->assertSame('Chrome', SessionDevicePresenter::browser($chromeIos));
+        $this->assertSame('Firefox', SessionDevicePresenter::browser($firefoxIos));
+        $this->assertSame('Tablet', SessionDevicePresenter::deviceType($androidTablet));
+    }
 }

@@ -2,14 +2,10 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-final class AdminActivityNotification extends Notification implements ShouldQueue
+final class AdminActivityNotification extends Notification
 {
-    use Queueable;
-
     /**
      * @param  array{kind: string, title: string, message: string, event_id?: string|null, action?: array{label: string, route: string, params?: array<string, string>}}  $payload
      */

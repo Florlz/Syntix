@@ -12,8 +12,8 @@ final class SessionDevicePresenter
             preg_match('/Edg(?:A|iOS)?\//i', $userAgent) === 1 => 'Microsoft Edge',
             preg_match('/OPR\//i', $userAgent) === 1 => 'Opera',
             preg_match('/SamsungBrowser\//i', $userAgent) === 1 => 'Samsung Internet',
-            preg_match('/Firefox\//i', $userAgent) === 1 => 'Firefox',
-            preg_match('/Chrome\//i', $userAgent) === 1 => 'Chrome',
+            preg_match('/(?:Firefox|FxiOS)\//i', $userAgent) === 1 => 'Firefox',
+            preg_match('/(?:Chrome|CriOS)\//i', $userAgent) === 1 => 'Chrome',
             preg_match('/Safari\//i', $userAgent) === 1 => 'Safari',
             default => 'Unknown browser',
         };
@@ -39,6 +39,7 @@ final class SessionDevicePresenter
 
         return match (true) {
             preg_match('/iPad|Tablet/i', $userAgent) === 1 => 'Tablet',
+            preg_match('/Android/i', $userAgent) === 1 && preg_match('/Mobile/i', $userAgent) !== 1 => 'Tablet',
             preg_match('/Mobile|iPhone|Android/i', $userAgent) === 1 => 'Mobile',
             preg_match('/Windows NT|Macintosh|Linux/i', $userAgent) === 1 => 'Desktop',
             default => 'Unknown device',

@@ -23,17 +23,20 @@
 
         <!-- Scripts -->
         @routes
-        <script>
-            (() => {
-                try {
-                    const theme = localStorage.getItem('syntix-theme') || 'system';
-                    const dark = theme === 'dark'
-                        || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        @if(data_get($page, 'props.ui.theme_scope') === 'admin')
+            <script>
+                (() => {
+                    try {
+                        const theme = localStorage.getItem('syntix-theme') || 'system';
+                        const dark = theme === 'dark'
+                            || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
-                    document.documentElement.classList.toggle('dark', dark);
-                } catch (_) {}
-            })();
-        </script>
+                        document.documentElement.classList.toggle('dark', dark);
+                        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+                    } catch (_) {}
+                })();
+            </script>
+        @endif
         @viteReactRefresh
         @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])
         @inertiaHead

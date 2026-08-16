@@ -4,18 +4,11 @@ import { beforeEach, expect, test, vi } from 'vitest';
 
 const forms = [];
 const formWith = (key, predicate = () => true) => forms.find((form) => Object.prototype.hasOwnProperty.call(form.data, key) && predicate(form));
+let pageProps;
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
-    usePage: () => ({
-        props: {
-            auth: {
-                global_admin: true,
-                user: { name: 'Admin User', email: 'admin@syntix.test', email_verified: false, email_verified_at: '2026-01-01', account_state: 'active', created_at: '2026-01-01T00:00:00+00:00' },
-                preferences: { text_size: 'large', contrast: 'high', reduce_motion: true, default_event_id: 2, default_landing: 'sports' },
-            },
-        },
-    }),
+    usePage: () => ({ props: pageProps }),
     useForm: (initial) => {
         const [, rerender] = React.useReducer((value) => value + 1, 0);
         const formRef = React.useRef(null);
@@ -55,6 +48,13 @@ vi.mock('@/Components/InputError', () => ({ default: ({ message }) => message ? 
 vi.mock('@/Components/PrefetchLink', () => ({ default: ({ children, ...props }) => <button {...props}>{children}</button> }));
 
 beforeEach(() => {
+    pageProps = {
+        auth: {
+            global_admin: true,
+            user: { name: 'Admin User', email: 'admin@syntix.test', email_verified: false, email_verified_at: '2026-01-01', account_state: 'active', created_at: '2026-01-01T00:00:00+00:00' },
+            preferences: { text_size: 'large', contrast: 'high', reduce_motion: true, default_event_id: 2, default_landing: 'sports' },
+        },
+    };
     window.history.replaceState({}, '', '/settings');
     forms.length = 0;
     globalThis.route = (name, params) => {
@@ -65,6 +65,8 @@ beforeEach(() => {
     document.documentElement.removeAttribute('data-text-size');
     document.documentElement.removeAttribute('data-contrast');
     document.documentElement.removeAttribute('data-reduce-motion');
+    document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = '';
 });
 
 test('opens the section named by the settings query string', async () => {
@@ -89,6 +91,17 @@ test('renders the complete Global Admin settings navigation', async () => {
     expect(screen.getByRole('link', { name: /Workspace/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Notifications/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Security/i })).toBeInTheDocument();
+});
+
+test('does not expose Global Admin notification settings to non-admin users', async () => {
+    pageProps.auth.global_admin = false;
+    window.history.replaceState({}, '', '/settings?section=notifications');
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+
+    expect(screen.queryByRole('link', { name: /Notifications/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Profile/i })).toHaveAttribute('aria-current', 'page');
 });
 
 test('selecting a settings tab updates the query string and preserves entered values', async () => {
@@ -220,6 +233,8 @@ test('theme choices update Appearance state and submit only the theme preference
     expect(darkTheme).not.toBeChecked();
     fireEvent.click(darkTheme);
     expect(darkTheme).toBeChecked();
+    expect(document.documentElement).toHaveClass('dark');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
 
     fireEvent.submit(darkTheme.closest('form'));
     const appearanceForm = formWith('theme');

@@ -37,6 +37,21 @@ class NotificationTest extends TestCase
         ]);
     }
 
+    public function test_admin_activity_notification_persists_immediately_when_the_queue_driver_is_database(): void
+    {
+        config()->set('queue.default', 'database');
+        $admin = User::factory()->create(['is_global_admin' => true]);
+
+        $admin->notify(new AdminActivityNotification([
+            'kind' => 'security_login',
+            'title' => 'New administrator sign-in',
+            'message' => 'Chrome Â· macOS',
+        ]));
+
+        $this->assertSame(1, $admin->notifications()->count());
+        $this->assertDatabaseCount('jobs', 0);
+    }
+
     public function test_user_can_mark_only_their_own_notifications_as_read(): void
     {
         $owner = User::factory()->create(['is_global_admin' => true]);

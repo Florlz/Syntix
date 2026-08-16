@@ -97,6 +97,10 @@ class SettingsController extends Controller
             'notifications.security' => ['sometimes', 'required', 'boolean'],
         ]);
 
+        if (array_key_exists('notifications', $validated) && ! $user->isGlobalAdmin()) {
+            abort(403);
+        }
+
         $current = $user->normalizedPreferences($events->modelKeys());
         $notificationInput = $validated['notifications'] ?? [];
         $user->preferences = [
