@@ -47,11 +47,34 @@ vi.mock('@/Components/InputError', () => ({ default: ({ message }) => message ? 
 vi.mock('@/Components/PrefetchLink', () => ({ default: ({ children, ...props }) => <button {...props}>{children}</button> }));
 
 beforeEach(() => {
+    window.history.replaceState({}, '', '/settings');
     forms.length = 0;
-    globalThis.route = (name) => `/${name}`;
+    globalThis.route = (name) => name === 'settings.edit' ? '/settings' : `/${name}`;
     document.documentElement.removeAttribute('data-text-size');
     document.documentElement.removeAttribute('data-contrast');
     document.documentElement.removeAttribute('data-reduce-motion');
+});
+
+test('opens the section named by the settings query string', async () => {
+    window.history.replaceState({}, '', '/settings?section=security');
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[]} />);
+
+    expect(screen.getByRole('link', { name: /Password & sessions/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('heading', { name: 'Security', level: 2 })).toBeVisible();
+});
+
+test('selecting a settings tab updates the query string and preserves entered values', async () => {
+    const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
+
+    render(<Settings events={[{ id: 1, name: 'SIKLAB 2026', state: 'preparation' }]} />);
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Updated name' } });
+    fireEvent.click(screen.getByRole('link', { name: /Workspace/i }));
+    fireEvent.click(screen.getByRole('link', { name: /Profile/i }));
+
+    expect(window.location.search).toBe('?section=profile');
+    expect(screen.getByLabelText('Name')).toHaveValue('Updated name');
 });
 
 test('renders the account hub with profile selected and applies saved preferences', async () => {

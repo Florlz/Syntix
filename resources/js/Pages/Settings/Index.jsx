@@ -18,12 +18,39 @@ const field = 'mt-2 block w-full rounded-lg border-[#C8D2CF] bg-white px-3.5 py-
 const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#0B536D] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-[#083F53] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D5A21F] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
 const secondaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[#B8C3C0] bg-white px-4 py-2 text-sm font-bold text-[#0B536D] transition hover:border-[#0B536D] hover:bg-[#F4F8F8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D5A21F] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
 
-const HUB_ITEMS = [
-    { id: 'profile', icon: 'users', title: 'Profile', summary: 'Name, email, and verification' },
-    { id: 'accessibility', icon: 'overview', title: 'Accessibility', summary: 'Readability, contrast, and motion' },
-    { id: 'workspace', icon: 'calendar', title: 'Workspace', summary: 'Default event and landing page' },
-    { id: 'security', icon: 'settings', title: 'Security', summary: 'Password and active sessions' },
+const SETTINGS_SECTIONS = [
+    { id: 'profile', group: 'Account', icon: 'users', title: 'Profile', summary: 'Name and email' },
+    { id: 'accessibility', group: 'Preferences', icon: 'overview', title: 'Accessibility', summary: 'Display and motion' },
+    { id: 'workspace', group: 'Preferences', icon: 'calendar', title: 'Workspace', summary: 'Opening defaults' },
+    { id: 'security', group: 'Security', icon: 'settings', title: 'Password & sessions', heading: 'Security', summary: 'Sign-in safety' },
 ];
+
+const SETTINGS_SECTION_IDS = SETTINGS_SECTIONS.map((section) => section.id);
+
+function readSettingsSection() {
+    const value = new URLSearchParams(window.location.search).get('section');
+    return SETTINGS_SECTION_IDS.includes(value) ? value : 'profile';
+}
+
+function useSettingsSection() {
+    const [selectedSection, setSelectedSection] = useState(readSettingsSection);
+
+    useEffect(() => {
+        const handlePopState = () => setSelectedSection(readSettingsSection());
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
+    const selectSection = (section) => {
+        if (!SETTINGS_SECTION_IDS.includes(section)) return;
+        const url = new URL(window.location.href);
+        url.searchParams.set('section', section);
+        window.history.pushState({ section }, '', `${url.pathname}${url.search}${url.hash}`);
+        setSelectedSection(section);
+    };
+
+    return { selectedSection, selectSection };
+}
 
 function normalizePreferences(value = {}) {
     return {
@@ -56,75 +83,52 @@ function Card({ id, icon, eyebrow, title, description, children, tone = 'default
     </section>;
 }
 
-function SignalCard({ item, selected, onSelect, onMove }) {
-    const handleKeyDown = (event) => {
-        if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-            event.preventDefault();
-            onMove(1);
-        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            onMove(-1);
-        }
-    };
-
-    return <button
-        id={`${item.id}-tab`}
-        type="button"
-        role="tab"
-        aria-selected={selected}
-        aria-controls={`${item.id}-panel`}
-        tabIndex={selected ? 0 : -1}
-        data-settings-category={item.id}
-        onClick={(event) => onSelect(item.id, event.detail === 0)}
-        onKeyDown={handleKeyDown}
-        className={`inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D5A21F] focus-visible:ring-offset-2 motion-reduce:transition-none ${selected ? 'border-[#0B536D] bg-[#0B536D] text-white shadow-sm' : 'border-[#C8D2CF] bg-white text-[#0B536D] hover:border-[#0B536D] hover:bg-[#F4F8F8]'}`}
-    >
-        <AppIcon name={item.icon} className="size-4 shrink-0" />
-        <span>{item.title}</span>
-    </button>;
+function SettingsTabs({ selectedSection, selectSection }) {
+    return <nav aria-label="Settings sections" className="border-b border-[#C8D2CF]">
+        <div className="hidden gap-7 pb-2 md:flex">
+            {[...new Set(SETTINGS_SECTIONS.map((section) => section.group))].map((group) => <p key={group} className="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-[#78858A]">{group}</p>)}
+        </div>
+        <div className="flex gap-5 overflow-x-auto">
+            {SETTINGS_SECTIONS.map((section) => <SettingsTab key={section.id} section={section} selectedSection={selectedSection} selectSection={selectSection} />)}
+        </div>
+    </nav>;
 }
 
-function SettingsHub({ selectedCategory, onSelect }) {
-    const move = (offset) => {
-        const current = HUB_ITEMS.findIndex((item) => item.id === selectedCategory);
-        const next = (current + offset + HUB_ITEMS.length) % HUB_ITEMS.length;
-        onSelect(HUB_ITEMS[next].id, false);
-        requestAnimationFrame(() => document.getElementById(`${HUB_ITEMS[next].id}-tab`)?.focus());
-    };
+function SettingsTab({ section, selectedSection, selectSection }) {
+    const selected = selectedSection === section.id;
 
-    return <section aria-labelledby="settings-hub-title">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-            <div>
-                <p className="text-[0.68rem] font-bold uppercase tracking-[0.15em] text-[#0B536D]">Account hub</p>
-                <h2 id="settings-hub-title" className="mt-1 font-serif text-2xl font-bold text-[#17212B]">Choose what to tune</h2>
-            </div>
-            <p className="max-w-sm text-right text-sm text-[#68767E]">Your changes stay as you move between areas.</p>
-        </div>
-        <div role="tablist" aria-label="Settings categories" className="flex flex-wrap gap-2">
-            {HUB_ITEMS.map((item) => <SignalCard key={item.id} item={item} selected={selectedCategory === item.id} onSelect={onSelect} onMove={move} />)}
-        </div>
-    </section>;
+    return <a
+        href={`${route('settings.edit')}?section=${section.id}`}
+        aria-current={selected ? 'page' : undefined}
+        data-settings-section={section.id}
+        onClick={(event) => {
+            event.preventDefault();
+            selectSection(section.id);
+        }}
+        className={`group inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-1 py-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D5A21F] focus-visible:ring-offset-2 motion-reduce:transition-none ${selected ? 'border-[#0B536D] text-[#0B536D]' : 'border-transparent text-[#68767E] hover:border-[#B8C3C0] hover:text-[#0B536D]'}`}
+    >
+        <AppIcon name={section.icon} className="size-4 shrink-0" />
+        <span>{section.title}</span>
+        <span className="sr-only">{section.group}</span>
+    </a>;
 }
 
 function FocusedPanel({ item, active, headingRef, children }) {
     return <section
         id={`${item.id}-panel`}
-        role="tabpanel"
-        aria-labelledby={`${item.id}-tab`}
+        aria-labelledby={`${item.id}-heading`}
         hidden={!active}
-        tabIndex={-1}
         data-settings-panel={item.id}
-        className={`${panel} overflow-hidden transition-[box-shadow,opacity] duration-200 motion-reduce:transition-none ${active ? 'shadow-[0_14px_34px_rgba(23,33,43,0.08)]' : ''}`}
+        className="border-b border-[#E6EAE8] pb-8"
     >
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#E6EAE8] bg-[#F8FAF9] px-5 py-4 sm:px-6">
+        <div className="flex flex-wrap items-start justify-between gap-3 pt-6">
             <div>
-                <p className="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-[#0B536D]">Selected area</p>
-                <h2 ref={headingRef} tabIndex={-1} className="mt-1 font-serif text-2xl font-bold text-[#17212B] focus-visible:outline-none">{item.title}</h2>
+                <p className="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-[#0B536D]">{item.group}</p>
+                <h2 id={`${item.id}-heading`} ref={headingRef} tabIndex={active ? -1 : undefined} className="mt-1 font-serif text-2xl font-bold text-[#17212B] focus-visible:outline-none">{item.heading ?? item.title}</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-5 text-[#68767E]">{item.summary}.</p>
             </div>
-            <span className="rounded-full border border-[#C8D2CF] bg-white px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-[0.1em] text-[#0B536D]">Now editing</span>
         </div>
-        <div className="space-y-5 p-4 sm:p-6">{children}</div>
+        <div className="space-y-5 pt-6">{children}</div>
     </section>;
 }
 
@@ -302,36 +306,20 @@ export default function Settings({ events: passedEvents = [], available_events: 
     const user = auth.user ?? {};
     const initial = normalizePreferences({ ...(auth.preferences ?? {}), ...passedPreferences });
     const events = passedEvents.length ? passedEvents : availableEvents;
-    const [selectedCategory, setSelectedCategory] = useState('profile');
-    const shouldFocusPanel = useRef(false);
+    const { selectedSection, selectSection } = useSettingsSection();
     const selectedHeadingRef = useRef(null);
-
-    useEffect(() => {
-        if (!shouldFocusPanel.current) return;
-        shouldFocusPanel.current = false;
-        selectedHeadingRef.current?.focus();
-    }, [selectedCategory]);
-
-    const selectCategory = (category, focusPanel = false) => {
-        shouldFocusPanel.current = focusPanel;
-        if (category === selectedCategory) {
-            if (focusPanel) requestAnimationFrame(() => selectedHeadingRef.current?.focus());
-            return;
-        }
-        setSelectedCategory(category);
-    };
 
     return <AuthenticatedLayout header={<div><p className="text-[0.68rem] font-bold uppercase tracking-[0.15em] text-[#0B536D]">Your account</p><h1 className="font-serif text-2xl font-bold">Settings</h1></div>}>
         <Head title="Settings" />
         <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden p-4 sm:p-7 lg:p-8"><div className="mx-auto max-w-6xl space-y-6">
             <section className="relative overflow-hidden rounded-2xl bg-[#0B2E4F] px-5 py-7 text-white shadow-[0_16px_34px_rgba(11,46,79,0.18)] sm:px-8 sm:py-9"><div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(213,162,31,0.2),transparent_58%)]" aria-hidden="true" /><div className="relative max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#E7C865]">Your account</p><h2 className="mt-2 font-serif text-3xl font-bold sm:text-4xl">Make Syntix work for you.</h2><p className="mt-3 text-sm leading-6 text-white/75">Change your profile, password, and dashboard choices here. These settings belong to you, not to one event.</p></div></section>
             <section aria-label="Current preferences" className={`${panel} overflow-hidden`}><dl className="grid grid-cols-1 divide-y divide-[#E6EAE8] sm:grid-cols-3 sm:divide-x sm:divide-y-0"><div className="min-w-0 px-4 py-4 sm:px-5"><dt className="text-[0.62rem] font-bold uppercase tracking-[0.1em] text-[#78858A]">Signed in as</dt><dd className="mt-1 truncate text-sm font-semibold text-[#0B2E4F]">{user.email ?? 'Your account'}</dd></div><div className="min-w-0 px-4 py-4 sm:px-5"><dt className="text-[0.62rem] font-bold uppercase tracking-[0.1em] text-[#78858A]">Text size</dt><dd className="mt-1 text-sm font-semibold text-[#0B2E4F]">{initial.text_size === 'x-large' ? 'Extra large' : initial.text_size === 'large' ? 'Large' : 'Default'}</dd></div><div className="min-w-0 px-4 py-4 sm:px-5"><dt className="text-[0.62rem] font-bold uppercase tracking-[0.1em] text-[#78858A]">Starts at</dt><dd className="mt-1 text-sm font-semibold text-[#0B2E4F]">{initial.default_landing === 'overview' ? 'Overview' : initial.default_landing}</dd></div></dl></section>
-            <SettingsHub selectedCategory={selectedCategory} onSelect={selectCategory} />
+            <SettingsTabs selectedSection={selectedSection} selectSection={selectSection} />
             <div className="space-y-5">
-                <FocusedPanel item={HUB_ITEMS[0]} active={selectedCategory === 'profile'} headingRef={selectedCategory === 'profile' ? selectedHeadingRef : undefined}><ProfileCard user={user} mustVerifyEmail={mustVerifyEmail} status={status} /></FocusedPanel>
-                <FocusedPanel item={HUB_ITEMS[1]} active={selectedCategory === 'accessibility'} headingRef={selectedCategory === 'accessibility' ? selectedHeadingRef : undefined}><AccessibilityCard initial={initial} /></FocusedPanel>
-                <FocusedPanel item={HUB_ITEMS[2]} active={selectedCategory === 'workspace'} headingRef={selectedCategory === 'workspace' ? selectedHeadingRef : undefined}><DashboardPreferencesCard initial={initial} events={events} /></FocusedPanel>
-                <FocusedPanel item={HUB_ITEMS[3]} active={selectedCategory === 'security'} headingRef={selectedCategory === 'security' ? selectedHeadingRef : undefined}><div className="space-y-5"><PasswordCard /><SecurityCard otherSessionCount={otherSessionCount} /></div></FocusedPanel>
+                <FocusedPanel item={SETTINGS_SECTIONS[0]} active={selectedSection === 'profile'} headingRef={selectedSection === 'profile' ? selectedHeadingRef : undefined}><ProfileCard user={user} mustVerifyEmail={mustVerifyEmail} status={status} /></FocusedPanel>
+                <FocusedPanel item={SETTINGS_SECTIONS[1]} active={selectedSection === 'accessibility'} headingRef={selectedSection === 'accessibility' ? selectedHeadingRef : undefined}><AccessibilityCard initial={initial} /></FocusedPanel>
+                <FocusedPanel item={SETTINGS_SECTIONS[2]} active={selectedSection === 'workspace'} headingRef={selectedSection === 'workspace' ? selectedHeadingRef : undefined}><DashboardPreferencesCard initial={initial} events={events} /></FocusedPanel>
+                <FocusedPanel item={SETTINGS_SECTIONS[3]} active={selectedSection === 'security'} headingRef={selectedSection === 'security' ? selectedHeadingRef : undefined}><div className="space-y-5"><PasswordCard /><SecurityCard otherSessionCount={otherSessionCount} /></div></FocusedPanel>
             </div>
         </div></main>
     </AuthenticatedLayout>;
