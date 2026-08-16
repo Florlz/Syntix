@@ -100,7 +100,7 @@ class SettingsTest extends TestCase
         $this->assertTrue(Hash::check('new-long-password', $user->password));
     }
 
-    public function test_profile_accepts_case_insensitive_email_input_and_persists_the_canonical_value(): void
+    public function test_profile_accepts_and_persists_a_trimmed_lowercase_version_of_the_authenticated_email(): void
     {
         $user = User::factory()->create([
             'name' => 'Original Name',
@@ -110,11 +110,26 @@ class SettingsTest extends TestCase
         $this->actingAs($user)
             ->patch('/settings/profile', [
                 'name' => 'Original Name',
-                'email' => 'ORIGINAL@EXAMPLE.COM',
+                'email' => '  ORIGINAL@EXAMPLE.COM  ',
             ])
             ->assertSessionHasNoErrors();
 
         $this->assertSame('original@example.com', $user->refresh()->email);
+    }
+
+    public function test_profile_rejects_a_case_insensitive_duplicate_before_database_persistence(): void
+    {
+        $user = User::factory()->create(['email' => 'owner@example.com']);
+        User::factory()->create(['email' => 'taken@example.com']);
+
+        $this->actingAs($user)
+            ->patch('/settings/profile', [
+                'name' => 'Owner',
+                'email' => "  TAKEN@EXAMPLE.COM\t",
+            ])
+            ->assertSessionHasErrors('email');
+
+        $this->assertSame('owner@example.com', $user->refresh()->email);
     }
 
     public function test_profile_rejects_duplicate_and_invalid_values_without_changing_the_account(): void
