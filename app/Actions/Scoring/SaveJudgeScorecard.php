@@ -34,6 +34,14 @@ final class SaveJudgeScorecard
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            if (! $actor->canScoreEntryScorecard($scorecard)) {
+                throw new AuthorizationException('The Judge is not assigned to this scorecard.');
+            }
+
+            if (! $scorecard->contest?->isJudgingPanelLocked()) {
+                throw new \DomainException('Judge scoring opens only after the judging panel and aggregation authority are locked.');
+            }
+
             if (! in_array($scorecard->scorecardState(), [ScorecardState::Draft, ScorecardState::Rejected], true)) {
                 throw new \DomainException('Only draft or rejected scorecards can be edited.');
             }
@@ -60,7 +68,11 @@ final class SaveJudgeScorecard
                 throw new \DomainException('Judge scoring requires the frozen rule version bound to the scorecard.');
             }
 
-            if ($scorecard->judge_id !== null && (int) $scorecard->judge_id !== (int) $actor->getKey()) {
+            if ($scorecard->judge_id === null) {
+                throw new AuthorizationException('A scorecard must be pre-bound to a Judge.');
+            }
+
+            if ((int) $scorecard->judge_id !== (int) $actor->getKey()) {
                 throw new AuthorizationException('A scorecard belongs to another Judge.');
             }
 
@@ -135,7 +147,6 @@ final class SaveJudgeScorecard
                 ->delete();
 
             $scorecard->update([
-                'judge_id' => $actor->getKey(),
                 'competition_rule_version_id' => $version->getKey(),
                 'state' => ScorecardState::Draft,
                 'calculated_total' => DecimalMath::fromScaled($total, $calculationScale),

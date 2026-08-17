@@ -55,6 +55,11 @@ class Entry extends Model
         return $this->hasMany(DisciplineEntry::class);
     }
 
+    public function scoringAdjustments(): HasMany
+    {
+        return $this->hasMany(ScoringAdjustment::class);
+    }
+
     public function eventId(): ?int
     {
         $this->loadMissing('division.competition');

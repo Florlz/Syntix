@@ -43,6 +43,13 @@ enum AuditAction: string
     case InvitationReissued = 'invitation.reissued';
     case RuleVersionCreated = 'rule_version.created';
     case ProgrammeApplied = 'programme.applied';
+    case JudgedContestPrepared = 'judged_contest.prepared';
+    case JudgingPanelConfigured = 'judging_panel.configured';
+    case JudgingPanelLocked = 'judging_panel.locked';
+    case ScoringAdjustmentRecorded = 'scoring_adjustment.recorded';
+    case ScoringAdjustmentVoided = 'scoring_adjustment.voided';
+    case JudgedContestFinalized = 'judged_contest.finalized';
+    case JudgedTieResolved = 'judged_tie.resolved';
     case UserProvisioned = 'user.provisioned';
     case InvitationConsumed = 'invitation.consumed';
     case VenueCreated = 'venue.created';

@@ -275,6 +275,10 @@ class User extends Authenticatable
             return false;
         }
 
+        if ($scorecard->judge_id === null || (int) $scorecard->judge_id !== (int) $this->getKey()) {
+            return false;
+        }
+
         $eventId = $scorecard->eventId();
 
         $event = $eventId === null ? null : Event::query()->find($eventId);
@@ -288,17 +292,8 @@ class User extends Authenticatable
         return $this->scoringAssignments()
             ->active()
             ->where('event_id', $eventId)
-            ->where(function (Builder $query) use ($scorecard): void {
-                $query->where(function (Builder $query) use ($scorecard): void {
-                    $query
-                        ->where('scope_type', 'entry_scorecard')
-                        ->where('entry_scorecard_id', $scorecard->getKey());
-                })->orWhere(function (Builder $query) use ($scorecard): void {
-                    $query
-                        ->where('scope_type', 'competition_division')
-                        ->where('competition_division_id', $scorecard->contest?->competition_division_id);
-                });
-            })
+            ->where('scope_type', 'entry_scorecard')
+            ->where('entry_scorecard_id', $scorecard->getKey())
             ->exists();
     }
 

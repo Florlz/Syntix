@@ -8,6 +8,10 @@ use App\Actions\Events\GrantEventRole;
 use App\Actions\Events\RevokeEventRole;
 use App\Actions\Identity\DisableUser;
 use App\Actions\Identity\EnableUser;
+use App\Actions\Scoring\ConfigureJudgingPanel;
+use App\Actions\Scoring\LockJudgingPanel;
+use App\Actions\Scoring\PrepareJudgedContest;
+use App\Actions\Scoring\ResolveJudgedTie;
 use App\Enums\AuditAction;
 use App\Enums\EventRole;
 use App\Enums\ScoringAssignmentScope;
@@ -22,6 +26,7 @@ use App\Models\ScoringAssignment;
 use App\Models\User;
 use App\Models\UserInvitation;
 use App\Services\AuditLogger;
+use App\Services\JudgeScoreAggregationService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -57,11 +62,95 @@ class StaffController extends Controller
             ];
         })->sortBy('name')->values();
 
+        $section = in_array($request->query('section'), ['people', 'assignments', 'readiness'], true)
+            ? $request->query('section')
+            : 'people';
+
         return Inertia::render('Admin/Staff/Index', [
             'event' => ['id' => (string) $event->getKey(), 'name' => $event->name, 'archived' => $event->isArchived()],
+            'section' => $section,
             'staff' => $staff,
             'targets' => $this->targets($event),
+            'readiness' => $this->scoringReadiness($event),
         ]);
+    }
+
+    public function prepareJudgedContest(Request $request, Event $event, Division $division, PrepareJudgedContest $prepare): RedirectResponse
+    {
+        $this->assertWritable($request, $event);
+        if ($division->eventId() !== (int) $event->getKey()) abort(404);
+        $prepare->handle($request->user(), $division);
+
+        return back()->with('status', 'Judged Contest prepared.');
+    }
+
+    public function storeJudgingPanel(Request $request, Event $event, Contest $contest, ConfigureJudgingPanel $configure): RedirectResponse
+    {
+        $this->assertWritable($request, $event);
+        if ($contest->eventId() !== (int) $event->getKey()) abort(404);
+        $data = $request->validate(['judge_ids' => ['required', 'array', 'min:1'], 'judge_ids.*' => ['integer', 'distinct', 'exists:users,id']]);
+        $configure->handle($request->user(), $contest, User::query()->whereKey($data['judge_ids'])->get());
+
+        return back()->with('status', 'Judging panel configured.');
+    }
+
+    public function lockJudgingPanel(Request $request, Event $event, Contest $contest, LockJudgingPanel $lock): RedirectResponse
+    {
+        $this->assertWritable($request, $event);
+        if ($contest->eventId() !== (int) $event->getKey()) abort(404);
+        $lock->handle($request->user(), $contest);
+
+        return back()->with('status', 'Judging panel locked.');
+    }
+
+    public function confirmAggregation(Request $request, Event $event, Contest $contest): RedirectResponse
+    {
+        $this->assertWritable($request, $event);
+        if ($contest->eventId() !== (int) $event->getKey()) abort(404);
+        $data = $request->validate([
+            'method' => ['required', Rule::in(['average'])],
+            'reference' => ['required', 'string', 'max:500'],
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+        $contest->ruleVersion?->confirmAggregation($request->user(), $data['method'], $data['reference'], $data['reason']);
+
+        return back()->with('status', 'Judge aggregation authority recorded.');
+    }
+
+    public function authorizeDeduction(Request $request, Event $event, Contest $contest): RedirectResponse
+    {
+        $this->assertWritable($request, $event);
+        if ($contest->eventId() !== (int) $event->getKey()) abort(404);
+        $data = $request->validate([
+            'rounding_policy' => ['nullable', Rule::in(['ceiling', 'floor', 'nearest'])],
+            'reference' => ['required', 'string', 'max:500'], 'reason' => ['required', 'string', 'max:2000'],
+        ]);
+        $contest->ruleVersion?->authorizeDeductionCalculation($request->user(), $data['rounding_policy'] ?? null, $data['reference'], $data['reason']);
+
+        return back()->with('status', 'Deduction calculation authority recorded.');
+    }
+
+    public function assignTabulator(Request $request, Event $event, Contest $contest, User $user, GrantScoringAssignment $grant): RedirectResponse
+    {
+        $this->assertWritable($request, $event);
+        if ($contest->eventId() !== (int) $event->getKey() || ! $user->hasActiveEventRole($event, EventRole::Tabulator)) abort(404);
+        $grant->handle($request->user(), $event, $user, ScoringAssignmentScope::Contest, $contest, 'Assigned from Scoring Readiness.');
+
+        return back()->with('status', 'Tabulator assigned.');
+    }
+
+    public function resolveJudgedTie(Request $request, Event $event, Contest $contest, ResolveJudgedTie $resolve): RedirectResponse
+    {
+        $this->assertWritable($request, $event);
+        if ($contest->eventId() !== (int) $event->getKey()) abort(404);
+        $data = $request->validate([
+            'tied_entry_ids' => ['required', 'array', 'min:2'], 'tied_entry_ids.*' => ['integer', 'distinct'],
+            'authorized_order' => ['required', 'array', 'min:2'], 'authorized_order.*' => ['integer', 'distinct'],
+            'reason' => ['required', 'string', 'max:2000'], 'reference' => ['required', 'string', 'max:500'],
+        ]);
+        $resolve->handle($request->user(), $contest, $data['tied_entry_ids'], $data['authorized_order'], $data['reason'], $data['reference']);
+
+        return back()->with('status', 'Authorized judged tie order recorded.');
     }
 
     public function reissue(Request $request, Event $event, User $user, AuditLogger $audit): RedirectResponse
@@ -132,8 +221,82 @@ class StaffController extends Controller
         return [
             'competition_division' => Division::query()->whereHas('competition', fn ($q) => $q->where('event_id', $event->getKey())->where('is_active', true))->where('is_active', true)->with('competition')->get()->map(fn ($d) => ['id' => (string) $d->getKey(), 'label' => $d->competition->name.' / '.$d->name]),
             'contest' => Contest::query()->whereHas('division.competition', fn ($q) => $q->where('event_id', $event->getKey())->where('is_active', true))->whereHas('division', fn ($q) => $q->where('is_active', true))->with('division.competition')->get()->map(fn ($c) => ['id' => (string) $c->getKey(), 'label' => $c->division->competition->name.' / '.$c->name]),
-            'entry_scorecard' => EntryScorecard::query()->whereHas('contest.division.competition', fn ($q) => $q->where('event_id', $event->getKey())->where('is_active', true))->with(['contest.division.competition', 'entry'])->get()->map(fn ($s) => ['id' => (string) $s->getKey(), 'label' => $s->contest->division->competition->name.' / '.($s->entry?->name ?? 'Scorecard '.$s->getKey())]),
         ];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function scoringReadiness(Event $event): array
+    {
+        $roleOptions = fn (EventRole $role) => User::query()
+            ->whereHas('eventRoles', fn ($query) => $query->where('event_id', $event->getKey())->where('role', $role->value)->whereNull('revoked_at'))
+            ->where('account_state', 'active')->orderBy('name')->get(['id', 'name']);
+        $judges = $roleOptions(EventRole::Judge);
+        $tabulators = $roleOptions(EventRole::Tabulator);
+
+        return Division::query()
+            ->whereHas('competition', fn ($query) => $query->where('event_id', $event->getKey()))
+            ->with(['competition', 'governingRuleVersion', 'ruleVersions' => fn ($query) => $query->latest('version'), 'entries', 'contests.scorecards', 'contests.assignments'])
+            ->get()
+            ->filter(fn (Division $division): bool => ($division->governingRuleVersion ?? $division->ruleVersions->first())?->scoringFamily()?->value === 'criteria_based')
+            ->map(function (Division $division) use ($judges, $tabulators): array {
+                $rule = $division->governingRuleVersion ?? $division->ruleVersions->first();
+                $metadata = $rule->metadata();
+                $contest = $division->contests->first();
+                $judgeCount = $contest?->scorecards->pluck('judge_id')->filter()->unique()->count() ?? 0;
+                $tabulatorCount = $contest?->assignments->where('scope_type', ScoringAssignmentScope::Contest)->whereNull('revoked_at')->count() ?? 0;
+                $sourceBlocked = $rule->source_status === 'blocked' || $metadata->sourceBlocker !== null;
+                $deduction = $rule->deduction_configuration ?? [];
+                $deductionAuthorized = ($deduction['code'] ?? null) === null || ($deduction['calculation_status'] ?? null) === 'authorized';
+                $aggregation = $contest?->isJudgingPanelLocked() ? (new JudgeScoreAggregationService)->aggregate($contest) : null;
+                $aggregationBlocker = $aggregation['readiness']['blocker_codes'][0] ?? null;
+                $blockerLabels = [
+                    'aggregation_confirmation_missing' => 'Confirm the Judge aggregation method and authority.',
+                    'missing_scorecards' => 'Waiting for all locked-panel Judge scorecards.',
+                    'tie_resolution_required' => 'Authorized tie resolution required.',
+                    'adjustment_calculation_unauthorized' => 'Authorize the source deduction calculation policy.',
+                    'adjustment_evidence_missing' => 'Waiting for objective adjustment evidence for every entry.',
+                    'scorecard_rule_mismatch' => 'A scorecard uses a different rule version and requires correction.',
+                ];
+                $next = $metadata->sourceBlocker
+                    ?? ($contest === null ? 'Prepare the official judged Contest.'
+                        : ($judgeCount === 0 ? 'Configure the judging panel.'
+                            : (! $contest->isJudgingPanelLocked() ? 'Confirm aggregation and lock the judging panel.' : ($blockerLabels[$aggregationBlocker] ?? null))));
+                $tie = collect($aggregation['ties'] ?? [])->first();
+                $entryNames = collect($aggregation['entries'] ?? [])->keyBy('entry_id');
+
+                return [
+                    'id' => (string) $division->getKey(),
+                    'name' => $division->competition->name,
+                    'competition' => $division->competition->name,
+                    'division' => $division->name,
+                    'state' => $sourceBlocked ? 'blocked' : ($next === null ? 'ready' : 'needs_attention'),
+                    'next_blocker' => $next,
+                    'source' => [
+                        'reliability' => $metadata->reliabilityLabel,
+                        'blocker' => $metadata->sourceBlocker,
+                        'pages' => $metadata->sourcePages,
+                    ],
+                    'counts' => ['entries' => $division->entries->count(), 'judges' => $judgeCount, 'tabulators' => $tabulatorCount],
+                    'schedule' => ['starts_at' => null, 'ends_at' => null, 'venue' => null],
+                    'tie' => $tie === null ? null : [
+                        'entry_ids' => $tie['entry_ids'],
+                        'entries' => collect($tie['entry_ids'])->map(fn ($id): array => ['id' => $id, 'name' => $entryNames->get((string) $id)['entry'] ?? "Entry {$id}"])->all(),
+                        'action' => route('admin.staff.scoring.tie.resolve', [$division->competition->event_id, $contest]),
+                    ],
+                    'actions' => [
+                        'prepare' => $sourceBlocked || $contest !== null ? null : route('admin.staff.scoring.prepare', [$division->competition->event_id, $division]),
+                        'panel' => $sourceBlocked || $contest === null || $contest->isJudgingPanelLocked() ? null : route('admin.staff.scoring.panel.store', [$division->competition->event_id, $contest]),
+                        'aggregation' => $sourceBlocked || $contest === null || $rule->hasConfirmedAggregation() ? null : route('admin.staff.scoring.aggregation.confirm', [$division->competition->event_id, $contest]),
+                        'deduction' => $sourceBlocked || $contest === null || $deductionAuthorized ? null : route('admin.staff.scoring.deduction.authorize', [$division->competition->event_id, $contest]),
+                        'lock' => $sourceBlocked || $contest === null || $contest->isJudgingPanelLocked() || ! $rule->hasConfirmedAggregation() || ! $deductionAuthorized ? null : route('admin.staff.scoring.panel.lock', [$division->competition->event_id, $contest]),
+                        'judge_options' => $judges->map(fn (User $user): array => ['id' => (string) $user->getKey(), 'name' => $user->name])->all(),
+                        'tabulator_options' => $contest === null ? [] : $tabulators->map(fn (User $user): array => [
+                            'id' => (string) $user->getKey(), 'name' => $user->name,
+                            'href' => route('admin.staff.scoring.tabulator.store', [$division->competition->event_id, $contest, $user]),
+                        ])->all(),
+                    ],
+                ];
+            })->sortBy('name')->values()->all();
     }
 
     private function target(ScoringAssignmentScope $scope, int $id): Model { return match ($scope) { ScoringAssignmentScope::CompetitionDivision => Division::findOrFail($id), ScoringAssignmentScope::Contest => Contest::findOrFail($id), ScoringAssignmentScope::EntryScorecard => EntryScorecard::findOrFail($id) }; }

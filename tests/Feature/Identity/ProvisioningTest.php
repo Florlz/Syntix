@@ -76,12 +76,11 @@ class ProvisioningTest extends TestCase
         $this->assertStringStartsWith(url('/account-setup/'), $setupUrl);
         $judge = User::query()->where('email', 'like', 'judge-%')->firstOrFail();
         $this->assertTrue($judge->hasActiveEventRole($event, EventRole::Judge));
-        $this->assertDatabaseHas('scoring_assignments', [
+        $this->assertDatabaseMissing('scoring_assignments', [
             'event_id' => $event->getKey(),
             'user_id' => $judge->getKey(),
             'scope_type' => 'competition_division',
             'competition_division_id' => $division->getKey(),
-            'revoked_at' => null,
         ]);
         $this->get('/dashboard')->assertInertia(fn ($page) => $page
             ->where('flash.setup_url', $setupUrl));

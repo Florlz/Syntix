@@ -90,6 +90,46 @@ class AutomaticTournamentScoringTest extends TestCase
         $this->assertSame(0, $context['division']->placements()->count());
     }
 
+    public function test_source_specific_objective_evidence_is_preserved_with_the_official_result(): void
+    {
+        $context = $this->context(CompetitionFormat::SingleElimination, 'best_of_sets');
+        $contest = $this->publishedContest($context);
+        $started = (new StartContest)->handle($context['tabulator'], $contest);
+
+        $completed = (new CompleteContest)->handle($context['tabulator'], $started, [
+            'outcome_type' => 'played',
+            'home' => 2,
+            'away' => 1,
+            'evidence' => [
+                'profile' => 'best_of_sets',
+                'data' => ['home_scores' => [25, 21, 25], 'away_scores' => [20, 25, 18]],
+            ],
+        ], 1);
+
+        $this->assertSame([25, 21, 25], $completed->result_payload['evidence']['data']['home_scores']);
+        $this->assertSame([20, 25, 18], $completed->result_payload['evidence']['data']['away_scores']);
+    }
+
+    public function test_generic_or_incomplete_objective_evidence_is_rejected(): void
+    {
+        $context = $this->context(CompetitionFormat::SingleElimination, 'best_of_sets');
+        $contest = $this->publishedContest($context);
+        $started = (new StartContest)->handle($context['tabulator'], $contest);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('matching home and away score rows');
+
+        (new CompleteContest)->handle($context['tabulator'], $started, [
+            'outcome_type' => 'played',
+            'home' => 2,
+            'away' => 1,
+            'evidence' => [
+                'profile' => 'best_of_sets',
+                'data' => ['home_scores' => [25, 25], 'away_scores' => [20]],
+            ],
+        ], 1);
+    }
+
     /** @return array<string, mixed> */
     private function context(CompetitionFormat $format, string $profile, array $configuration = []): array
     {

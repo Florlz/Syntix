@@ -3,6 +3,8 @@
 namespace Tests\Feature\Admin;
 
 use App\Actions\Assignments\GrantScoringAssignment;
+use App\Actions\Scoring\ConfigureJudgingPanel;
+use App\Actions\Scoring\PrepareJudgedContest;
 use App\Actions\Events\ApplySiklab2025Programme;
 use App\Actions\Events\GrantEventRole;
 use App\Actions\Identity\BootstrapGlobalAdmin;
@@ -95,13 +97,8 @@ class GlobalDashboardTest extends TestCase
             ->firstOrFail()->divisions()->firstOrFail();
         $judge = User::factory()->create();
         (new GrantEventRole)->handle($admin, $event, $judge, EventRole::Judge);
-        (new GrantScoringAssignment)->handle(
-            $admin,
-            $event,
-            $judge,
-            ScoringAssignmentScope::CompetitionDivision,
-            $division,
-        );
+        $contest = (new PrepareJudgedContest)->handle($admin, $division);
+        (new ConfigureJudgingPanel)->handle($admin, $contest, [$judge]);
 
         $this->actingAs($judge)->get('/dashboard')
             ->assertOk()
@@ -110,8 +107,8 @@ class GlobalDashboardTest extends TestCase
                 ->where('capabilities.global_admin', false)
                 ->where('event.roles.0', 'judge')
                 ->has('events', 1)
-                ->has('work_queue', 1)
-                ->where('work_queue.0.scope', 'competition_division')
+                ->has('work_queue', 7)
+                ->where('work_queue.0.scope', 'entry_scorecard')
                 ->has('programme', 0)
                 ->has('people', 0));
     }

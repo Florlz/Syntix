@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\SportController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\TournamentController;
 use App\Http\Controllers\Auth\PasswordController;
+use App\Http\Controllers\Judge\DashboardController as JudgeDashboardController;
 use App\Http\Controllers\Judge\ScorecardController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NotificationController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\PublicArea\BracketController;
 use App\Http\Controllers\PublicArea\LandingController;
 use App\Http\Controllers\PublicArea\ScoreboardController;
 use App\Http\Controllers\Tabulator\ContestController;
+use App\Http\Controllers\Tabulator\DashboardController as TabulatorDashboardController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', LandingController::class)->name('landing');
@@ -54,6 +56,13 @@ Route::middleware('auth')->group(function () {
     Route::patch('/admin/events/{event}/divisions/{division}', [SportController::class, 'updateDivision'])->name('admin.sports.divisions.update');
     Route::patch('/admin/events/{event}/divisions/{division}/state', [SportController::class, 'divisionState'])->name('admin.sports.divisions.state');
     Route::get('/admin/events/{event}/staff', [StaffController::class, 'index'])->name('admin.staff.index');
+    Route::post('/admin/events/{event}/scoring/divisions/{division}/prepare', [StaffController::class, 'prepareJudgedContest'])->name('admin.staff.scoring.prepare');
+    Route::post('/admin/events/{event}/scoring/contests/{contest}/panel', [StaffController::class, 'storeJudgingPanel'])->name('admin.staff.scoring.panel.store');
+    Route::post('/admin/events/{event}/scoring/contests/{contest}/panel/lock', [StaffController::class, 'lockJudgingPanel'])->name('admin.staff.scoring.panel.lock');
+    Route::post('/admin/events/{event}/scoring/contests/{contest}/aggregation', [StaffController::class, 'confirmAggregation'])->name('admin.staff.scoring.aggregation.confirm');
+    Route::post('/admin/events/{event}/scoring/contests/{contest}/deduction-authorization', [StaffController::class, 'authorizeDeduction'])->name('admin.staff.scoring.deduction.authorize');
+    Route::post('/admin/events/{event}/scoring/contests/{contest}/tie-resolution', [StaffController::class, 'resolveJudgedTie'])->name('admin.staff.scoring.tie.resolve');
+    Route::post('/admin/events/{event}/scoring/contests/{contest}/tabulator/{user}', [StaffController::class, 'assignTabulator'])->name('admin.staff.scoring.tabulator.store');
     Route::post('/admin/events/{event}/staff/{user}/invitations', [StaffController::class, 'reissue'])->name('admin.staff.invitations.reissue');
     Route::post('/admin/events/{event}/staff/{user}/roles', [StaffController::class, 'grantRole'])->name('admin.staff.roles.store');
     Route::patch('/admin/events/{event}/staff/roles/{membership}/revoke', [StaffController::class, 'revokeRole'])->name('admin.staff.roles.revoke');
@@ -110,11 +119,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/admin/events/{event}/cover-images/{cover}/preview', [PublicProgrammeController::class, 'previewCover'])->name('admin.cover-images.preview');
     Route::post('/admin/events/{event}/cover-images/{cover}/publish', [PublicProgrammeController::class, 'publishCover'])->name('admin.cover-images.publish');
     Route::post('/admin/events/{event}/cover-images/{cover}/withdraw', [PublicProgrammeController::class, 'withdrawCover'])->name('admin.cover-images.withdraw');
+    Route::get('/judge', JudgeDashboardController::class)->name('judge.index');
     Route::get('/judge/scorecards/{scorecard}', [ScorecardController::class, 'show'])->name('judge.scorecards.show');
     Route::patch('/judge/scorecards/{scorecard}', [ScorecardController::class, 'update'])->name('judge.scorecards.update');
     Route::post('/judge/scorecards/{scorecard}/submit', [ScorecardController::class, 'submit'])->name('judge.scorecards.submit');
+    Route::get('/tabulator', TabulatorDashboardController::class)->name('tabulator.index');
     Route::get('/tabulator/contests/{contest}', [ContestController::class, 'show'])
         ->name('tabulator.contests.show');
+    Route::post('/tabulator/contests/{contest}/entries/{entry}/adjustments', [ContestController::class, 'recordAdjustment'])
+        ->name('tabulator.judged.adjustments.store');
+    Route::patch('/tabulator/contests/{contest}/adjustments/{adjustment}/void', [ContestController::class, 'voidAdjustment'])
+        ->name('tabulator.judged.adjustments.void');
+    Route::post('/tabulator/contests/{contest}/finalize', [ContestController::class, 'finalize'])
+        ->name('tabulator.judged.finalize');
     Route::post('/tabulator/contests/{contest}/commands', [ContestController::class, 'command'])
         ->name('tabulator.contests.command');
     Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');

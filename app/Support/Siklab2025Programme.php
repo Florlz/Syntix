@@ -20,6 +20,28 @@ final class Siklab2025Programme
         ];
     }
 
+    /** @return list<array{name: string, code: string}> */
+    public static function venues(): array
+    {
+        return collect([
+            'CSPC Gymnasium',
+            'CSPC Sepak Takraw Court',
+            'CSPC Duran Hall',
+            'Academic Building III — Ground Floor',
+            'CSPC Library',
+            'Nabua Central Pilot School Oval',
+            'Nabua Central Pilot School',
+            'CSPC Auditorium',
+            'Library Commons',
+            'CEA Drafting Room',
+            'Pearl Function Hall',
+            'CSPC Grounds',
+        ])->map(fn (string $name): array => [
+            'name' => $name,
+            'code' => Str::upper(Str::of($name)->ascii()->slug('-')->value()),
+        ])->all();
+    }
+
     /** @return list<array<string, mixed>> */
     public static function sports(): array
     {
@@ -272,7 +294,108 @@ final class Siklab2025Programme
         string $sourceStatus = 'verified',
         ?string $blocker = null,
     ): array {
-        return compact('name', 'participantMode', 'criteria', 'template', 'sourceReference', 'sourceStatus', 'blocker');
+        return compact('name', 'participantMode', 'criteria', 'template', 'sourceReference', 'sourceStatus', 'blocker')
+            + [
+                'participant_mode' => $participantMode,
+                'source_reference' => $sourceReference,
+                'source_status' => $sourceStatus,
+            ]
+            + self::judgedMetadata($name, $sourceStatus, $blocker);
+    }
+
+    /** @return array<string, mixed> */
+    private static function judgedMetadata(string $name, string $sourceStatus, ?string $blocker): array
+    {
+        $literary = [
+            'Extemporaneous Speaking', 'Dagliang Talumpati', 'Essay Writing',
+            'Pagsulat ng Sanaysay', 'Story Telling', 'Pagkukwento', 'Radio Drama',
+        ];
+        $musical = [
+            'Pop Solo', 'Kundiman', 'Vocal Duet', 'Instrumental Solo — Bandurria',
+            'Instrumental Solo — Piano', 'Instrumental Solo — Classical Guitar',
+        ];
+        $dance = ['Folk Dance', 'Hip Hop Dance', 'Contemporary Dance', 'Dance Sports', 'Cheer Dance'];
+        $visual = ['Charcoal Rendering', 'Pencil Drawing', 'Painting', 'On-the-Spot Poster Making', 'Photography'];
+
+        $sourcePages = match (true) {
+            in_array($name, ['Extemporaneous Speaking', 'Dagliang Talumpati', 'Essay Writing', 'Pagsulat ng Sanaysay'], true) => [19],
+            in_array($name, ['Story Telling', 'Pagkukwento'], true) => [20],
+            $name === 'Radio Drama' => [21],
+            in_array($name, ['Pop Solo', 'Kundiman'], true) => [21, 22],
+            in_array($name, ['Vocal Duet', 'Instrumental Solo — Bandurria', 'Instrumental Solo — Piano', 'Instrumental Solo — Classical Guitar'], true) => [22],
+            in_array($name, ['Folk Dance', 'Hip Hop Dance', 'Contemporary Dance', 'Dance Sports'], true) => [23, 24],
+            in_array($name, $visual, true) => [25, 26, 27],
+            $name === 'Cheer Dance' => [28],
+            default => [],
+        };
+
+        $venueCandidates = match (true) {
+            in_array($name, $literary, true) => ['CSPC Auditorium', 'Library Commons'],
+            in_array($name, $musical, true) => ['CSPC Auditorium'],
+            in_array($name, $dance, true) => ['CSPC Auditorium', 'CSPC Gymnasium'],
+            in_array($name, $visual, true) => ['CEA Drafting Room'],
+            default => [],
+        };
+
+        $programmeDayHint = match (true) {
+            in_array($name, $literary, true), in_array($name, $visual, true) => 'Nov 12',
+            in_array($name, $musical, true), in_array($name, ['Folk Dance', 'Hip Hop Dance', 'Contemporary Dance'], true) => 'Nov 13',
+            in_array($name, ['Cheer Dance', 'Dance Sports'], true) => 'Nov 14',
+            default => null,
+        };
+
+        $eventControls = match ($name) {
+            'Extemporaneous Speaking', 'Dagliang Talumpati' => ['4 minutes preparation', '4 minutes delivery'],
+            'Story Telling', 'Pagkukwento' => ['5–7 minutes'],
+            'Radio Drama' => ['5–7 minutes', 'Maximum 5 performers', '3 minutes setup'],
+            'Essay Writing', 'Pagsulat ng Sanaysay' => ['600–800 words', '1.5 hours'],
+            'Pop Solo', 'Kundiman' => ['OPM selection', 'Minus-one accompaniment', '3–7 minutes'],
+            default => [],
+        };
+
+        $deductionConfiguration = match ($name) {
+            'Story Telling', 'Pagkukwento' => [
+                'code' => 'performance_time',
+                'type' => 'outside_range_interval',
+                'minimum_seconds' => 300,
+                'maximum_seconds' => 420,
+                'interval_seconds' => 30,
+                'points_per_interval' => 1,
+                'rounding_policy' => null,
+                'calculation_status' => 'blocked',
+            ],
+            'Radio Drama' => [
+                'code' => 'performance_time',
+                'type' => 'outside_range_interval',
+                'minimum_seconds' => 300,
+                'maximum_seconds' => 420,
+                'interval_seconds' => 30,
+                'points_per_interval' => 5,
+                'rounding_policy' => null,
+                'calculation_status' => 'blocked',
+            ],
+            'Essay Writing', 'Pagsulat ng Sanaysay' => [
+                'code' => 'word_count',
+                'type' => 'outside_range_flat',
+                'minimum_words' => 600,
+                'maximum_words' => 800,
+                'points' => 2,
+                'calculation_status' => 'blocked',
+            ],
+            default => [],
+        };
+
+        return [
+            'reliability_label' => $sourceStatus === 'blocked'
+                ? ($name === 'Dance Sports' ? 'unresolved' : 'conflict')
+                : 'confirmed',
+            'source_pages' => $sourcePages,
+            'event_controls' => $eventControls,
+            'venue_candidates' => $venueCandidates,
+            'programme_day_hint' => $programmeDayHint,
+            'source_blocker' => $blocker,
+            'deduction_configuration' => $deductionConfiguration,
+        ];
     }
 
     /** @return list<array{0: string, 1: int}> */

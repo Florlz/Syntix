@@ -36,14 +36,19 @@ final class ProvisionEventScorer
                 $role,
                 'Provisioned for an exact Event scoring assignment.',
             );
-            $assignment = (new GrantScoringAssignment)->handle(
-                $actor,
-                $event,
-                $result['user'],
-                $scope,
-                $target,
-                'Provisioned with the scorer account.',
-            );
+            // A Judge may be invited from a division context before its
+            // panel exists, but access is granted only later through exact,
+            // pre-bound entry_scorecard assignments.
+            $assignment = $role === EventRole::Judge && $scope === ScoringAssignmentScope::CompetitionDivision
+                ? null
+                : (new GrantScoringAssignment)->handle(
+                    $actor,
+                    $event,
+                    $result['user'],
+                    $scope,
+                    $target,
+                    'Provisioned with the scorer account.',
+                );
 
             return $result + compact('membership', 'assignment');
         });

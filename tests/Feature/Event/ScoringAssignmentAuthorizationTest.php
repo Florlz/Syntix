@@ -6,6 +6,7 @@ use App\Actions\Assignments\GrantScoringAssignment;
 use App\Actions\Assignments\RevokeScoringAssignment;
 use App\Actions\Events\CreateEvent;
 use App\Actions\Events\GrantEventRole;
+use App\Actions\Events\RevokeEventRole;
 use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Enums\EventRole;
 use App\Enums\ScoringAssignmentScope;
@@ -14,6 +15,7 @@ use App\Models\Contest;
 use App\Models\Division;
 use App\Models\EntryScorecard;
 use App\Models\Event;
+use App\Models\ScoringAssignment;
 use App\Models\User;
 use App\Policies\ContestPolicy;
 use App\Policies\DivisionPolicy;
@@ -56,7 +58,10 @@ class ScoringAssignmentAuthorizationTest extends TestCase
         [$division] = $this->divisionsFor($event);
         $contest = Contest::factory()->create(['competition_division_id' => $division->getKey()]);
         $siblingContest = Contest::factory()->create(['competition_division_id' => $division->getKey()]);
-        $scorecard = EntryScorecard::factory()->create(['contest_id' => $contest->getKey()]);
+        $scorecard = EntryScorecard::factory()->create([
+            'contest_id' => $contest->getKey(),
+            'judge_id' => $judge->getKey(),
+        ]);
         $siblingScorecard = EntryScorecard::factory()->create(['contest_id' => $siblingContest->getKey()]);
 
         (new GrantScoringAssignment)->handle(
@@ -80,6 +85,131 @@ class ScoringAssignmentAuthorizationTest extends TestCase
         $this->assertTrue((new EntryScorecardPolicy)->score($judge, $scorecard));
         $this->assertFalse((new EntryScorecardPolicy)->score($judge, $siblingScorecard));
         $this->assertFalse((new DivisionPolicy)->view($tabulator, $division));
+    }
+
+    public function test_judge_cannot_receive_a_division_assignment(): void
+    {
+        [$creator, $event] = $this->eventWithTabulator();
+        $judge = User::factory()->create(['email' => 'division-judge@example.com']);
+        (new GrantEventRole)->handle($creator, $event, $judge, EventRole::Judge);
+        [$division] = $this->divisionsFor($event);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('event role required by this scope');
+
+        (new GrantScoringAssignment)->handle(
+            $creator,
+            $event,
+            $judge,
+            ScoringAssignmentScope::CompetitionDivision,
+            $division,
+        );
+    }
+
+    public function test_judge_cannot_receive_a_contest_assignment(): void
+    {
+        [$creator, $event] = $this->eventWithTabulator();
+        $judge = User::factory()->create(['email' => 'contest-judge@example.com']);
+        (new GrantEventRole)->handle($creator, $event, $judge, EventRole::Judge);
+        [$division] = $this->divisionsFor($event);
+        $contest = Contest::factory()->create(['competition_division_id' => $division->getKey()]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('event role required by this scope');
+
+        (new GrantScoringAssignment)->handle(
+            $creator,
+            $event,
+            $judge,
+            ScoringAssignmentScope::Contest,
+            $contest,
+        );
+    }
+
+    public function test_tabulator_cannot_receive_an_entry_scorecard_assignment(): void
+    {
+        [$creator, $event, $tabulator] = $this->eventWithTabulator();
+        [$division] = $this->divisionsFor($event);
+        $contest = Contest::factory()->create(['competition_division_id' => $division->getKey()]);
+        $scorecard = EntryScorecard::factory()->create(['contest_id' => $contest->getKey()]);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('event role required by this scope');
+
+        (new GrantScoringAssignment)->handle(
+            $creator,
+            $event,
+            $tabulator,
+            ScoringAssignmentScope::EntryScorecard,
+            $scorecard,
+        );
+    }
+
+    public function test_division_assignment_never_grants_judge_scorecard_access(): void
+    {
+        [$creator, $event] = $this->eventWithTabulator();
+        $judge = User::factory()->create(['email' => 'division-fallback-judge@example.com']);
+        (new GrantEventRole)->handle($creator, $event, $judge, EventRole::Judge);
+        [$division] = $this->divisionsFor($event);
+        $contest = Contest::factory()->create(['competition_division_id' => $division->getKey()]);
+        $scorecard = EntryScorecard::factory()->create([
+            'contest_id' => $contest->getKey(),
+            'judge_id' => $judge->getKey(),
+        ]);
+
+        ScoringAssignment::create([
+            'event_id' => $event->getKey(),
+            'user_id' => $judge->getKey(),
+            'scope_type' => ScoringAssignmentScope::CompetitionDivision,
+            'competition_division_id' => $division->getKey(),
+            'granted_at' => now(),
+        ]);
+
+        $this->assertFalse((new EntryScorecardPolicy)->score($judge, $scorecard));
+    }
+
+    public function test_role_revocation_removes_only_incompatible_assignments(): void
+    {
+        [$creator, $event] = $this->eventWithTabulator();
+        $judgeTabulator = User::factory()->create(['email' => 'dual-role@example.com']);
+        $judgeMembership = (new GrantEventRole)->handle($creator, $event, $judgeTabulator, EventRole::Judge);
+        $tabulatorMembership = (new GrantEventRole)->handle($creator, $event, $judgeTabulator, EventRole::Tabulator);
+        [$division] = $this->divisionsFor($event);
+        $contest = Contest::factory()->create(['competition_division_id' => $division->getKey()]);
+        $scorecard = EntryScorecard::factory()->create(['contest_id' => $contest->getKey()]);
+
+        $divisionAssignment = (new GrantScoringAssignment)->handle(
+            $creator,
+            $event,
+            $judgeTabulator,
+            ScoringAssignmentScope::CompetitionDivision,
+            $division,
+        );
+        $contestAssignment = (new GrantScoringAssignment)->handle(
+            $creator,
+            $event,
+            $judgeTabulator,
+            ScoringAssignmentScope::Contest,
+            $contest,
+        );
+        $scorecardAssignment = (new GrantScoringAssignment)->handle(
+            $creator,
+            $event,
+            $judgeTabulator,
+            ScoringAssignmentScope::EntryScorecard,
+            $scorecard,
+        );
+
+        (new RevokeEventRole)->handle($judgeMembership, $creator, 'Judge assignment ended');
+
+        $this->assertNotNull($scorecardAssignment->fresh()->revoked_at);
+        $this->assertNull($divisionAssignment->fresh()->revoked_at);
+        $this->assertNull($contestAssignment->fresh()->revoked_at);
+
+        (new RevokeEventRole)->handle($tabulatorMembership, $creator, 'Tabulator assignment ended');
+
+        $this->assertNotNull($divisionAssignment->fresh()->revoked_at);
+        $this->assertNotNull($contestAssignment->fresh()->revoked_at);
     }
 
     public function test_assignment_matches_each_canonical_target_type(): void
