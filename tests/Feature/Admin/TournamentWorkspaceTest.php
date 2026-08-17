@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Actions\Events\ApplySiklab2025Programme;
 use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Actions\Registrations\SaveDisciplineEntry;
+use App\Enums\EntryStatus;
 use App\Enums\EligibilityStatus;
 use App\Enums\RosterMemberRole;
 use App\Models\Competition;
@@ -35,6 +36,7 @@ class TournamentWorkspaceTest extends TestCase
             ->has('sport.player_count')
             ->where('division.id', (string) $division->getKey())
             ->has('division.entry_count')
+            ->has('division.participating_entry_count')
             ->has('division.locked_entry_count')
             ->has('division.unlocked_entry_count')
             ->has('division.player_count')
@@ -42,6 +44,23 @@ class TournamentWorkspaceTest extends TestCase
             ->where('discipline', null)
             ->has('sports')
             ->has('blockers'));
+    }
+
+    public function test_workspace_blocks_generation_until_every_participating_entry_is_locked(): void
+    {
+        [$admin, $event] = $this->programme();
+        $division = Competition::query()->whereBelongsTo($event)->where('slug', 'basketball')->firstOrFail()->divisions()->where('slug', 'men')->firstOrFail();
+
+        $division->entries()->update(['status' => EntryStatus::Locked->value]);
+        $division->entries()->orderBy('id')->firstOrFail()->update(['status' => EntryStatus::Active->value]);
+
+        $response = $this->actingAs($admin)->get(route('admin.sports.tournament', [$event, $division]));
+
+        $response->assertOk()->assertInertia(fn ($page) => $page
+            ->where('can_generate', false)
+            ->where('blockers', [
+                'Approve every participating team sheet before making the draw.',
+            ]));
     }
 
     public function test_discipline_workspace_is_contained_and_uses_discipline_scope(): void

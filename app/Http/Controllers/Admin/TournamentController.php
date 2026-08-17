@@ -62,8 +62,7 @@ final class TournamentController extends Controller
 
         $scope = new TournamentScope($division, $discipline);
         $rule = $division->governingRuleVersion ?? $division->ruleVersions->sortByDesc('version')->first();
-        $eligibleIds = $scope->eligibleEntryIds();
-        $blockers = $scope->readinessErrors();
+        $blockers = $scope->generationErrors();
 
         if ($event->isArchived()) {
             $blockers[] = 'This event is archived and its tournament topology is read-only.';
@@ -78,15 +77,6 @@ final class TournamentController extends Controller
                 return $entry->disciplineEntries->contains(fn ($item): bool => (int) $item->discipline_id === (int) $discipline->getKey());
             })
             ->values();
-        if ($scopeEntries->isEmpty()) {
-            $blockers[] = $discipline === null
-                ? 'No Entries have been registered for this Division.'
-                : 'No department Entries have been assigned to this discipline.';
-        } elseif ($eligibleIds->isEmpty()) {
-            $blockers[] = $discipline === null
-                ? 'Lock at least one eligible Entry before drawing.'
-                : 'Lock every assigned discipline Entry and its parent Entry before drawing.';
-        }
         $blockers = array_values(array_unique($blockers));
 
         $tournament = $scope->tournamentQuery()
@@ -120,8 +110,7 @@ final class TournamentController extends Controller
         $canGenerate = ! $event->isArchived()
             && $supported
             && $tournament === null
-            && $blockers === []
-            && $eligibleIds->isNotEmpty();
+            && $blockers === [];
         $canRedraw = ! $event->isArchived()
             && $tournament !== null
             && $tournament->tournamentState()->value === 'preview';

@@ -7,7 +7,6 @@ use App\Enums\BracketNodeType;
 use App\Enums\BracketVersionState;
 use App\Enums\CompetitionFormat;
 use App\Enums\TournamentFormat;
-use App\Enums\EntryStatus;
 use App\Enums\RuleVersionState;
 use App\Enums\TournamentState;
 use App\Models\BracketNode;
@@ -58,6 +57,7 @@ final class GenerateDoubleEliminationBracket
                 $discipline = Discipline::query()
                     ->whereKey($discipline->getKey())
                     ->where('competition_division_id', $division->getKey())
+                    ->lockForUpdate()
                     ->firstOrFail();
             }
             $this->discipline = $discipline;
@@ -75,19 +75,7 @@ final class GenerateDoubleEliminationBracket
             }
 
             $drawOrder = array_map('intval', array_values($drawOrder));
-            $entries = $division->entries()
-                ->whereIn('id', $drawOrder)
-                ->when($discipline === null,
-                    fn ($query) => $query->whereIn('status', [EntryStatus::Active->value, EntryStatus::Locked->value]),
-                    fn ($query) => $query->where('status', EntryStatus::Locked->value))
-                ->when($discipline !== null, fn ($query) => $query->whereHas('disciplineEntries', fn ($query) => $query
-                    ->where('discipline_id', $discipline->getKey())
-                    ->where('state', 'locked')))
-                ->count();
-
-            if ($drawOrder === [] || count($drawOrder) !== count(array_unique($drawOrder)) || $entries !== count($drawOrder)) {
-                throw new \DomainException('Double-elimination brackets require a unique eligible draw order.');
-            }
+            $scope->assertDrawOrder($drawOrder);
 
             if (count($drawOrder) > 8) {
                 throw new \DomainException('The signed double-elimination route currently supports at most eight entries.');

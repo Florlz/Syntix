@@ -51,7 +51,7 @@ test('keeps the bracket inside the shared sport workspace and points blockers to
         division={division}
         proposal={{ supported_bracket: true }}
         entries={[]}
-        blockers={['No Entries have been registered for this division.']}
+        blockers={['No teams are currently participating in this division.']}
         can_generate={false}
         can_redraw={false}
         can_publish={false}
@@ -63,8 +63,57 @@ test('keeps the bracket inside the shared sport workspace and points blockers to
     expect(screen.getByRole('navigation', { name: 'Sport workflow' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Bracket' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Manage rosters' })).toHaveAttribute('href', '/admin/events/1/sports/20?tab=rosters&division=31');
-    expect(screen.getByText(/No teams have been registered for this division/)).toBeInTheDocument();
+    expect(screen.getByText(/No teams are currently participating in this division/)).toBeInTheDocument();
     expect(screen.queryByText('Volleyball')).not.toBeInTheDocument();
+});
+
+test('shows draw readiness against participating teams instead of historical entries', () => {
+    render(<Tournament
+        event={event}
+        sport={sport}
+        sports={[{ ...sport, divisions: [division] }]}
+        division={{ ...division, entry_count: 7, participating_entry_count: 6, locked_entry_count: 5 }}
+        proposal={{ supported_bracket: true }}
+        entries={[]}
+        blockers={['Approve every participating team sheet before making the draw.']}
+        can_generate={false}
+        can_redraw={false}
+        can_publish={false}
+        is_archived={false}
+    />);
+
+    expect(screen.getByText('5 / 6')).toBeInTheDocument();
+    expect(screen.getByText('1 participating team still needs an approved team sheet.')).toBeInTheDocument();
+});
+
+test('uses team-sheet and event-lineup wording for individual-event setup', () => {
+    render(<Tournament
+        event={event}
+        sport={sport}
+        sports={[{ ...sport, divisions: [division] }]}
+        division={division}
+        discipline={{ id: '81', name: 'Flyweight', family: 'combat' }}
+        proposal={{ supported_bracket: true }}
+        entries={[{
+            id: '41',
+            name: 'CAS',
+            status: 'locked',
+            delegation: { name: 'College of Arts and Sciences', abbreviation: 'CAS' },
+            discipline_entry: { state: 'draft', members: [] },
+            participants: [{ id: '1', name: 'Athlete One', active: true }],
+        }]}
+        blockers={["Approve every team's team sheet and lineup for this event before making the draw."]}
+        can_generate={false}
+        can_redraw={false}
+        can_publish={false}
+        is_archived={false}
+    />);
+
+    expect(screen.getByText('Event lineups')).toBeInTheDocument();
+    expect(screen.getByText('0 / 1')).toBeInTheDocument();
+    expect(screen.getByText('Team sheet: approved · Event lineup: draft')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approve lineup' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Review lineups' })).toHaveAttribute('href', '#event-lineups');
 });
 
 test('shows an uncontested division as a successful terminal state without draw controls', () => {
@@ -129,7 +178,7 @@ test('archived and roster blockers do not expose a misleading roster action', ()
         entries={[]}
         blockers={[
             'This event is archived and its tournament topology is read-only.',
-            'No Entries have been registered for this Division.',
+            'No teams are currently participating in this division.',
         ]}
         can_generate={false}
         can_redraw={false}
@@ -150,13 +199,13 @@ test('empty discipline scope does not render a jump link without an assignment t
         discipline={{ id: '81', name: 'Flyweight', family: 'combat' }}
         proposal={{ supported_bracket: true }}
         entries={[]}
-        blockers={['No department Entries have been assigned to this discipline.']}
+        blockers={['No teams have been added to this event yet.']}
         can_generate={false}
         can_redraw={false}
         can_publish={false}
         is_archived={false}
     />);
 
-    expect(screen.queryByRole('link', { name: 'Review assignments' })).not.toBeInTheDocument();
-    expect(document.querySelector('#discipline-entries')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Review lineups' })).not.toBeInTheDocument();
+    expect(document.querySelector('#event-lineups')).not.toBeInTheDocument();
 });

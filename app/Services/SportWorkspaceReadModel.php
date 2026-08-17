@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\DivisionPlacementState;
 use App\Enums\EntryStatus;
 use App\Enums\ResultSubmissionState;
+use App\Enums\ScheduleStatus;
 use App\Enums\TournamentState;
 use App\Models\Competition;
 use App\Models\Division;
@@ -49,7 +50,21 @@ final class SportWorkspaceReadModel
         $this->loadDivision($division);
         $rule = $division->governingRuleVersion ?? $division->ruleVersions->sortByDesc('version')->first();
         $entries = $division->entries;
-        $schedule = $division->schedules
+        $participatingEntries = $entries->filter(fn ($entry): bool => ! in_array($entry->entryStatus(), [
+            EntryStatus::Withdrawn,
+            EntryStatus::Disqualified,
+        ], true));
+        $schedules = $division->schedules;
+        $scheduleState = match (true) {
+            $schedules->isEmpty() => 'not_scheduled',
+            $schedules->contains(fn ($schedule): bool => $schedule->currentPublication === null || $schedule->hasUnpublishedChanges()) => 'draft',
+            default => 'published',
+        };
+        $nextSchedule = $schedules
+            ->filter(fn ($schedule): bool => ! in_array($schedule->status, [
+                ScheduleStatus::Cancelled,
+                ScheduleStatus::Completed,
+            ], true))
             ->sortBy('starts_at')
             ->first(fn ($item): bool => $item->starts_at?->isFuture() ?? false);
         $tournament = $division->tournaments
@@ -65,8 +80,9 @@ final class SportWorkspaceReadModel
             'name' => $division->name,
             'active' => (bool) $division->is_active,
             'entry_count' => $entries->count(),
-            'locked_entry_count' => $entries->filter(fn ($entry): bool => $entry->entryStatus() === EntryStatus::Locked)->count(),
-            'unlocked_entry_count' => $entries->filter(fn ($entry): bool => $entry->entryStatus() !== EntryStatus::Locked)->count(),
+            'participating_entry_count' => $participatingEntries->count(),
+            'locked_entry_count' => $participatingEntries->filter(fn ($entry): bool => $entry->entryStatus() === EntryStatus::Locked)->count(),
+            'unlocked_entry_count' => $participatingEntries->filter(fn ($entry): bool => $entry->entryStatus() !== EntryStatus::Locked)->count(),
             'player_count' => $entries->flatMap->rosterMembers
                 ->where('is_active', true)
                 ->pluck('participant_id')
@@ -77,14 +93,12 @@ final class SportWorkspaceReadModel
             'rule_state' => $rule?->lifecycleState()->value ?? 'missing',
             'blockers' => $rule?->readinessErrors() ?? ['No rule version is configured.'],
             'bracket_state' => $tournament?->tournamentState()->value ?? 'not_generated',
-            'schedule_state' => $schedule === null
-                ? 'not_scheduled'
-                : (($schedule->currentPublication !== null && ! $schedule->hasUnpublishedChanges()) ? 'published' : 'draft'),
+            'schedule_state' => $scheduleState,
             'results_state' => $this->resultsState($division),
-            'next_schedule' => $schedule === null ? null : [
-                'title' => $schedule->title,
-                'starts_at' => $schedule->starts_at?->toIso8601String(),
-                'venue' => $schedule->venue?->name,
+            'next_schedule' => $nextSchedule === null ? null : [
+                'title' => $nextSchedule->title,
+                'starts_at' => $nextSchedule->starts_at?->toIso8601String(),
+                'venue' => $nextSchedule->venue?->name,
             ],
         ];
     }
@@ -136,6 +150,7 @@ final class SportWorkspaceReadModel
             'divisions.placements',
             'divisions.tournaments',
             'divisions.schedules.currentPublication',
+            'divisions.schedules.division.competition',
             'divisions.schedules.venue',
         ]);
     }
@@ -150,6 +165,7 @@ final class SportWorkspaceReadModel
             'placements',
             'tournaments',
             'schedules.currentPublication',
+            'schedules.division.competition',
             'schedules.venue',
         ]);
     }

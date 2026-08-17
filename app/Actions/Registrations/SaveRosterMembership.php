@@ -40,31 +40,31 @@ final class SaveRosterMembership
             $lockedParticipant = Participant::query()->whereKey($participant->getKey())->lockForUpdate()->firstOrFail();
 
             if ($lockedEntry->isLocked()) {
-                throw ValidationException::withMessages(['entry' => 'Unlock this Entry before editing its roster.']);
+                throw ValidationException::withMessages(['entry' => 'Make a correction to this approved team sheet before editing its roster.']);
             }
 
             if (in_array($lockedEntry->entryStatus(), [EntryStatus::Withdrawn, EntryStatus::Disqualified], true)) {
-                throw ValidationException::withMessages(['entry' => 'A withdrawn or disqualified Entry cannot accept roster edits.']);
+                throw ValidationException::withMessages(['entry' => 'A withdrawn or disqualified team cannot accept roster changes.']);
             }
 
             if ($this->hasPublishedTournament($lockedEntry)) {
-                throw ValidationException::withMessages(['entry' => 'Published tournament rosters cannot be edited directly. Record an eligibility withdrawal or disqualification instead.']);
+                throw ValidationException::withMessages(['entry' => 'Team sheets cannot be changed after the draw is published. Record a withdrawal or disqualification instead.']);
             }
 
             if ((int) $lockedParticipant->event_id !== (int) $event->getKey()
                 || (int) $lockedParticipant->event_delegation_id !== (int) $lockedEntry->event_delegation_id) {
-                throw new AuthorizationException('The Participant and Entry must belong to the same Event Delegation.');
+                throw new AuthorizationException('The player and team must belong to the same department.');
             }
 
             if ($active && ! $lockedParticipant->is_active) {
-                throw ValidationException::withMessages(['participant' => 'Inactive Participants cannot be added to a roster.']);
+                throw ValidationException::withMessages(['participant' => 'Inactive players cannot be added to a team sheet.']);
             }
 
             $rule = $lockedEntry->division->governingRuleVersion
                 ?? $lockedEntry->division->ruleVersions()->latest('version')->first();
 
             if ($rule === null) {
-                throw ValidationException::withMessages(['entry' => 'The selected Division has no roster rule.']);
+                throw ValidationException::withMessages(['entry' => 'This division does not have team-sheet rules yet.']);
             }
 
             $membership = RosterMember::query()

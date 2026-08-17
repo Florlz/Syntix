@@ -57,7 +57,7 @@ final class TransitionEntryStatus
             }
 
             if ($from === EntryStatus::Locked && $target === EntryStatus::Active && $reason === null) {
-                throw ValidationException::withMessages(['reason' => 'A reason is required to unlock an Entry. Any preview draw must then be redrawn.']);
+                throw ValidationException::withMessages(['reason' => 'A reason is required before changing an approved team sheet. Any preview draw must then be made again.']);
             }
 
             if (in_array($from, [EntryStatus::Withdrawn, EntryStatus::Disqualified], true)
@@ -67,7 +67,7 @@ final class TransitionEntryStatus
             }
 
             if ($target === EntryStatus::Locked) {
-                if (! $rosterReviewConfirmed) throw ValidationException::withMessages(['roster_review_confirmed' => 'Confirm that the roster and required documents were reviewed before locking.']);
+                if (! $rosterReviewConfirmed) throw ValidationException::withMessages(['roster_review_confirmed' => 'Confirm that the roster and required documents were reviewed before approval.']);
                 $readiness = $this->readiness->forEntry($record);
                 if (! $readiness['ready']) {
                     throw ValidationException::withMessages(['entry' => implode(' ', $readiness['blockers'])]);

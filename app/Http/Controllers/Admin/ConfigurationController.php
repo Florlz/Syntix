@@ -92,8 +92,8 @@ class ConfigurationController extends Controller
         }
 
         return back()->with('status', ($data['redraw'] ?? false)
-            ? 'The unpublished discipline draw was replaced with a new recorded random draw.'
-            : 'A recorded discipline draw is ready for review.');
+            ? 'The unpublished event draw was replaced with a new recorded random draw.'
+            : 'A recorded event draw is ready for review.');
     }
 
     public function publishBracket(

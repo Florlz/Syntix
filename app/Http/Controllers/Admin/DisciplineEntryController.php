@@ -40,7 +40,7 @@ final class DisciplineEntryController extends Controller
             $data['state'] ?? 'draft',
         );
 
-        return back()->with('status', 'Discipline Entry assignments saved.');
+        return back()->with('status', 'Event lineup saved.');
     }
 
     public function state(
@@ -68,14 +68,14 @@ final class DisciplineEntryController extends Controller
         $save->handle($request->user(), $event, $discipline, $entry, $members, $data['state']);
 
         return back()->with('status', $data['state'] === 'locked'
-            ? 'Discipline Entry locked for drawing.'
-            : 'Discipline Entry returned to draft.');
+            ? 'Event lineup approved for the draw.'
+            : 'Event lineup returned to draft.');
     }
 
     private function assertWritable(Request $request, Event $event): void
     {
         if (! $request->user()->hasAdminAccess($event)) {
-            throw new AuthorizationException('Only the Global Admin can manage discipline Entries.');
+            throw new AuthorizationException('Only the Global Admin can manage event lineups.');
         }
         if ($event->isArchived()) {
             throw new AuthorizationException('Archived events are read-only.');

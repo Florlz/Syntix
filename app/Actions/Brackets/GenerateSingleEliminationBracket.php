@@ -7,7 +7,6 @@ use App\Enums\BracketNodeType;
 use App\Enums\BracketVersionState;
 use App\Enums\CompetitionFormat;
 use App\Enums\TournamentFormat;
-use App\Enums\EntryStatus;
 use App\Enums\RuleVersionState;
 use App\Enums\TournamentState;
 use App\Models\BracketNode;
@@ -45,6 +44,7 @@ final class GenerateSingleEliminationBracket
                 $discipline = Discipline::query()
                     ->whereKey($discipline->getKey())
                     ->where('competition_division_id', $division->getKey())
+                    ->lockForUpdate()
                     ->firstOrFail();
             }
             $scope = new TournamentScope($division, $discipline);
@@ -68,29 +68,7 @@ final class GenerateSingleEliminationBracket
             }
 
             $drawOrder = array_map('intval', array_values($drawOrder));
-
-            if (count($drawOrder) !== count(array_unique($drawOrder))) {
-                throw new \InvalidArgumentException('Draw Order cannot contain duplicate entries.');
-            }
-
-            $entries = $division->entries()
-                ->whereIn('id', $drawOrder)
-                ->when($discipline === null,
-                    fn ($query) => $query->whereIn('status', [EntryStatus::Active->value, EntryStatus::Locked->value]),
-                    fn ($query) => $query->where('status', EntryStatus::Locked->value))
-                ->when($discipline !== null, fn ($query) => $query->whereHas('disciplineEntries', fn ($query) => $query
-                    ->where('discipline_id', $discipline->getKey())
-                    ->where('state', 'locked')))
-                ->get()
-                ->keyBy(fn ($entry): int => (int) $entry->getKey());
-
-            if (count($drawOrder) !== $entries->count()) {
-                throw new \DomainException('Every draw entry must be an active or locked eligible entry in the Division.');
-            }
-
-            if ($drawOrder === []) {
-                throw new \DomainException('A bracket cannot be generated without eligible entries.');
-            }
+            $scope->assertDrawOrder($drawOrder);
 
             $tournament = Tournament::create([
                 'competition_division_id' => $division->getKey(),

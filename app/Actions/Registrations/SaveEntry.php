@@ -37,7 +37,7 @@ final class SaveEntry
                 : Entry::query()->whereKey($entry->getKey())->lockForUpdate()->firstOrFail();
 
             if ($record->exists && ($record->isLocked() || $this->isPublished($record))) {
-                throw ValidationException::withMessages(['entry' => 'Locked or published Entries cannot be edited directly.']);
+                throw ValidationException::withMessages(['entry' => 'Approved or published teams cannot be edited directly.']);
             }
 
             if ($record->exists
@@ -45,7 +45,7 @@ final class SaveEntry
                     || (int) $record->event_delegation_id !== (int) $delegation->getKey())
                 && $record->rosterMembers()->exists()) {
                 throw ValidationException::withMessages([
-                    'entry' => 'An Entry with roster history cannot move to another Division or Delegation. Create a corrected Entry instead.',
+                    'entry' => 'A team with roster history cannot move to another division or department. Create a corrected team instead.',
                 ]);
             }
 
@@ -63,7 +63,7 @@ final class SaveEntry
                 ->exists();
 
             if ($duplicate) {
-                throw ValidationException::withMessages(['entry' => 'This Delegation already has a current Entry in the selected Division.']);
+                throw ValidationException::withMessages(['entry' => 'This department already has a current team in the selected division.']);
             }
 
             $before = $record->exists ? $this->auditData($record) : [];

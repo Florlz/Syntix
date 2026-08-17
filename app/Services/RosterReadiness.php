@@ -8,7 +8,7 @@ use App\Enums\TournamentState;
 use App\Models\Entry;
 
 /**
- * The single source of truth for the pre-lock copy shown to an administrator.
+ * The single source of truth for the pre-approval copy shown to an administrator.
  * This deliberately reports operational roster blockers, rather than exposing
  * the implementation details of the competition rule configuration.
  */
@@ -31,7 +31,7 @@ final class RosterReadiness
             ?? $entry->division->ruleVersions()->latest('version')->first();
 
         if ($rule === null) {
-            $blockers[] = 'A roster rule is required before this team sheet can be locked.';
+            $blockers[] = 'A roster rule is required before this team sheet can be approved.';
 
             return ['ready' => false, 'blockers' => $blockers, 'notices' => $notices];
         }
@@ -43,7 +43,7 @@ final class RosterReadiness
         $minimum = (int) ($rule->min_roster_size ?? 1);
 
         if ($athleteCount < $minimum) {
-            $blockers[] = "Add at least {$minimum} active athlete".($minimum === 1 ? '' : 's')." before locking.";
+            $blockers[] = "Add at least {$minimum} active athlete".($minimum === 1 ? '' : 's')." before approval.";
         } elseif ($rule->max_roster_size !== null && $athleteCount > (int) $rule->max_roster_size) {
             $maximum = (int) $rule->max_roster_size;
             $over = $athleteCount - $maximum;
@@ -56,7 +56,7 @@ final class RosterReadiness
         foreach ($athletes as $member) {
             if (! $member->participant?->is_active) {
                 $name = $member->participant?->display_name ?? 'A roster participant';
-                $blockers[] = "{$name} is inactive and cannot be locked on this roster.";
+                $blockers[] = "{$name} is inactive and cannot be included in an approved team sheet.";
             }
         }
 

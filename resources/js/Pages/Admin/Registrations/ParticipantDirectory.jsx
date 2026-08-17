@@ -19,7 +19,7 @@ const stateTone = {
 const stateLabel = {
     active: 'Active',
     draft: 'Needs review',
-    locked: 'Locked',
+    locked: 'Approved',
     blocked: 'Blocked',
     not_started: 'Not started',
     unassigned: 'Not rostered',

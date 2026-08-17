@@ -54,7 +54,7 @@ final class SetEligibility
 
             if (($lockedEntry->isLocked() || $published) && ! $adverse) {
                 throw ValidationException::withMessages([
-                    'status' => 'Locked or published Entries only accept explicit ineligible, withdrawal, or disqualification corrections.',
+                    'status' => 'Approved or published team sheets only allow ineligible, withdrawal, or disqualification corrections.',
                 ]);
             }
 

@@ -50,6 +50,7 @@ final class GenerateRandomTournament
                 $discipline = Discipline::query()
                     ->whereKey($discipline->getKey())
                     ->where('competition_division_id', $division->getKey())
+                    ->lockForUpdate()
                     ->firstOrFail();
             }
             $scope = new TournamentScope($division, $discipline);
@@ -86,11 +87,8 @@ final class GenerateRandomTournament
                 $preview->update(['state' => TournamentState::Archived]);
             }
 
+            $scope->assertReadyForGeneration();
             $eligibleIds = $scope->eligibleEntryIds();
-
-            if ($eligibleIds === []) {
-                throw new \DomainException('A random draw requires at least one approved, locked Entry.');
-            }
 
             $seed = bin2hex(random_bytes(32));
             $drawOrder = SeededDraw::shuffle($eligibleIds->all(), $seed);

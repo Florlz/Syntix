@@ -22,6 +22,13 @@ function countLabel(count, singular, plural = `${singular}s`) {
     return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function rosterStateLabel(state) {
+    if (state === 'locked') return 'Approved';
+    if (state === 'ready') return 'Ready for approval';
+
+    return String(state || 'not_started').replaceAll('_', ' ');
+}
+
 function PersonPreview({ preview, view, onSelect }) {
     if (!preview) return null;
     return <div className="border-t border-[#E2E7E5] bg-[#F8FAF8] px-4 py-4">
@@ -36,7 +43,7 @@ function DivisionRoster({ event, department, sport, division, view, preview, onP
     const previewable = roster.id !== null;
     return <div className="overflow-hidden rounded-xl border border-[#DDE2E0] bg-white">
         <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h4 className="font-bold text-[#17212B]">{division.name}</h4><span className={`rounded-full px-2 py-1 text-[0.62rem] font-bold uppercase tracking-[0.06em] ${states[roster.state] || states.draft}`}>{roster.state.replaceAll('_', ' ')}</span></div><p className="mt-1 text-xs text-[#68767E]">{countLabel(roster.counts.players, 'player')} · {countLabel(roster.counts.coaches, 'coach', 'coaches')}</p></div>
+            <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h4 className="font-bold text-[#17212B]">{division.name}</h4><span className={`rounded-full px-2 py-1 text-[0.62rem] font-bold uppercase tracking-[0.06em] ${states[roster.state] || states.draft}`}>{rosterStateLabel(roster.state)}</span></div><p className="mt-1 text-xs text-[#68767E]">{countLabel(roster.counts.players, 'player')} · {countLabel(roster.counts.coaches, 'coach', 'coaches')}</p></div>
             <div className="flex flex-wrap gap-2"><button type="button" className={quiet} aria-label={`${preview?.open ? 'Hide' : 'View'} ${view === 'players' ? 'players' : 'coaches'} for ${sport.name} ${division.name}`} disabled={!previewable || preview?.loading} onClick={() => onPreview(roster, division, sport)}>{preview?.loading ? 'Loading…' : preview?.open ? 'Hide people' : `View ${view === 'players' ? 'players' : 'coaches'}`}</button><Link href={manageHref} className={primary}>{roster.id ? 'Manage roster' : 'Start roster'} <AppIcon name="arrow-right" className="size-4" /></Link></div>
         </div>
         {preview?.error ? <div className="border-t border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{preview.error}</div> : null}

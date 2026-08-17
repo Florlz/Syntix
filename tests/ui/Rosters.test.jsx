@@ -49,7 +49,7 @@ const entry = {
 function selected(overrides = {}) {
     return {
         department_id: '1', entry, participants: [], coaches: [], counts: { active_players: 0 },
-        readiness: { ready: false, blockers: ['Add at least 1 active athlete before locking.'], notices: ['Student coach is optional.'] },
+        readiness: { ready: false, blockers: ['Add at least 1 active athlete before approval.'], notices: ['Student coach is optional.'] },
         ...overrides,
     };
 }
@@ -100,8 +100,8 @@ test('empty draft puts the first-player action inside the Players surface and sh
     expect(screen.getByText('0 of 8')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add first player' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add player' })).not.toBeInTheDocument();
-    expect(screen.getAllByText('Add at least 1 active athlete before locking.')).toHaveLength(1);
-    expect(screen.queryByRole('button', { name: 'Lock team sheet' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Add at least 1 active athlete before approval.')).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Approve team sheet' })).not.toBeInTheDocument();
     expect(screen.queryByText('Student coach is optional.')).not.toBeInTheDocument();
 });
 
@@ -119,12 +119,12 @@ test('ready roster enables review and moves non-blocking notices into the dialog
     const user = userEvent.setup();
     renderScoped(selected({ readiness: { ready: true, blockers: [], notices: ['Preview draw will need regeneration.'] } }));
 
-    expect(screen.getByRole('heading', { name: 'Team sheet is ready to lock' })).toBeInTheDocument();
-    const review = screen.getByRole('button', { name: 'Lock team sheet' });
+    expect(screen.getByRole('heading', { name: 'Team sheet is ready for approval' })).toBeInTheDocument();
+    const review = screen.getByRole('button', { name: 'Approve team sheet' });
     expect(review).toBeEnabled();
     expect(screen.queryByText('Preview draw will need regeneration.')).not.toBeInTheDocument();
     await user.click(review);
-    expect(screen.getByRole('dialog', { name: 'Lock team sheet' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Approve team sheet' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Good to know' })).toBeInTheDocument();
     expect(screen.getByText('Preview draw will need regeneration.')).toBeInTheDocument();
 });
@@ -134,8 +134,8 @@ test('locked roster hides add and review actions and exposes reopen only when pe
 
     expect(screen.queryByRole('button', { name: 'Add player' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add first player' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Lock team sheet' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reopen team sheet' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve team sheet' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Edit approved team sheet' })).toBeInTheDocument();
 });
 
 test('locked player remains available for status review and participation exceptions', async () => {
@@ -196,7 +196,7 @@ test('archived and published rosters remain read-only', () => {
     expect(screen.queryByRole('button', { name: 'Add player' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add first player' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add coach or staff' })).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Lock team sheet' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve team sheet' })).not.toBeInTheDocument();
     expect(screen.getByText('Archived events are read-only.')).toBeInTheDocument();
     archivedView.unmount();
 
@@ -204,7 +204,7 @@ test('archived and published rosters remain read-only', () => {
     expect(screen.queryByRole('button', { name: 'Add player' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add first player' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add coach or staff' })).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Lock team sheet' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve team sheet' })).not.toBeInTheDocument();
     expect(screen.getByText(/approved team sheet can no longer be edited/)).toBeInTheDocument();
 });
 

@@ -3,10 +3,11 @@ import AppIcon from '@/Components/AppIcon';
 
 export default function SportIdentity({ sport, division = null }) {
     const entryCount = division?.entry_count ?? sport.entry_count;
+    const participatingEntryCount = division?.participating_entry_count ?? entryCount;
     const playerCount = division?.player_count ?? sport.player_count;
     const lockedCount = division?.locked_entry_count;
     const readiness = division
-        ? lockedCount === undefined || entryCount === undefined ? '—' : `${lockedCount}/${entryCount}`
+        ? lockedCount === undefined || participatingEntryCount === undefined ? '—' : `${lockedCount}/${participatingEntryCount}`
         : sport.division_count ?? '—';
 
     return <section className="border-b border-border pb-5 pt-4 sm:pt-5" aria-labelledby="sport-workspace-title">

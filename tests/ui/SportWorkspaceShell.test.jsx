@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import SportWorkspaceShell from '../../resources/js/Components/Sports/SportWorkspaceShell';
+import DivisionStatus from '../../resources/js/Components/Sports/DivisionStatus';
 
 vi.mock('@/Components/PrefetchLink', () => ({
     default: ({ href, children, ...props }) => <a href={href} {...props}>{children}</a>,
@@ -10,7 +11,7 @@ vi.mock('@/Components/PrefetchLink', () => ({
 const event = { id: '1', name: 'SIKLAB 2026' };
 const sport = { id: '20', name: 'Basketball', division_count: 2, entry_count: 9, player_count: 27 };
 const divisions = [
-    { id: '30', name: 'Men', entry_count: 5, player_count: 15, locked_entry_count: 3 },
+    { id: '30', name: 'Men', entry_count: 5, participating_entry_count: 4, player_count: 15, locked_entry_count: 4, unlocked_entry_count: 0 },
     { id: '31', name: 'Women', entry_count: 4, player_count: 12, locked_entry_count: 4 },
 ];
 
@@ -52,6 +53,13 @@ test('keeps the selected division inside one sport workflow shell', () => {
     expect(workflow).toHaveTextContent('Schedule');
     expect(workflow).toHaveTextContent('Results');
     expect(screen.getByRole('link', { name: 'Teams & Rosters' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByText('Ready', { exact: true }).parentElement).toHaveTextContent('4/4');
+});
+
+test('uses participating teams for the shared division readiness summary', () => {
+    render(<DivisionStatus division={divisions[0]} />);
+
+    expect(screen.getByText('Ready · 4 of 4 team sheets ready')).toBeInTheDocument();
 });
 
 test('uses a compact all-divisions identity when no division is selected', () => {

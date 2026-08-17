@@ -5,13 +5,17 @@ namespace Tests\Feature\Admin;
 use App\Actions\Events\ApplySiklab2025Programme;
 use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Enums\CompetitionFormat;
+use App\Enums\EntryStatus;
 use App\Enums\EligibilityStatus;
+use App\Enums\RosterMemberRole;
 use App\Enums\TournamentState;
 use App\Models\Competition;
 use App\Models\Entry;
 use App\Models\Event;
 use App\Models\EventDelegation;
 use App\Models\Participant;
+use App\Models\RosterMember;
+use App\Models\Tournament;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -152,6 +156,188 @@ class RosterIntegrityTest extends TestCase
         $this->assertDatabaseHas('entry_members', [
             'entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey(), 'is_active' => false,
         ]);
+    }
+
+    public function test_participation_exceptions_require_a_locked_competition_roster(): void
+    {
+        [$admin, $event] = $this->programme();
+        $entry = $this->entry($event, 'basketball', 'men');
+        $participant = $this->participant($event, $entry->delegation, 'Draft Roster Athlete', 'RI-DRAFT');
+        RosterMember::create([
+            'entry_id' => $entry->getKey(),
+            'participant_id' => $participant->getKey(),
+            'role' => RosterMemberRole::StudentAthlete,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.participation-exceptions.store', [$event, $entry, $participant]), [
+            'type' => 'withdrawn',
+            'reason' => 'Medical withdrawal',
+        ])->assertSessionHasErrors('participant');
+
+        $this->assertDatabaseMissing('participation_exceptions', ['entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey()]);
+        $this->assertDatabaseHas('entry_members', ['entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey(), 'is_active' => true]);
+    }
+
+    public function test_participation_exceptions_reject_staff_members(): void
+    {
+        [$admin, $event] = $this->programme();
+        $entry = $this->entry($event, 'basketball', 'men');
+        $entry->update(['status' => 'locked']);
+        $participant = $this->participant($event, $entry->delegation, 'Locked Roster Coach', 'RI-COACH');
+        RosterMember::create([
+            'entry_id' => $entry->getKey(),
+            'participant_id' => $participant->getKey(),
+            'role' => RosterMemberRole::FacultyCoach,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.participation-exceptions.store', [$event, $entry, $participant]), [
+            'type' => 'withdrawn',
+            'reason' => 'Medical withdrawal',
+        ])->assertSessionHasErrors('participant');
+
+        $this->assertDatabaseMissing('participation_exceptions', ['entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey()]);
+        $this->assertDatabaseHas('entry_members', ['entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey(), 'is_active' => true]);
+    }
+
+    public function test_participation_exceptions_reject_already_inactive_players(): void
+    {
+        [$admin, $event] = $this->programme();
+        $entry = $this->entry($event, 'basketball', 'men');
+        $entry->update(['status' => 'locked']);
+        $participant = $this->participant($event, $entry->delegation, 'Inactive Athlete', 'RI-INACTIVE');
+        RosterMember::create([
+            'entry_id' => $entry->getKey(),
+            'participant_id' => $participant->getKey(),
+            'role' => RosterMemberRole::StudentAthlete,
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.participation-exceptions.store', [$event, $entry, $participant]), [
+            'type' => 'withdrawn',
+            'reason' => 'Medical withdrawal',
+        ])->assertSessionHasErrors('participant');
+
+        $this->assertDatabaseMissing('participation_exceptions', ['entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey()]);
+    }
+
+    public function test_participation_exception_deactivates_a_locked_player_without_rewriting_the_approved_snapshot(): void
+    {
+        [$admin, $event] = $this->programme();
+        $entry = $this->entry($event, 'basketball', 'women');
+        $participant = $this->participant($event, $entry->delegation, 'Approved Roster Athlete', 'RI-APPROVED');
+
+        $this->actingAs($admin)->put(route('admin.entry-members.update', [$event, $entry, $participant]), [
+            'role' => 'student_athlete', 'is_active' => true, 'notes' => null,
+        ])->assertRedirect();
+        $this->actingAs($admin)->put(route('admin.eligibility.update', [$event, $entry, $participant]), [
+            'status' => 'eligible', 'reason' => null,
+        ])->assertRedirect();
+        $this->actingAs($admin)->patch(route('admin.entries.status', [$event, $entry]), [
+            'status' => 'locked', 'reason' => null, 'roster_review_confirmed' => true,
+        ])->assertRedirect();
+        $approval = $entry->fresh()->rosterApprovals()->firstOrFail();
+        $playersSnapshot = $approval->players_snapshot;
+
+        $this->actingAs($admin)->post(route('admin.participation-exceptions.store', [$event, $entry, $participant]), [
+            'type' => 'withdrawn',
+            'reason' => 'Medical withdrawal after roster approval.',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('participation_exceptions', [
+            'entry_id' => $entry->getKey(),
+            'participant_id' => $participant->getKey(),
+            'type' => 'withdrawn',
+        ]);
+        $this->assertDatabaseHas('entry_members', [
+            'entry_id' => $entry->getKey(),
+            'participant_id' => $participant->getKey(),
+            'is_active' => false,
+        ]);
+        $this->assertSame($playersSnapshot, $approval->fresh()->players_snapshot);
+    }
+
+    public function test_participation_exception_is_allowed_after_tournament_publication_even_if_the_roster_is_not_locked(): void
+    {
+        [$admin, $event] = $this->programme();
+        $entry = $this->entry($event, 'basketball', 'men');
+        $participant = $this->participant($event, $entry->delegation, 'Published Tournament Athlete', 'RI-PUBLISHED');
+        RosterMember::create([
+            'entry_id' => $entry->getKey(),
+            'participant_id' => $participant->getKey(),
+            'role' => RosterMemberRole::Reserve,
+            'is_active' => true,
+        ]);
+        $rule = $entry->division->governingRuleVersion;
+        Tournament::create([
+            'competition_division_id' => $entry->competition_division_id,
+            'competition_rule_version_id' => $rule->getKey(),
+            'format' => CompetitionFormat::SingleElimination,
+            'state' => TournamentState::Published,
+            'eligible_entry_count' => 1,
+            'created_by' => $admin->getKey(),
+            'draw_locked_at' => now(),
+            'published_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.participation-exceptions.store', [$event, $entry, $participant]), [
+            'type' => 'disqualified',
+            'reason' => 'Conduct determination after publication.',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('participation_exceptions', [
+            'entry_id' => $entry->getKey(),
+            'participant_id' => $participant->getKey(),
+            'type' => 'disqualified',
+        ]);
+    }
+
+    public function test_participation_exceptions_reject_withdrawn_or_disqualified_entries(): void
+    {
+        [$admin, $event] = $this->programme();
+        $entry = $this->entry($event, 'basketball', 'men');
+        $participant = $this->participant($event, $entry->delegation, 'Removed Team Athlete', 'RI-REMOVED');
+        RosterMember::create([
+            'entry_id' => $entry->getKey(),
+            'participant_id' => $participant->getKey(),
+            'role' => RosterMemberRole::StudentAthlete,
+            'is_active' => true,
+        ]);
+
+        foreach ([EntryStatus::Withdrawn, EntryStatus::Disqualified] as $status) {
+            $entry->update(['status' => $status]);
+
+            $this->actingAs($admin)->post(route('admin.participation-exceptions.store', [$event, $entry, $participant]), [
+                'type' => 'withdrawn',
+                'reason' => 'This request must be rejected.',
+            ])->assertSessionHasErrors('participant');
+        }
+
+        $this->assertDatabaseMissing('participation_exceptions', ['entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey()]);
+        $this->assertDatabaseHas('entry_members', ['entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey(), 'is_active' => true]);
+    }
+
+    public function test_archived_events_reject_participation_exceptions(): void
+    {
+        [$admin, $event] = $this->programme();
+        $entry = $this->entry($event, 'basketball', 'men');
+        $participant = $this->participant($event, $entry->delegation, 'Archived Exception Athlete', 'RI-ARCHIVED');
+        RosterMember::create([
+            'entry_id' => $entry->getKey(),
+            'participant_id' => $participant->getKey(),
+            'role' => RosterMemberRole::StudentAthlete,
+            'is_active' => true,
+        ]);
+        $event->update(['state' => 'archived']);
+
+        $this->actingAs($admin)->post(route('admin.participation-exceptions.store', [$event, $entry, $participant]), [
+            'type' => 'withdrawn',
+            'reason' => 'This event is closed.',
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('participation_exceptions', ['entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey()]);
+        $this->assertDatabaseHas('entry_members', ['entry_id' => $entry->getKey(), 'participant_id' => $participant->getKey(), 'is_active' => true]);
     }
 
     /** @return array{0: User, 1: Event} */

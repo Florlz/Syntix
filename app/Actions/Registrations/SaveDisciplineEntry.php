@@ -31,7 +31,7 @@ final class SaveDisciplineEntry
         array $members,
         string $state = 'draft',
     ): DisciplineEntry {
-        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can manage discipline Entries.');
+        EventOperationGuard::assertMutable($actor, $event, 'Only the active Global Admin can manage event lineups.');
 
         return DB::transaction(function () use ($actor, $event, $discipline, $entry, $members, $state): DisciplineEntry {
             $discipline = Discipline::query()
@@ -47,13 +47,13 @@ final class SaveDisciplineEntry
             if ((int) $discipline->division?->competition?->event_id !== (int) $event->getKey()
                 || (int) $entry->division?->competition?->event_id !== (int) $event->getKey()
                 || (int) $discipline->competition_division_id !== (int) $entry->competition_division_id) {
-                throw new AuthorizationException('The discipline and Entry must belong to the selected event and Division.');
+                throw new AuthorizationException('The event lineup and team sheet must belong to the selected event and division.');
             }
 
             try {
                 $entryState = DisciplineEntryState::from(strtolower($state));
             } catch (\ValueError) {
-                throw new \InvalidArgumentException('A discipline Entry can only be saved as draft or locked.');
+                throw new \InvalidArgumentException('An event lineup can only be saved as a draft or approved.');
             }
 
             $existing = DisciplineEntry::query()
@@ -62,14 +62,14 @@ final class SaveDisciplineEntry
                 ->lockForUpdate()
                 ->first();
             if ($existing?->isLocked()) {
-                throw new \DomainException('A locked discipline Entry is immutable.');
+                throw new \DomainException('An approved event lineup cannot be changed.');
             }
 
             $normalized = [];
             foreach ($members as $member) {
                 $participantId = (int) ($member['participant_id'] ?? 0);
                 if ($participantId < 1 || isset($normalized[$participantId])) {
-                    throw new \InvalidArgumentException('Discipline participants must be unique roster members.');
+                    throw new \InvalidArgumentException('Each player can be listed only once in an event lineup.');
                 }
                 $normalized[$participantId] = [
                     'participant_id' => $participantId,
@@ -84,27 +84,27 @@ final class SaveDisciplineEntry
                 ->keyBy(fn ($member): int => (int) $member->participant_id);
             foreach ($normalized as $member) {
                 if (! $roster->has($member['participant_id'])) {
-                    throw new \InvalidArgumentException('Every discipline participant must be an active member of the parent Entry roster.');
+                    throw new \InvalidArgumentException("Every player in this lineup must be active on the team's team sheet.");
                 }
             }
 
             if ($entryState === DisciplineEntryState::Locked) {
                 if ($entry->entryStatus() !== EntryStatus::Locked) {
-                    throw new \DomainException('Lock the parent Entry before locking a discipline Entry.');
+                    throw new \DomainException("Approve the team's team sheet before approving this event's lineup.");
                 }
 
                 $starterCount = collect($normalized)->where('is_starter', true)->count();
                 $requiredStarters = (int) data_get($discipline->metadata, 'starter_count', 1);
                 if ($discipline->familyType() === DisciplineFamily::Combat && $starterCount !== 1) {
-                    throw new \DomainException('Combat disciplines require exactly one starter per department.');
+                    throw new \DomainException('This event needs exactly one starter from each team.');
                 }
                 if ($starterCount !== $requiredStarters) {
-                    throw new \DomainException("This discipline requires exactly {$requiredStarters} starter.");
+                    throw new \DomainException("This event needs exactly {$requiredStarters} starters from each team.");
                 }
 
                 $reserveLimit = (int) data_get($discipline->metadata, 'reserve_count', 2);
                 if (count($normalized) > $requiredStarters + $reserveLimit) {
-                    throw new \DomainException("This discipline allows {$requiredStarters} starter(s) and up to {$reserveLimit} reserve(s).");
+                    throw new \DomainException("This event allows {$requiredStarters} starter(s) and up to {$reserveLimit} reserve(s) per team.");
                 }
             }
 

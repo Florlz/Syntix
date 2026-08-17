@@ -101,6 +101,27 @@ test('pending results need review and remain the next incomplete workflow step',
     expect(screen.queryByRole('link', { name: /Division is ready/ })).not.toBeInTheDocument();
 });
 
+test('a draft schedule remains incomplete and sends the next step to publication', () => {
+    const draftScheduleDivision = {
+        ...divisions[0],
+        entry_count: 7,
+        participating_entry_count: 6,
+        locked_entry_count: 6,
+        unlocked_entry_count: 0,
+        bracket_state: 'published',
+        schedule_state: 'draft',
+        results_state: 'not_started',
+    };
+
+    renderWorkspace({ divisions: [draftScheduleDivision], selected_division: draftScheduleDivision.id });
+
+    expect(screen.getByText('6 of 6 team sheets ready')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Publish the schedule' })).toHaveAttribute(
+        'href',
+        '/admin/events/1/schedules?competition=20&division=30',
+    );
+});
+
 test('workspaceUrl omits legacy tabs for normal hub links', () => {
     expect(workspaceUrl('1', '20')).toBe('/admin/events/1/sports/20');
     expect(workspaceUrl('1', '20', { division: '30' })).toBe('/admin/events/1/sports/20?division=30');

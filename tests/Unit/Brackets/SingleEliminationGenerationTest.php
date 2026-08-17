@@ -69,6 +69,35 @@ class SingleEliminationGenerationTest extends TestCase
         $this->assertDatabaseCount('score_ledger_entries', 0);
     }
 
+    public function test_manual_bracket_generation_rejects_an_active_entry(): void
+    {
+        $context = $this->context(2);
+        $context['entries']->last()->update(['status' => 'active']);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('Approve every participating team sheet before making the draw.');
+
+        (new GenerateSingleEliminationBracket)->handle(
+            $context['admin'],
+            $context['division'],
+            $context['entries']->pluck('id')->all(),
+        );
+    }
+
+    public function test_manual_bracket_generation_requires_every_locked_entry_in_the_draw_order(): void
+    {
+        $context = $this->context(3);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('The draw must include every eligible team exactly once.');
+
+        (new GenerateSingleEliminationBracket)->handle(
+            $context['admin'],
+            $context['division'],
+            $context['entries']->take(2)->pluck('id')->all(),
+        );
+    }
+
     /** @return array{admin: User, division: Division, entries: Collection<int, Entry>} */
     private function context(int $entryCount): array
     {
@@ -124,7 +153,7 @@ class SingleEliminationGenerationTest extends TestCase
                 'event_delegation_id' => $delegation->getKey(),
                 'name' => 'Entry '.$index,
                 'entry_mode' => ParticipantMode::Team,
-                'status' => 'active',
+                'status' => 'locked',
             ]));
         }
 
