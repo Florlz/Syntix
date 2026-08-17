@@ -21,11 +21,11 @@ export default function RosterPlayerList({
     emptyAction = null,
     emphasis = false,
 }) {
-    return <section className={`overflow-hidden bg-white ${emphasis ? 'rounded-xl border-2 border-[#0B536D] shadow-[0_10px_30px_rgba(11,83,109,0.08)]' : 'border border-[#CFD6D3]'}`} aria-labelledby={`${title.toLowerCase().replaceAll(' ', '-')}-title`}>
-        <div className={`flex flex-wrap items-start justify-between gap-4 px-5 py-4 ${members.length ? 'border-b border-[#CFD6D3]' : ''}`}>
+    return <section className={`overflow-hidden bg-surface ${emphasis ? 'rounded-xl border-2 border-primary shadow-xs' : 'border border-border'}`} aria-labelledby={`${title.toLowerCase().replaceAll(' ', '-')}-title`}>
+        <div className={`flex flex-wrap items-start justify-between gap-4 px-5 py-4 ${members.length ? 'border-b border-border' : ''}`}>
             <div>
-                <div className="flex flex-wrap items-baseline gap-2"><h3 id={`${title.toLowerCase().replaceAll(' ', '-')}-title`} className="font-serif text-xl font-bold">{title}</h3>{countLabel ? <span className="text-sm font-semibold text-[#68767E]">{countLabel}</span> : null}</div>
-                <p className="mt-1 text-sm text-[#68767E]">{description}</p>
+                <div className="flex flex-wrap items-baseline gap-2"><h3 id={`${title.toLowerCase().replaceAll(' ', '-')}-title`} className="font-serif text-xl font-bold text-foreground">{title}</h3>{countLabel ? <span className="text-sm font-semibold text-muted">{countLabel}</span> : null}</div>
+                <p className="mt-1 text-sm text-muted">{description}</p>
             </div>
             {action}
         </div>
@@ -41,18 +41,18 @@ export default function RosterPlayerList({
                         checked={selectedIds.has(id)}
                         onChange={() => onToggle(participant.id)}
                         disabled={disabled}
-                        className="size-4 rounded border-[#B8C3C0] text-[#0B536D] focus:ring-[#D5A21F]"
+                        className="size-4 rounded-sm border-border text-primary focus:ring-accent"
                     /> : null}
                     <span className="min-w-0 flex-1">
-                        <strong className="block text-sm text-[#17212B]">{participant.display_name}</strong>
-                        <span className="mt-1 block text-xs capitalize text-[#68767E]">
+                        <strong className="block text-sm text-foreground">{participant.display_name}</strong>
+                        <span className="mt-1 block text-xs capitalize text-muted">
                             {roleLabel(role)}{participant.exception ? ` / ${roleLabel(participant.exception.type)}` : ''}
                         </span>
                     </span>
-                    {onManage ? <button type="button" onClick={() => onManage(participant)} disabled={disabled} className="text-xs font-bold text-[#0B536D] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-50">Manage</button> : null}
+                    {onManage && !disabled ? <button type="button" onClick={() => onManage(participant)} className="text-xs font-bold text-primary underline underline-offset-4">Manage</button> : null}
                 </div>;
             })}
-            {members.length === 0 ? <div className="border-t border-[#CFD6D3] px-5 py-6"><p className="text-sm text-[#68767E]">{emptyMessage}</p>{emptyAction ? <div className="mt-4">{emptyAction}</div> : null}</div> : null}
+            {members.length === 0 ? <div className="border-t border-border px-5 py-6"><p className="text-sm text-muted">{emptyMessage}</p>{emptyAction ? <div className="mt-4">{emptyAction}</div> : null}</div> : null}
         </div>
     </section>;
 }

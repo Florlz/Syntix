@@ -49,7 +49,7 @@ export default function Create({ event, targets }) {
         <AuthenticatedLayout header={<h1 className="text-2xl font-semibold tracking-tight text-slate-900">Provision account</h1>}>
             <Head title="Provision account" />
             <main className="min-h-[calc(100vh-9rem)] bg-[#f4f6f8] px-4 py-8 sm:px-6 lg:px-10">
-                <form onSubmit={submit} className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <form onSubmit={submit} className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#0b2e4f]">Event-scoped access</p>
                     <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Invite a Judge or Tabulator</h2>
                     <p className="mt-3 text-sm leading-6 text-slate-600">{event.name}. Choose the role and exact work area before creating the 24-hour setup link.</p>

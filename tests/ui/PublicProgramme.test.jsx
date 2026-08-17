@@ -6,6 +6,7 @@ import PublicProgramme from '../../resources/js/Pages/Admin/Events/PublicProgram
 
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
+    Link: ({ href, children, ...props }) => <a href={href} {...props}>{children}</a>,
     usePage: () => ({ props: { flash: {} } }),
     useForm: (initial = {}) => {
         const [data, setDataState] = React.useState(initial);
@@ -21,7 +22,6 @@ vi.mock('@inertiajs/react', () => ({
     },
 }));
 vi.mock('@/Layouts/AuthenticatedLayout', () => ({ default: ({ children }) => <div>{children}</div> }));
-vi.mock('@/Components/SportContextNav', () => ({ default: () => <nav aria-label="Sport context">Basketball context</nav> }));
 
 const competitions = [
     { id: '20', name: 'Basketball', divisions: [{ id: '30', name: 'Men' }] },

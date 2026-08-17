@@ -40,7 +40,7 @@ class PublicProgrammeController extends Controller
         ]);
         $event->load([
             'competitions' => fn ($query) => $query->orderBy('name'),
-            'competitions.divisions' => fn ($query) => $query->orderBy('name'),
+            'competitions.divisions' => fn ($query) => $query->withCount('entries')->orderBy('name'),
             'competitions.draftCoverImage',
             'competitions.publishedCoverImage',
             'venues' => fn ($query) => $query->orderBy('name'),
@@ -84,9 +84,12 @@ class PublicProgrammeController extends Controller
             'competitions' => $event->competitions->map(fn (Competition $competition) => [
                 'id' => (string) $competition->getKey(),
                 'name' => $competition->name,
+                'division_count' => $competition->divisions->count(),
+                'entry_count' => $competition->divisions->sum('entries_count'),
                 'divisions' => $competition->divisions->map(fn (Division $division) => [
                     'id' => (string) $division->getKey(),
                     'name' => $division->name,
+                    'entry_count' => (int) $division->entries_count,
                 ])->values()->all(),
                 'draft_cover' => $this->adminCover($event, $competition->draftCoverImage),
                 'published_cover' => $this->adminCover($event, $competition->publishedCoverImage),

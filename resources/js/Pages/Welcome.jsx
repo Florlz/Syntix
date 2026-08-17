@@ -111,7 +111,7 @@ function StaffLink({ authenticated, onClick, tabIndex, className = '' }) {
             prefetch="mount"
             onClick={onClick}
             tabIndex={tabIndex}
-            className={`inline-flex min-h-10 items-center justify-center rounded-none bg-[#D5A21F] px-4 text-xs font-bold uppercase tracking-[0.08em] text-[#17212B] transition-colors hover:bg-[#F5C64B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F] ${className}`}
+            className={`inline-flex min-h-10 items-center justify-center rounded-none bg-[#D5A21F] px-4 text-xs font-bold uppercase tracking-[0.08em] text-[#17212B] transition-colors hover:bg-[#F5C64B] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F] ${className}`}
         >
             {authenticated ? 'Open Dashboard' : 'Staff Login'}
         </Link>
@@ -178,8 +178,8 @@ function BrandBar({ authenticated, event }) {
         return () => document.removeEventListener('keydown', handleKeyDown);
     }, [menuOpen]);
 
-    const publicLinkClass = 'rounded-sm px-2 py-2 transition-colors hover:text-[#F5C64B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]';
-    const mobileLinkClass = 'flex min-h-12 items-center justify-between border-b border-white/10 px-2 text-sm font-bold uppercase tracking-[0.13em] text-white/80 transition-colors hover:bg-white/[0.06] hover:text-[#F5C64B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#F5C64B]';
+    const publicLinkClass = 'rounded-xs px-2 py-2 transition-colors hover:text-[#F5C64B] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]';
+    const mobileLinkClass = 'flex min-h-12 items-center justify-between border-b border-white/10 px-2 text-sm font-bold uppercase tracking-[0.13em] text-white/80 transition-colors hover:bg-white/[0.06] hover:text-[#F5C64B] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#F5C64B]';
 
     return (
         <header className="border-t-[3px] border-[#D5A21F]">
@@ -187,7 +187,7 @@ function BrandBar({ authenticated, event }) {
                 <div className="flex min-w-0 flex-1 items-center bg-[#08253F] px-3 py-2 sm:px-4 md:flex-none md:px-5">
                     <Link
                         href={route('landing')}
-                        className="flex min-w-0 items-center gap-3 rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08253F]"
+                        className="flex min-w-0 items-center gap-3 rounded-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#08253F]"
                     >
                         <span className="grid size-10 shrink-0 place-items-center bg-[#F7F5EF] p-1.5 sm:size-11">
                             <img src="/icons/icon.svg" alt="SYNTIX" width="40" height="40" />
@@ -216,7 +216,7 @@ function BrandBar({ authenticated, event }) {
                     aria-controls="mobile-navigation-drawer"
                     aria-expanded={menuOpen}
                     onClick={() => setMenuOpen(true)}
-                    className="m-2 inline-flex min-w-12 items-center justify-center border border-white/20 bg-[#0B2E4F] text-white transition-colors hover:bg-[#164565] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F] md:hidden"
+                    className="m-2 inline-flex min-w-12 items-center justify-center border border-white/20 bg-[#0B2E4F] text-white transition-colors hover:bg-[#164565] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F] md:hidden"
                 >
                     <span className="sr-only">Open navigation</span>
                     <span aria-hidden="true" className="flex flex-col gap-1.5">
@@ -255,7 +255,7 @@ function BrandBar({ authenticated, event }) {
                             aria-label="Close navigation menu"
                             tabIndex={menuOpen ? 0 : -1}
                             onClick={closeMenu}
-                            className="inline-flex size-10 items-center justify-center border border-white/20 text-2xl leading-none text-[#F5C64B] transition-colors hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B]"
+                            className="inline-flex size-10 items-center justify-center border border-white/20 text-2xl leading-none text-[#F5C64B] transition-colors hover:bg-white/[0.06] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B]"
                         >
                             <span aria-hidden="true">×</span>
                         </button>
@@ -441,7 +441,7 @@ function ScoreSlide({ event, contest, status, lastSuccessfulAt }) {
                         <span className="text-sm text-white/45">No score has been published yet</span>
                         <ScoreStatus status={status} lastSuccessfulAt={lastSuccessfulAt} />
                     </div>
-                    {event ? <Link href={route('public.scoreboard', event.slug)} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#D5A21F] px-5 text-sm font-bold text-[#17212B] transition-colors hover:bg-[#F1C85F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]">Open Event Board</Link> : null}
+                    {event ? <Link href={route('public.scoreboard', event.slug)} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#D5A21F] px-5 text-sm font-bold text-[#17212B] transition-colors hover:bg-[#F1C85F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]">Open Event Board</Link> : null}
                 </div>
             </article>
         );
@@ -491,7 +491,7 @@ function ScoreSlide({ event, contest, status, lastSuccessfulAt }) {
                     </div>
                     <ScoreStatus status={status} lastSuccessfulAt={lastSuccessfulAt} />
                 </div>
-                {event ? <Link href={route('public.scoreboard', event.slug)} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#D5A21F] px-5 text-sm font-bold text-[#17212B] transition-colors hover:bg-[#F1C85F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]">Open Event Board</Link> : null}
+                {event ? <Link href={route('public.scoreboard', event.slug)} className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-full bg-[#D5A21F] px-5 text-sm font-bold text-[#17212B] transition-colors hover:bg-[#F1C85F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]">Open Event Board</Link> : null}
             </div>
         </article>
     );
@@ -592,20 +592,20 @@ function LiveScoreCarousel({ event, contests, status, lastSuccessfulAt }) {
             </div>
 
             {canRotate ? (
-                <div className="mt-3 rounded-2xl border border-[#DDDCD6] bg-white p-3 shadow-sm sm:p-4">
+                <div className="mt-3 rounded-2xl border border-[#DDDCD6] bg-white p-3 shadow-xs sm:p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex flex-wrap items-center gap-2">
-                            <button type="button" onClick={() => move(-1)} className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#D5DBDE] px-4 text-xs font-semibold text-[#30414B] transition-colors hover:border-[#0B2E4F] hover:text-[#0B2E4F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F]">Previous</button>
+                            <button type="button" onClick={() => move(-1)} className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#D5DBDE] px-4 text-xs font-semibold text-[#30414B] transition-colors hover:border-[#0B2E4F] hover:text-[#0B2E4F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F]">Previous</button>
                             <button
                                 type="button"
                                 onMouseDown={(event) => event.preventDefault()}
                                 onClick={() => setRotationPaused((paused) => !paused)}
                                 disabled={reducedMotion}
-                                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#D5DBDE] px-4 text-xs font-semibold text-[#30414B] transition-colors hover:border-[#0B2E4F] hover:text-[#0B2E4F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F] disabled:cursor-not-allowed disabled:text-[#9AA5AA]"
+                                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#D5DBDE] px-4 text-xs font-semibold text-[#30414B] transition-colors hover:border-[#0B2E4F] hover:text-[#0B2E4F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F] disabled:cursor-not-allowed disabled:text-[#9AA5AA]"
                             >
                                 {reducedMotion ? 'Rotation off' : rotationPaused ? 'Start rotation' : 'Pause rotation'}
                             </button>
-                            <button type="button" onClick={() => move(1)} className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#D5DBDE] px-4 text-xs font-semibold text-[#30414B] transition-colors hover:border-[#0B2E4F] hover:text-[#0B2E4F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F]">Next</button>
+                            <button type="button" onClick={() => move(1)} className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#D5DBDE] px-4 text-xs font-semibold text-[#30414B] transition-colors hover:border-[#0B2E4F] hover:text-[#0B2E4F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F]">Next</button>
                         </div>
                         <p className="font-mono text-xs font-semibold tabular-nums text-[#7A878D]">Contest {activeIndex + 1} of {contests.length}</p>
                     </div>
@@ -621,7 +621,7 @@ function LiveScoreCarousel({ event, contests, status, lastSuccessfulAt }) {
                                     aria-pressed={active}
                                     aria-controls="live-score-stage"
                                     onClick={() => selectContest(index)}
-                                    className={`min-h-11 min-w-36 shrink-0 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F] ${active ? 'border-[#0B2E4F] bg-[#0B2E4F] text-white' : 'border-[#E0E4E5] bg-[#F8F8F6] text-[#30414B] hover:border-[#AAB5BA]'}`}
+                                    className={`min-h-11 min-w-36 shrink-0 rounded-xl border px-3 py-2 text-left transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F] ${active ? 'border-[#0B2E4F] bg-[#0B2E4F] text-white' : 'border-[#E0E4E5] bg-[#F8F8F6] text-[#30414B] hover:border-[#AAB5BA]'}`}
                                 >
                                     <span className="block truncate text-xs font-bold">{contest.competition}</span>
                                     <span className={`mt-1 block truncate text-xs ${active ? 'text-white/60' : 'text-[#7A878D]'}`}>{contest.division}{index === 0 ? ' · Latest' : ''}</span>
@@ -682,7 +682,7 @@ function ChampionshipStandingsStack({ event, leaderboard }) {
                 </div>
             )}
 
-            {event ? <Link href={route('public.scoreboard', event.slug)} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-[#CDD5D8] px-4 text-sm font-semibold text-[#0B2E4F] transition-colors hover:border-[#0B2E4F] hover:bg-[#F4F6F6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F]">View All Standings</Link> : null}
+            {event ? <Link href={route('public.scoreboard', event.slug)} className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-[#CDD5D8] px-4 text-sm font-semibold text-[#0B2E4F] transition-colors hover:border-[#0B2E4F] hover:bg-[#F4F6F6] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F]">View All Standings</Link> : null}
         </section>
     );
 }
@@ -701,7 +701,7 @@ function BroadcastHero({ authenticated, event, contests, competitionCount, leade
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-3 lg:justify-end">
                         <span className="rounded-full border border-[#DDDCD6] bg-white px-4 py-2 text-sm text-[#68767E]">{contests.length ? `${contests.length} live contest${contests.length === 1 ? '' : 's'}` : 'No live contests'}</span>
-                        {event ? <Link href={route('public.scoreboard', event.slug)} className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0B2E4F] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#164565] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F7F5EF]">View Event Board</Link> : null}
+                        {event ? <Link href={route('public.scoreboard', event.slug)} className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#0B2E4F] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#164565] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F7F5EF]">View Event Board</Link> : null}
                     </div>
                 </div>
 
@@ -825,7 +825,7 @@ function BroadcastScoreBoard({ event, contest, competition, nextSchedule, lastSu
                         {nextSchedule ? <><p className="font-condensed text-xl font-extrabold uppercase text-[#F1C85F]">{formatProgrammeDate(nextSchedule.starts_at)}</p><p className="mt-1">{formatProgrammeTime(nextSchedule.starts_at, nextSchedule.ends_at)}{nextSchedule.venue ? ` · ${nextSchedule.venue.name}` : ''}</p></> : <p>Waiting for the event desk to publish the next live board.</p>}
                         <p className="mt-2">Updated <time dateTime={new Date(lastSuccessfulAt).toISOString()}>{formatDateTime(lastSuccessfulAt)}</time></p>
                     </div>
-                    {event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-10 shrink-0 items-center justify-center bg-[#D5A21F] px-4 text-xs font-bold uppercase tracking-[0.08em] text-[#17212B] transition-colors hover:bg-[#F1C85F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]">Full event board →</Link> : null}
+                    {event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-10 shrink-0 items-center justify-center bg-[#D5A21F] px-4 text-xs font-bold uppercase tracking-[0.08em] text-[#17212B] transition-colors hover:bg-[#F1C85F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]">Full event board →</Link> : null}
                 </div>
             </article>
         );
@@ -873,7 +873,7 @@ function BroadcastScoreBoard({ event, contest, competition, nextSchedule, lastSu
                     <span className="text-[#F1C85F]">{phase}</span>
                     <span>Updated <time dateTime={contest.updated_at}>{formatDateTime(contest.updated_at)}</time></span>
                 </div>
-                {event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-10 shrink-0 items-center justify-center bg-[#D5A21F] px-4 text-xs font-bold uppercase tracking-[0.08em] text-[#17212B] transition-colors hover:bg-[#F1C85F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]">Full event board →</Link> : null}
+                {event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-10 shrink-0 items-center justify-center bg-[#D5A21F] px-4 text-xs font-bold uppercase tracking-[0.08em] text-[#17212B] transition-colors hover:bg-[#F1C85F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#0B2E4F]">Full event board →</Link> : null}
             </div>
         </article>
     );
@@ -897,7 +897,7 @@ function LiveChannelStrip({ contests, activeId, onSelect }) {
                             aria-pressed={active}
                             aria-controls="live-score-stage"
                             onClick={() => onSelect(contest.id)}
-                            className={`min-h-14 min-w-48 shrink-0 border px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0B536D] ${active ? 'border-[#0B2E4F] border-b-[3px] bg-[#0B2E4F] text-white' : 'border-[#D4DCDA] bg-white text-[#17212B] hover:border-[#0B536D]'}`}
+                            className={`min-h-14 min-w-48 shrink-0 border px-3 py-2 text-left transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0B536D] ${active ? 'border-[#0B2E4F] border-b-[3px] bg-[#0B2E4F] text-white' : 'border-[#D4DCDA] bg-white text-[#17212B] hover:border-[#0B536D]'}`}
                         >
                             <span className="flex items-center justify-between gap-3 font-condensed text-base font-extrabold uppercase leading-none">
                                 <span className="truncate">{contest.competition} · {contest.division}</span>
@@ -947,7 +947,7 @@ function ChampionshipTeamBands({ event, leaderboard }) {
                 </div>
             )}
 
-            {event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="mt-4 block border-t border-[#D9DEDC] pt-3 font-condensed text-sm font-extrabold uppercase tracking-[0.08em] text-[#0B536D] hover:text-[#0B2E4F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B536D]">View complete standings →</Link> : null}
+            {event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="mt-4 block border-t border-[#D9DEDC] pt-3 font-condensed text-sm font-extrabold uppercase tracking-[0.08em] text-[#0B536D] hover:text-[#0B2E4F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B536D]">View complete standings →</Link> : null}
         </aside>
     );
 }
@@ -1106,7 +1106,7 @@ function BracketPreview({ event, division, preview }) {
         <div className="border-t-2 border-[#0B2E4F] bg-[#F7F8F6] px-3 pb-3">
             <div className="flex items-center justify-between gap-3 py-2">
                 <span className="font-condensed text-xs font-extrabold uppercase tracking-[0.08em] text-[#0B2E4F]">{preview.round_label}</span>
-                {event ? <Link href={route('public.bracket', [event.slug, division.id])} className="text-[9px] font-extrabold uppercase tracking-[0.08em] text-[#0B536D] underline decoration-[#D5A21F] decoration-2 underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B536D]">View full bracket</Link> : null}
+                {event ? <Link href={route('public.bracket', [event.slug, division.id])} className="text-[9px] font-extrabold uppercase tracking-[0.08em] text-[#0B536D] underline decoration-[#D5A21F] decoration-2 underline-offset-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B536D]">View full bracket</Link> : null}
             </div>
             {matchups.length ? <div className="grid gap-2">
                 {matchups.map((matchup) => (
@@ -1139,7 +1139,7 @@ function DivisionBracket({ event, division, open, onToggle }) {
 
     return (
         <div className="mt-3 overflow-hidden border border-[#D8DEDB] bg-[#F7F8F6]">
-            <button type="button" aria-expanded={open} aria-controls={panelId} onClick={onToggle} className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-[#0B2E4F] hover:bg-[#EDF3F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0B536D]">
+            <button type="button" aria-expanded={open} aria-controls={panelId} onClick={onToggle} className="flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left text-[#0B2E4F] hover:bg-[#EDF3F5] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0B536D]">
                 <span><strong className="font-condensed text-sm font-extrabold uppercase">{division.name}</strong><span className="ml-2 text-[9px] font-bold uppercase tracking-[0.06em] text-[#78858A]">· {bracketFormatLabel(division.bracket_preview.format)}</span></span>
                 <span className="font-condensed text-xl font-extrabold text-[#D5A21F]" aria-hidden="true">{open ? '−' : '+'}</span>
             </button>
@@ -1176,9 +1176,9 @@ function CompetitionDirectory({ event, competitions }) {
             <div className="mx-auto max-w-7xl px-5 py-14 sm:px-8 sm:py-20">
                 <div className="grid gap-8 border-b-2 border-[#0B2E4F] pb-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.75fr)] lg:items-end lg:gap-12">
                     <div><p className="font-condensed text-sm font-extrabold uppercase tracking-[0.15em] text-[#946B00]">Sports programme</p><h2 id="competition-directory-title" className="mt-2 max-w-4xl font-condensed text-5xl font-extrabold uppercase leading-[0.93] tracking-tight text-[#17212B] sm:text-7xl">Find the next contest. Follow the bracket.</h2></div>
-                    <div><p className="text-sm leading-7 text-[#69777D]">Published schedules and tournament progress for every SIKLAB competition. Matchups update only from official event-desk releases.</p><div className="mt-5 flex items-center justify-between gap-3"><span className="font-condensed text-sm font-extrabold uppercase tracking-[0.08em] text-[#0B536D]">{competitions.length} sports &amp; activities</span>{event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-11 items-center justify-center border-b-[3px] border-[#D5A21F] bg-[#0B2E4F] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#164565] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F4EF]">Open event board</Link> : null}</div></div>
+                    <div><p className="text-sm leading-7 text-[#69777D]">Published schedules and tournament progress for every SIKLAB competition. Matchups update only from official event-desk releases.</p><div className="mt-5 flex items-center justify-between gap-3"><span className="font-condensed text-sm font-extrabold uppercase tracking-[0.08em] text-[#0B536D]">{competitions.length} sports &amp; activities</span>{event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-11 items-center justify-center border-b-[3px] border-[#D5A21F] bg-[#0B2E4F] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#164565] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F4EF]">Open event board</Link> : null}</div></div>
                 </div>
-                <div className="grid gap-4 py-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><label className="flex max-w-xl items-center border-b-2 border-[#0B2E4F] bg-white px-3"><span className="font-condensed text-xl font-extrabold text-[#D5A21F]" aria-hidden="true">⌕</span><input type="search" value={query} onChange={(inputEvent) => setQuery(inputEvent.target.value)} placeholder="Find basketball, arnis, chess…" aria-label="Find a sport" className="min-h-11 w-full border-0 bg-transparent px-2 text-sm text-[#17212B] outline-none ring-0 placeholder:text-[#8A9598] focus:ring-0" /></label><label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-[#0B2E4F]"><input type="checkbox" checked={bracketsOnly} onChange={(inputEvent) => setBracketsOnly(inputEvent.target.checked)} className="size-4 rounded border-[#0B536D] text-[#0B536D] focus:ring-[#0B536D]" /> Brackets available</label></div>
+                <div className="grid gap-4 py-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"><label className="flex max-w-xl items-center border-b-2 border-[#0B2E4F] bg-white px-3"><span className="font-condensed text-xl font-extrabold text-[#D5A21F]" aria-hidden="true">⌕</span><input type="search" value={query} onChange={(inputEvent) => setQuery(inputEvent.target.value)} placeholder="Find basketball, arnis, chess…" aria-label="Find a sport" className="min-h-11 w-full border-0 bg-transparent px-2 text-sm text-[#17212B] outline-hidden ring-0 placeholder:text-[#8A9598] focus:ring-0" /></label><label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-[#0B2E4F]"><input type="checkbox" checked={bracketsOnly} onChange={(inputEvent) => setBracketsOnly(inputEvent.target.checked)} className="size-4 rounded-sm border-[#0B536D] text-[#0B536D] focus:ring-[#0B536D]" /> Brackets available</label></div>
                 {visibleCompetitions.length ? <div className="grid items-start gap-6 md:grid-cols-2 xl:grid-cols-3">{visibleCompetitions.map((competition) => {
                     const bracketCount = competition.divisions.filter((division) => division.bracket_preview).length;
                     const nextSchedule = competition.schedules[0];
@@ -1200,7 +1200,7 @@ function LegacyCompetitionDirectory({ event, competitions }) {
                         <h2 id="competition-directory-title" className="mt-2 text-balance text-3xl font-bold tracking-[-0.04em] text-[#17212B] sm:text-5xl">See what’s playing, when, and where.</h2>
                         <p className="mt-4 max-w-2xl text-base leading-7 text-[#68767E]">Published schedules and CSPC event photos, organized by competition. Changes appear only after the event desk republishes them.</p>
                     </div>
-                    {event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-[#0B2E4F] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#164565] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F4EF]">Open Complete Event Board</Link> : null}
+                    {event ? <Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-[#0B2E4F] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#164565] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F4EF]">Open Complete Event Board</Link> : null}
                 </div>
 
                 {competitions.length ? (
@@ -1226,7 +1226,7 @@ function LegacyCompetitionDirectory({ event, competitions }) {
                                             {competition.divisions.map((division) => (
                                                 <li key={division.id} className="inline-flex min-h-10 items-center gap-2 text-sm">
                                                     <span className="text-[#53636C]">{division.name}</span>
-                                                    {division.has_published_bracket && event ? <Link href={route('public.bracket', [event.slug, division.id])} className="font-semibold text-[#0B536D] underline decoration-[#D5A21F] decoration-2 underline-offset-4 hover:text-[#0B2E4F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B536D]">Bracket</Link> : null}
+                                                    {division.has_published_bracket && event ? <Link href={route('public.bracket', [event.slug, division.id])} className="font-semibold text-[#0B536D] underline decoration-[#D5A21F] decoration-2 underline-offset-4 hover:text-[#0B2E4F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B536D]">Bracket</Link> : null}
                                                 </li>
                                             ))}
                                         </ul>
@@ -1265,17 +1265,17 @@ function Footer({ authenticated, event }) {
                     <nav aria-label="Public resources">
                         <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#E4BD54]">Public Boards</h2>
                         <ul className="mt-4 space-y-3 text-sm text-white/65">
-                            <li><a href="#live-score-stage" className="inline-flex min-h-11 items-center rounded transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B]">Live Scores</a></li>
-                            <li><a href="#competitions" className="inline-flex min-h-11 items-center rounded transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B]">Competitions</a></li>
-                            {event ? <li><Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-11 items-center rounded transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B]">Event Board</Link></li> : null}
+                            <li><a href="#live-score-stage" className="inline-flex min-h-11 items-center rounded-sm transition-colors hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B]">Live Scores</a></li>
+                            <li><a href="#competitions" className="inline-flex min-h-11 items-center rounded-sm transition-colors hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B]">Competitions</a></li>
+                            {event ? <li><Link href={route('public.scoreboard', event.slug)} prefetch="mount" className="inline-flex min-h-11 items-center rounded-sm transition-colors hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B]">Event Board</Link></li> : null}
                         </ul>
                     </nav>
 
                     <nav aria-label="Institutional resources">
                         <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#E4BD54]">Institution</h2>
                         <ul className="mt-4 space-y-3 text-sm text-white/65">
-                            <li><a href="https://cspc.edu.ph" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B]">CSPC Website</a></li>
-                            <li><Link href={authenticated ? route('dashboard') : route('login')} className="inline-flex min-h-11 items-center rounded transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5C64B]">{authenticated ? 'Staff Dashboard' : 'Staff Login'}</Link></li>
+                            <li><a href="https://cspc.edu.ph" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center rounded-sm transition-colors hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B]">CSPC Website</a></li>
+                            <li><Link href={authenticated ? route('dashboard') : route('login')} className="inline-flex min-h-11 items-center rounded-sm transition-colors hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F5C64B]">{authenticated ? 'Staff Dashboard' : 'Staff Login'}</Link></li>
                         </ul>
                     </nav>
                 </div>
@@ -1299,7 +1299,7 @@ export default function Welcome({ auth, featured_event: event, featured_contest:
             <Head title={event ? `${event.name} Live` : 'CSPC SIKLAB'}>
                 <meta name="theme-color" content="#F7F5EF" />
             </Head>
-            <a href="#main-content" className="sr-only z-50 bg-[#F5C64B] px-4 py-3 font-bold text-[#17212B] focus:not-sr-only focus:fixed focus:left-4 focus:top-0 focus:outline-none focus:ring-2 focus:ring-[#17212B]">Skip to event content</a>
+            <a href="#main-content" className="sr-only z-50 bg-[#F5C64B] px-4 py-3 font-bold text-[#17212B] focus:not-sr-only focus:fixed focus:left-4 focus:top-0 focus:outline-hidden focus:ring-2 focus:ring-[#17212B]">Skip to event content</a>
             <main id="main-content" className="min-h-screen overflow-x-hidden bg-[#F7F5EF] font-sans text-[#17212B]">
                 <BroadcastLedgerHero authenticated={authenticated} event={event} contests={contests} competitions={competitions} leaderboard={leaderboard} lastSuccessfulAt={lastSuccessfulAt} />
                 <CompetitionDirectory event={event} competitions={competitions} />

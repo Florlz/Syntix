@@ -112,8 +112,8 @@ export default function Scorecard({ scorecard }) {
                         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
                             <div><p className="text-xs uppercase tracking-[0.14em] text-slate-400">Server total · revision {scorecard.revision}</p><p className="text-2xl font-semibold tabular-nums text-slate-900">{scorecard.calculated_total}</p></div>
                             <div className="flex gap-2">
-                                <button type="submit" disabled={locked || form.processing} className="min-h-12 rounded-full border border-slate-300 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700 focus-visible:ring-offset-2 disabled:opacity-40">Save draft</button>
-                                <button type="button" onClick={submit} disabled={locked || form.processing} className="min-h-12 rounded-full bg-[#d5a21f] px-5 text-sm font-semibold text-[#17212b] hover:bg-[#bc8d16] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9a7210] focus-visible:ring-offset-2 disabled:opacity-40">Save & submit</button>
+                                <button type="submit" disabled={locked || form.processing} className="min-h-12 rounded-full border border-slate-300 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-700 focus-visible:ring-offset-2 disabled:opacity-40">Save draft</button>
+                                <button type="button" onClick={submit} disabled={locked || form.processing} className="min-h-12 rounded-full bg-[#d5a21f] px-5 text-sm font-semibold text-[#17212b] hover:bg-[#bc8d16] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#9a7210] focus-visible:ring-offset-2 disabled:opacity-40">Save & submit</button>
                             </div>
                         </div>
                     </div>

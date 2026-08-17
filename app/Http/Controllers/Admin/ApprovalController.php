@@ -48,6 +48,11 @@ class ApprovalController extends Controller
             abort(404);
         }
 
+        $workspaceCompetition = $competition ?? $division?->competition;
+        $workspaceCompetition?->loadMissing([
+            'divisions' => fn ($query) => $query->where('is_active', true)->withCount('entries'),
+        ]);
+
         $submissions = ResultSubmission::query()
             ->where('state', 'submitted')
             ->whereHas('contest.division.competition', fn ($query) => $query->where('event_id', $event->getKey()))
@@ -84,7 +89,7 @@ class ApprovalController extends Controller
             ])->values()->all();
 
         return Inertia::render('Admin/Approvals/Index', [
-            'event' => ['id' => (string) $event->getKey(), 'name' => $event->name],
+            'event' => ['id' => (string) $event->getKey(), 'name' => $event->name, 'archived' => $event->isArchived()],
             'result_submissions' => $submissions,
             'division_placements' => $placements,
             'filters' => [
@@ -96,6 +101,22 @@ class ApprovalController extends Controller
                 'division' => $division?->name,
                 'competition_id' => $competition === null ? ($division?->competition?->getKey() === null ? null : (string) $division->competition->getKey()) : (string) $competition->getKey(),
                 'division_id' => $division === null ? null : (string) $division->getKey(),
+            ],
+            'workspace' => $workspaceCompetition === null ? null : [
+                'sport' => [
+                    'id' => (string) $workspaceCompetition->getKey(),
+                    'name' => $workspaceCompetition->name,
+                    'slug' => $workspaceCompetition->slug,
+                    'active' => (bool) $workspaceCompetition->is_active,
+                    'division_count' => $workspaceCompetition->divisions->count(),
+                    'entry_count' => $workspaceCompetition->divisions->sum('entries_count'),
+                ],
+                'divisions' => $workspaceCompetition->divisions->map(fn (Division $item): array => [
+                    'id' => (string) $item->getKey(),
+                    'name' => $item->name,
+                    'active' => (bool) $item->is_active,
+                    'entry_count' => (int) $item->entries_count,
+                ])->values()->all(),
             ],
         ]);
     }

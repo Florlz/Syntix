@@ -33,7 +33,7 @@ export default function Scoreboard({ event, competitions = [], leaderboard = [],
                         {competitions.length === 0 ? (
                             <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-sm text-slate-500">No published competitions yet.</div>
                         ) : competitions.map((competition) => (
-                            <article key={competition.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+                            <article key={competition.id} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-xs sm:p-7">
                                 <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-5">
                                     <h2 className="text-xl font-semibold">{competition.name}</h2>
                                     <span className="text-xs uppercase tracking-[0.16em] text-slate-400">Competition family</span>
@@ -65,7 +65,7 @@ export default function Scoreboard({ event, competitions = [], leaderboard = [],
                         ))}
                     </section>
 
-                    <aside className="h-fit rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-7 lg:sticky lg:top-6">
+                    <aside className="h-fit rounded-3xl bg-white p-5 shadow-xs ring-1 ring-slate-200 sm:p-7 lg:sticky lg:top-6">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">Championship points</p>
                         <h2 className="mt-2 text-2xl font-semibold tracking-tight">Delegation standings</h2>
                         <p className="mt-3 text-sm leading-6 text-slate-500">Derived from committed signed ledger entries. Preliminary wins and live scores never appear here.</p>

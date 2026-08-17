@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link } from '@inertiajs/react';
 
 const DEFAULT_CACHE_FOR = 30_000;

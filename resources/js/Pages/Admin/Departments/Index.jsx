@@ -5,14 +5,14 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
-const primary = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2';
+const primary = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2';
 
 function DepartmentCard({ event, department }) {
     const divisionCount = department.sports.reduce((total, sport) => total + sport.divisions.length, 0);
     const startedCount = department.counts.rosters || 0;
     const accent = department.color || '#0B536D';
 
-    return <article className="group relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-md motion-reduce:transform-none">
+    return <article className="group relative overflow-hidden rounded-2xl border border-border bg-surface shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-md motion-reduce:transform-none">
         <div className="h-1.5" style={{ backgroundColor: accent }} aria-hidden="true" />
         <div className="relative overflow-hidden p-5 sm:p-6">
             <span className="pointer-events-none absolute -right-3 -top-7 font-serif text-[7rem] font-black leading-none text-sidebar/[0.045]" aria-hidden="true">{department.abbreviation || 'D'}</span>
@@ -21,7 +21,7 @@ function DepartmentCard({ event, department }) {
                     <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-primary">Event department</p>
                     <h2 className="mt-2 font-serif text-2xl font-bold leading-tight text-foreground">{department.name}</h2>
                 </div>
-                <span className="grid size-12 shrink-0 place-items-center rounded-xl text-sm font-black text-white shadow-sm" style={{ backgroundColor: accent }}>{department.abbreviation || '—'}</span>
+                <span className="grid size-12 shrink-0 place-items-center rounded-xl text-sm font-black text-white shadow-xs" style={{ backgroundColor: accent }}>{department.abbreviation || '—'}</span>
             </div>
 
             <dl className="relative mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">

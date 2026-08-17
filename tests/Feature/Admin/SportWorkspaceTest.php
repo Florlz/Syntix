@@ -30,7 +30,8 @@ class SportWorkspaceTest extends TestCase
                 ->where('sport.id', (string) $sport->getKey())
                 ->where('active_tab', 'rosters')
                 ->where('selected_division', (string) $division->getKey())
-                ->has('divisions'));
+                ->has('divisions')
+                ->has('divisions.0.results_state'));
     }
 
     public function test_foreign_division_is_not_available_inside_a_sport_workspace(): void

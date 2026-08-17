@@ -94,11 +94,11 @@ export default function Contest({ contest }) {
                         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <label className="rounded-2xl bg-white/10 p-4">
                                 <span className="text-xs uppercase tracking-[0.14em] text-white/55">{homeName}</span>
-                                <input name="home_score" inputMode="decimal" value={home} onChange={(event) => setHome(event.target.value)} type="number" min="0" className="mt-3 w-full border-0 border-b border-white/20 bg-transparent px-0 text-5xl font-semibold text-white outline-none ring-0 focus-visible:border-[#d5a21f] focus-visible:ring-2 focus-visible:ring-[#d5a21f]" />
+                                <input name="home_score" inputMode="decimal" value={home} onChange={(event) => setHome(event.target.value)} type="number" min="0" className="mt-3 w-full border-0 border-b border-white/20 bg-transparent px-0 text-5xl font-semibold text-white outline-hidden ring-0 focus-visible:border-[#d5a21f] focus-visible:ring-2 focus-visible:ring-[#d5a21f]" />
                             </label>
                             <label className="rounded-2xl bg-white/10 p-4">
                                 <span className="text-xs uppercase tracking-[0.14em] text-white/55">{awayName}</span>
-                                <input name="away_score" inputMode="decimal" value={away} onChange={(event) => setAway(event.target.value)} type="number" min="0" className="mt-3 w-full border-0 border-b border-white/20 bg-transparent px-0 text-5xl font-semibold text-white outline-none ring-0 focus-visible:border-[#d5a21f] focus-visible:ring-2 focus-visible:ring-[#d5a21f]" />
+                                <input name="away_score" inputMode="decimal" value={away} onChange={(event) => setAway(event.target.value)} type="number" min="0" className="mt-3 w-full border-0 border-b border-white/20 bg-transparent px-0 text-5xl font-semibold text-white outline-hidden ring-0 focus-visible:border-[#d5a21f] focus-visible:ring-2 focus-visible:ring-[#d5a21f]" />
                             </label>
                         </div>
                         {isChess ? (
@@ -112,7 +112,7 @@ export default function Contest({ contest }) {
                             </label>
                         ) : null}
                     </section>
-                    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
                         <div className="flex flex-wrap gap-3">
                             <button type="button" onClick={() => send('start_contest')} className="rounded-full bg-[#0b2e4f] px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-900">Start contest</button>
                             <button type="button" onClick={() => send('record_live_score', { home: Number(home), away: Number(away), result: isChess ? chessResult : undefined, phase: 'live' })} className="rounded-full bg-[#d5a21f] px-5 py-3 text-sm font-semibold text-[#17212b] transition hover:bg-[#b98c12]">Save live score</button>

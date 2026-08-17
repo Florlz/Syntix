@@ -20,9 +20,9 @@ const DEFAULT_PREFERENCES = {
     },
 };
 
-const field = 'mt-2 block w-full rounded-lg border-border bg-surface px-3.5 py-2.5 text-sm text-foreground shadow-sm focus:border-primary focus:ring-primary';
-const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
-const secondaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-bold text-primary transition hover:border-primary hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
+const field = 'mt-2 block w-full rounded-lg border-border bg-surface px-3.5 py-2.5 text-sm text-foreground shadow-xs focus:border-primary focus:ring-primary';
+const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-xs transition hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
+const secondaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-bold text-primary transition hover:border-primary hover:bg-surface-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
 const surface = 'rounded-xl border border-border bg-surface p-5 sm:p-6';
 
 const SETTINGS_SECTIONS = [
@@ -103,7 +103,7 @@ function SettingsToggle({ id, label, detail, checked, onChange, disabled = false
             aria-checked={checked}
             disabled={disabled}
             onClick={() => onChange(!checked)}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none ${checked ? 'bg-primary' : 'bg-muted'}`}
+            className={`relative h-6 w-11 shrink-0 rounded-full transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none ${checked ? 'bg-primary' : 'bg-muted'}`}
         >
             <span aria-hidden="true" className={`absolute left-1 top-1 size-4 rounded-full bg-white transition-transform motion-reduce:transition-none ${checked ? 'translate-x-5' : ''}`} />
         </button>
@@ -137,7 +137,7 @@ function SettingsTab({ section, selectedSection, selectSection }) {
             event.preventDefault();
             selectSection(section.id);
         }}
-        className={`group inline-flex min-h-11 shrink-0 items-center gap-2 rounded-t-lg border-b-2 px-3 py-3 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none ${selected ? 'border-primary bg-primary/5 text-primary' : 'border-transparent text-muted hover:bg-surface-muted hover:text-primary'}`}
+        className={`group inline-flex min-h-11 shrink-0 items-center gap-2 rounded-t-lg border-b-2 px-3 py-3 text-sm font-bold transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none ${selected ? 'border-primary bg-primary/5 text-primary' : 'border-transparent text-muted hover:bg-surface-muted hover:text-primary'}`}
     >
         <AppIcon name={section.icon} className="size-4 shrink-0" />
         <span>{section.title}</span>
@@ -155,7 +155,7 @@ function FocusedPanel({ item, active, headingRef, children }) {
         <div className="flex flex-wrap items-start justify-between gap-3 pt-8">
             <div>
                 <p className="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-primary">{item.group}</p>
-                <h2 id={`${item.id}-heading`} ref={headingRef} tabIndex={active ? -1 : undefined} className="mt-1 font-serif text-2xl font-bold text-foreground focus-visible:outline-none">{item.heading ?? item.title}</h2>
+                <h2 id={`${item.id}-heading`} ref={headingRef} tabIndex={active ? -1 : undefined} className="mt-1 font-serif text-2xl font-bold text-foreground focus-visible:outline-hidden">{item.heading ?? item.title}</h2>
                 <p className="mt-1 max-w-2xl text-sm leading-5 text-muted">{item.summary}.</p>
             </div>
         </div>

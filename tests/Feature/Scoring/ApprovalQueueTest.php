@@ -111,6 +111,9 @@ class ApprovalQueueTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->where('scope.competition', 'Basketball')
                 ->where('scope.division', 'Men')
+                ->where('workspace.sport.id', (string) $competition->getKey())
+                ->has('workspace.divisions', 1)
+                ->where('workspace.divisions.0.id', (string) $division->getKey())
                 ->where('result_submissions.0.id', (string) $submission->getKey())
                 ->where('result_submissions.0.home.name', 'Home Five')
                 ->where('result_submissions.0.home.score', 81)

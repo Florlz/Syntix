@@ -31,8 +31,8 @@ const event = { id: '1', archived: false };
 const sport = { id: '9', name: 'Arnis' };
 const division = { id: '168', name: 'Men' };
 const departments = [
-    { id: '1', name: 'CSPC Buhi Campus', abbreviation: 'Buhi', state: 'not_started', summary: 'Roster not started' },
-    { id: '2', name: 'College of Arts and Sciences', abbreviation: 'CAS', state: 'review', summary: '0 of 8 players' },
+    { id: '1', name: 'CSPC Buhi Campus', abbreviation: 'Buhi', color: 'Red', state: 'not_started', summary: 'Roster not started' },
+    { id: '2', name: 'College of Arts and Sciences', abbreviation: 'CAS', color: 'Yellow', state: 'review', summary: '0 of 8 players' },
 ];
 const options = { roster_roles: [] };
 
@@ -80,11 +80,11 @@ test('no-entry scoped state offers one focused start action and no management se
     renderScoped(selected({ entry: null, readiness: { ready: false, blockers: [], notices: [] } }));
 
     expect(screen.getByRole('heading', { name: 'Start the Arnis Men roster' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start roster' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start team sheet' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Players' })).not.toBeInTheDocument();
     expect(screen.queryByText('Before approval')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Start roster' }));
+    await user.click(screen.getByRole('button', { name: 'Start team sheet' }));
     expect(routerPost).toHaveBeenCalledWith('/admin/events/1/divisions/168/departments/1/roster', {}, { preserveScroll: true });
 });
 
@@ -96,7 +96,7 @@ test('empty draft puts the first-player action inside the Players surface and sh
     expect(screen.getByRole('button', { name: 'Add first player' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add player' })).not.toBeInTheDocument();
     expect(screen.getAllByText('Add at least 1 active athlete before locking.')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Review roster' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Lock team sheet' })).not.toBeInTheDocument();
     expect(screen.queryByText('Student coach is optional.')).not.toBeInTheDocument();
 });
 
@@ -114,12 +114,12 @@ test('ready roster enables review and moves non-blocking notices into the dialog
     const user = userEvent.setup();
     renderScoped(selected({ readiness: { ready: true, blockers: [], notices: ['Preview draw will need regeneration.'] } }));
 
-    expect(screen.getByRole('heading', { name: 'Ready for review' })).toBeInTheDocument();
-    const review = screen.getByRole('button', { name: 'Review roster' });
+    expect(screen.getByRole('heading', { name: 'Team sheet is ready to lock' })).toBeInTheDocument();
+    const review = screen.getByRole('button', { name: 'Lock team sheet' });
     expect(review).toBeEnabled();
     expect(screen.queryByText('Preview draw will need regeneration.')).not.toBeInTheDocument();
     await user.click(review);
-    expect(screen.getByRole('dialog', { name: 'Review roster' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Lock team sheet' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Good to know' })).toBeInTheDocument();
     expect(screen.getByText('Preview draw will need regeneration.')).toBeInTheDocument();
 });
@@ -129,8 +129,8 @@ test('locked roster hides add and review actions and exposes reopen only when pe
 
     expect(screen.queryByRole('button', { name: 'Add player' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add first player' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Review roster' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reopen roster' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Lock team sheet' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reopen team sheet' })).toBeInTheDocument();
 });
 
 test('archived and published rosters remain read-only', () => {
@@ -138,7 +138,7 @@ test('archived and published rosters remain read-only', () => {
     expect(screen.queryByRole('button', { name: 'Add player' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add first player' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add coach or staff' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Review roster' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Lock team sheet' })).not.toBeInTheDocument();
     expect(screen.getByText('Archived events are read-only.')).toBeInTheDocument();
     archivedView.unmount();
 
@@ -146,8 +146,8 @@ test('archived and published rosters remain read-only', () => {
     expect(screen.queryByRole('button', { name: 'Add player' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Add first player' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add coach or staff' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Review roster' })).toBeDisabled();
-    expect(screen.getByText('This roster is read-only after the draw is published.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Lock team sheet' })).not.toBeInTheDocument();
+    expect(screen.getByText(/approved team sheet can no longer be edited/)).toBeInTheDocument();
 });
 
 test('team staff and history stay in quiet disclosures with a department-scoped add flow', async () => {
@@ -172,8 +172,16 @@ test('team staff and history stay in quiet disclosures with a department-scoped 
 test('legacy unscoped mode keeps the department chooser', () => {
     render(<Rosters event={event} sport={sport} division={division} selectedDepartment={null} workspace={{ departments, selected: null }} options={options} archived={false} />);
 
-    expect(screen.getByRole('heading', { name: 'Departments' })).toBeInTheDocument();
-    expect(screen.getByText('Departments needing work')).toBeInTheDocument();
-    expect(screen.getByText('CAS')).toBeInTheDocument();
-    expect(screen.getByText('Choose a department, then manage its team sheet.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Men' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Search teams')).toBeInTheDocument();
+    expect(screen.getByLabelText('Team status')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /CAS College of Arts and Sciences/ })).toBeInTheDocument();
+    expect(screen.getByText('Manage the teams competing in Arnis Men.')).toBeInTheDocument();
+});
+
+test('department rows keep their own visual color coding', () => {
+    render(<Rosters event={event} sport={sport} division={division} selectedDepartment={null} workspace={{ departments, selected: null }} options={options} archived={false} />);
+
+    expect(screen.getByRole('link', { name: /CSPC Buhi Campus/ })).toHaveStyle({ '--department-accent': '#C9362B' });
+    expect(screen.getByRole('link', { name: /College of Arts and Sciences/ })).toHaveStyle({ '--department-accent': '#BD8B00' });
 });

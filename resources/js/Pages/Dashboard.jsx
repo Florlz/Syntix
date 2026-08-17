@@ -4,7 +4,7 @@ import Link from '@/Components/PrefetchLink';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 
-const panel = 'rounded-2xl border border-border bg-surface shadow-sm';
+const panel = 'rounded-2xl border border-border bg-surface shadow-xs';
 
 const statusStyles = {
     good: 'bg-primary/10 text-primary',
@@ -90,7 +90,7 @@ function AtAGlance({ summary, departmentCount }) {
 }
 
 function EventMasthead({ event, events, summary, departmentCount }) {
-    return <section className="relative overflow-hidden rounded-2xl bg-sidebar px-5 py-7 text-white shadow-sm sm:px-8 sm:py-9">
+    return <section className="relative overflow-hidden rounded-2xl bg-sidebar px-5 py-7 text-white shadow-xs sm:px-8 sm:py-9">
         <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(213,162,31,0.2),transparent_58%)]" aria-hidden="true" />
         <div className="relative space-y-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -105,7 +105,7 @@ function EventMasthead({ event, events, summary, departmentCount }) {
 function WorkspaceCard({ icon, title, detail, status, tone, value, valueLabel, action, href, span = 'regular' }) {
     const spanClass = span === 'featured' ? 'lg:col-span-4 border-t-4 border-t-accent sm:p-6' : 'lg:col-span-2';
 
-    return <Link href={href} className={`${panel} group flex min-w-0 flex-col p-5 transition duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${spanClass}`}>
+    return <Link href={href} className={`${panel} group flex min-w-0 flex-col p-5 transition duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${spanClass}`}>
         <div className="flex items-start justify-between gap-4"><div className="flex min-w-0 items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground motion-reduce:transition-none"><AppIcon name={icon} className="size-5" /></span><div className="min-w-0"><h3 className="font-serif text-xl font-bold leading-tight text-foreground">{title}</h3><p className="mt-1 text-sm leading-5 text-muted">{detail}</p></div></div><StatusPill tone={tone}>{status}</StatusPill></div>
         <div className="mt-auto flex items-end justify-between gap-4 border-t border-border pt-5"><p className="min-w-0"><span className="font-mono text-3xl font-bold tabular-nums text-primary">{value}</span><span className="ml-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted">{valueLabel}</span></p><span className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-primary underline decoration-accent decoration-2 underline-offset-4">{action}<AppIcon name="arrow-right" className="size-4 no-underline" /></span></div>
     </Link>;

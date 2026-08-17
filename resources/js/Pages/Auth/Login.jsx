@@ -7,7 +7,7 @@ function BrandMark() {
     return (
         <Link
             href={route('landing')}
-            className="inline-flex items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F1C85F] focus-visible:ring-offset-4 focus-visible:ring-offset-[#0B2E4F]"
+            className="inline-flex items-center gap-3 rounded-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#F1C85F] focus-visible:ring-offset-4 focus-visible:ring-offset-[#0B2E4F]"
         >
             <span className="grid size-11 place-items-center border border-white/20 bg-white/10 p-1.5 sm:size-12">
                 <img src="/icons/icon.svg" alt="" width="40" height="40" aria-hidden="true" />
@@ -99,7 +99,7 @@ export default function Login({ status, canResetPassword }) {
                         <div className="mx-auto w-full max-w-[31rem]">
                             <Link
                                 href={route('landing')}
-                                className="inline-flex min-h-11 items-center gap-2 rounded text-sm font-semibold text-[#53636C] transition-colors hover:text-[#0B2E4F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F]"
+                                className="inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-semibold text-[#53636C] transition-colors hover:text-[#0B2E4F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F]"
                             >
                                 <span aria-hidden="true">←</span>
                                 Public Event Board
@@ -131,7 +131,7 @@ export default function Login({ status, canResetPassword }) {
                                         aria-invalid={errors.email ? 'true' : 'false'}
                                         aria-describedby={errors.email ? 'email-error' : undefined}
                                         onChange={(event) => setData('email', event.target.value)}
-                                        className="mt-2 block min-h-12 w-full rounded-lg border-[#C7CED1] bg-white px-4 text-base text-[#17212B] shadow-sm placeholder:text-[#98A2A7] focus:border-[#0B536D] focus:ring-[#0B536D] focus-visible:outline-none focus-visible:ring-2"
+                                        className="mt-2 block min-h-12 w-full rounded-lg border-[#C7CED1] bg-white px-4 text-base text-[#17212B] shadow-xs placeholder:text-[#98A2A7] focus:border-[#0B536D] focus:ring-[#0B536D] focus-visible:outline-hidden focus-visible:ring-2"
                                         placeholder="staff@cspc.edu.ph"
                                         required
                                     />
@@ -144,7 +144,7 @@ export default function Login({ status, canResetPassword }) {
                                         {canResetPassword ? (
                                             <Link
                                                 href={route('password.request')}
-                                                className="rounded text-sm font-semibold text-[#0B536D] underline decoration-[#D5A21F] decoration-2 underline-offset-4 transition-colors hover:text-[#0B2E4F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B536D]"
+                                                className="rounded-sm text-sm font-semibold text-[#0B536D] underline decoration-[#D5A21F] decoration-2 underline-offset-4 transition-colors hover:text-[#0B2E4F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B536D]"
                                             >
                                                 Forgot password?
                                             </Link>
@@ -160,14 +160,14 @@ export default function Login({ status, canResetPassword }) {
                                             aria-invalid={errors.password ? 'true' : 'false'}
                                             aria-describedby={errors.password ? 'password-error' : undefined}
                                             onChange={(event) => setData('password', event.target.value)}
-                                            className="block min-h-12 w-full rounded-lg border-[#C7CED1] bg-white px-4 pr-20 text-base text-[#17212B] shadow-sm focus:border-[#0B536D] focus:ring-[#0B536D] focus-visible:outline-none focus-visible:ring-2"
+                                            className="block min-h-12 w-full rounded-lg border-[#C7CED1] bg-white px-4 pr-20 text-base text-[#17212B] shadow-xs focus:border-[#0B536D] focus:ring-[#0B536D] focus-visible:outline-hidden focus-visible:ring-2"
                                             required
                                         />
                                         <button
                                             type="button"
                                             onClick={() => setShowPassword((visible) => !visible)}
                                             aria-pressed={showPassword}
-                                            className="absolute inset-y-1 right-1 min-w-16 rounded-md px-3 text-sm font-semibold text-[#53636C] transition-colors hover:bg-[#EEF1EF] hover:text-[#0B2E4F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B536D]"
+                                            className="absolute inset-y-1 right-1 min-w-16 rounded-md px-3 text-sm font-semibold text-[#53636C] transition-colors hover:bg-[#EEF1EF] hover:text-[#0B2E4F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B536D]"
                                         >
                                             {showPassword ? 'Hide' : 'Show'}
                                         </button>
@@ -181,7 +181,7 @@ export default function Login({ status, canResetPassword }) {
                                         name="remember"
                                         checked={data.remember}
                                         onChange={(event) => setData('remember', event.target.checked)}
-                                        className="size-5 rounded border-[#AEB8BC] text-[#0B536D] focus-visible:ring-2 focus-visible:ring-[#0B536D] focus-visible:ring-offset-2"
+                                        className="size-5 rounded-sm border-[#AEB8BC] text-[#0B536D] focus-visible:ring-2 focus-visible:ring-[#0B536D] focus-visible:ring-offset-2"
                                     />
                                     Keep me signed in on this device
                                 </label>
@@ -189,7 +189,7 @@ export default function Login({ status, canResetPassword }) {
                                 <button
                                     type="submit"
                                     disabled={processing}
-                                    className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-[#0B2E4F] px-5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(11,46,79,0.14)] transition-colors hover:bg-[#164565] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0B2E4F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F7F5EF] disabled:cursor-wait disabled:opacity-65"
+                                    className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-[#0B2E4F] px-5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(11,46,79,0.14)] transition-colors hover:bg-[#164565] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#0B2E4F] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F7F5EF] disabled:cursor-wait disabled:opacity-65"
                                 >
                                     {processing ? 'Signing in…' : 'Sign In'}
                                 </button>

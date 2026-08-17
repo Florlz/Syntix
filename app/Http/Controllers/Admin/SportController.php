@@ -36,6 +36,7 @@ class SportController extends Controller
             'divisions.entries.rosterMembers.participant',
             'divisions.entries.eligibilityRecords',
             'divisions.contests.resultSubmissions',
+            'divisions.placements',
             'divisions.tournaments',
             'divisions.schedules.currentPublication',
             'divisions.schedules.venue',
@@ -294,6 +295,15 @@ class SportController extends Controller
         $entries = $division->entries;
         $schedule = $division->schedules->sortBy('starts_at')->first(fn ($item): bool => $item->starts_at?->isFuture() ?? false);
         $tournament = $division->tournaments->sortByDesc('id')->first(fn ($item): bool => in_array($item->tournamentState()->value, ['preview', 'published', 'uncontested'], true));
+        $submissions = $division->contests->flatMap->resultSubmissions;
+        $placements = $division->placements;
+        $pendingResults = $submissions->filter(fn ($item): bool => $item->submissionState()->value === 'submitted')->count()
+            + $placements->filter(fn ($item): bool => $item->placementState()->value === 'submitted')->count();
+        $approvedResults = $submissions->filter(fn ($item): bool => $item->submissionState()->value === 'approved')->count()
+            + $placements->filter(fn ($item): bool => $item->placementState()->value === 'approved')->count();
+        $resultsState = $pendingResults > 0
+            ? 'pending_review'
+            : ($approvedResults > 0 || $division->placements->isNotEmpty() ? 'complete' : ($division->contests->isNotEmpty() ? 'in_progress' : 'not_started'));
 
         return [
             'id' => (string) $division->getKey(),
@@ -309,6 +319,7 @@ class SportController extends Controller
             'blockers' => $rule?->readinessErrors() ?? ['No rule version is configured.'],
             'bracket_state' => $tournament?->tournamentState()->value ?? 'not_generated',
             'schedule_state' => $schedule === null ? 'not_scheduled' : (($schedule->currentPublication !== null && ! $schedule->hasUnpublishedChanges()) ? 'published' : 'draft'),
+            'results_state' => $resultsState,
             'next_schedule' => $schedule === null ? null : ['title' => $schedule->title, 'starts_at' => $schedule->starts_at?->toIso8601String(), 'venue' => $schedule->venue?->name],
         ];
     }

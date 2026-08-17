@@ -13,7 +13,7 @@ export default function Create() {
         <AuthenticatedLayout header={<h1 className="text-2xl font-semibold tracking-tight text-slate-900">Create event shell</h1>}>
             <Head title="Create event" />
             <main className="min-h-[calc(100vh-9rem)] bg-[#f4f6f8] px-4 py-8 sm:px-6 lg:px-10">
-                <form onSubmit={submit} className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <form onSubmit={submit} className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">Platform authority</p>
                     <h2 className="mt-2 text-3xl font-semibold tracking-tight">Start a SIKLAB edition</h2>
                     <p className="mt-3 text-sm leading-6 text-slate-500">The sole Global Admin manages every edition. Judge and Tabulator access is assigned after the Event is configured.</p>

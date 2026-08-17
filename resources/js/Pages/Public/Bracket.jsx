@@ -5,7 +5,7 @@ function Node({ node }) {
     const official = node.official?.state === 'approved';
 
     return (
-        <article className="w-full border-l-4 border-slate-300 bg-white p-4 shadow-sm sm:min-w-64 sm:max-w-72">
+        <article className="w-full border-l-4 border-slate-300 bg-white p-4 shadow-xs sm:min-w-64 sm:max-w-72">
             <div className="flex items-center justify-between gap-3"><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{node.key} · {node.type.replaceAll('_', ' ')}</p><span className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] ${official ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>{official ? 'Official' : 'Pending'}</span></div>
             <p className="mt-2 text-sm font-semibold text-slate-800">{node.contest ?? (node.type === 'bye' ? 'BYE advancement' : 'Bracket position')}</p>
             <div className="mt-3 divide-y divide-slate-100 border-y border-slate-100">{node.slots.map((slot) => <div key={slot.number} className="flex items-center gap-3 py-2 text-sm"><span className="grid size-6 shrink-0 place-items-center rounded-full bg-[#0b2e4f] text-[10px] font-bold text-white">{slot.number}</span><span className="font-medium text-slate-700">{slot.label}</span></div>)}</div>
