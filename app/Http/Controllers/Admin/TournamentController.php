@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\BracketVersionState;
 use App\Enums\CompetitionFormat;
-use App\Enums\EntryStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Discipline;
 use App\Models\Division;
 use App\Models\Entry;
 use App\Models\Event;
 use App\Services\TournamentScope;
+use App\Services\SportWorkspaceReadModel;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,6 +18,8 @@ use Inertia\Response;
 
 final class TournamentController extends Controller
 {
+    public function __construct(private readonly SportWorkspaceReadModel $workspaceReadModel) {}
+
     public function show(Request $request, Event $event, Division $division): Response
     {
         return $this->workspace($request, $event, $division, null);
@@ -127,6 +129,9 @@ final class TournamentController extends Controller
             && $tournament !== null
             && $tournament->tournamentState()->value === 'preview'
             && $bracket?->versionState() === BracketVersionState::Preview;
+        $workspace = $this->workspaceReadModel->forSport($division->competition);
+        $workspaceDivision = collect($workspace['divisions'])->firstWhere('id', (string) $division->getKey())
+            ?? $this->workspaceReadModel->division($division);
 
         return Inertia::render('Admin/Sports/Tournament', [
             'event' => [
@@ -135,24 +140,13 @@ final class TournamentController extends Controller
                 'slug' => $event->slug,
                 'archived' => $event->isArchived(),
             ],
-            'sport' => [
-                'id' => (string) $division->competition->getKey(),
-                'name' => $division->competition->name,
-                'slug' => $division->competition->slug,
-            ],
+            'sport' => $workspace['sport'],
             'sports' => $this->sportRail($event),
-            'division' => [
-                'id' => (string) $division->getKey(),
-                'name' => $division->name,
+            'division' => array_merge($workspaceDivision, [
                 'slug' => $division->slug,
-                'format' => $format,
-                'participant_mode' => $rule?->participantMode()?->value,
                 'scoring_family' => $rule?->scoringFamily()?->value,
-                'rule_state' => $rule?->lifecycleState()?->value ?? 'missing',
                 'rule_source' => $rule?->source_reference,
-                'entry_count' => $division->entries->count(),
-                'locked_entry_count' => $division->entries->where('status', EntryStatus::Locked)->count(),
-            ],
+            ]),
             'discipline' => $discipline === null ? null : [
                 'id' => (string) $discipline->getKey(),
                 'name' => $discipline->name,

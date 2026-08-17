@@ -11,6 +11,7 @@ use App\Models\Division;
 use App\Models\DivisionPlacement;
 use App\Models\Event;
 use App\Models\ResultSubmission;
+use App\Services\SportWorkspaceReadModel;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ use Inertia\Response;
 
 class ApprovalController extends Controller
 {
-    public function index(Request $request, Event $event): Response
+    public function index(Request $request, Event $event, SportWorkspaceReadModel $workspaceReadModel): Response
     {
         if (! $request->user()->hasAdminAccess($event)) {
             throw new AuthorizationException('Only the active Global Admin can review approvals.');
@@ -49,9 +50,7 @@ class ApprovalController extends Controller
         }
 
         $workspaceCompetition = $competition ?? $division?->competition;
-        $workspaceCompetition?->loadMissing([
-            'divisions' => fn ($query) => $query->where('is_active', true)->withCount('entries'),
-        ]);
+        $workspace = $workspaceCompetition === null ? null : $workspaceReadModel->forSport($workspaceCompetition);
 
         $submissions = ResultSubmission::query()
             ->where('state', 'submitted')
@@ -102,22 +101,7 @@ class ApprovalController extends Controller
                 'competition_id' => $competition === null ? ($division?->competition?->getKey() === null ? null : (string) $division->competition->getKey()) : (string) $competition->getKey(),
                 'division_id' => $division === null ? null : (string) $division->getKey(),
             ],
-            'workspace' => $workspaceCompetition === null ? null : [
-                'sport' => [
-                    'id' => (string) $workspaceCompetition->getKey(),
-                    'name' => $workspaceCompetition->name,
-                    'slug' => $workspaceCompetition->slug,
-                    'active' => (bool) $workspaceCompetition->is_active,
-                    'division_count' => $workspaceCompetition->divisions->count(),
-                    'entry_count' => $workspaceCompetition->divisions->sum('entries_count'),
-                ],
-                'divisions' => $workspaceCompetition->divisions->map(fn (Division $item): array => [
-                    'id' => (string) $item->getKey(),
-                    'name' => $item->name,
-                    'active' => (bool) $item->is_active,
-                    'entry_count' => (int) $item->entries_count,
-                ])->values()->all(),
-            ],
+            'workspace' => $workspace,
         ]);
     }
 

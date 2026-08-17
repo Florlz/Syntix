@@ -71,6 +71,10 @@ class PublicProgrammeTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('scope.competition', 'Basketball')
+                ->where('competitions.0.division_count', 1)
+                ->where('competitions.0.entry_count', 0)
+                ->where('competitions.0.player_count', 0)
+                ->where('competitions.0.divisions.0.results_state', 'not_started')
                 ->has('schedules', 1)
                 ->where('schedules.0.title', 'Basketball court'));
 

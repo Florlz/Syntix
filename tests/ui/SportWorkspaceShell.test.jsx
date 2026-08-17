@@ -43,6 +43,7 @@ test('keeps the selected division inside one sport workflow shell', () => {
     expect(screen.getByRole('link', { name: 'Sports Directory' })).toHaveAttribute('href', '/admin/events/1/sports');
     expect(screen.getByRole('link', { name: 'Men' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Women' })).toHaveAttribute('href', '/admin/events/1/sports/20?tab=rosters&division=31');
+    expect(screen.getByRole('link', { name: 'All divisions' })).toHaveAttribute('href', '/admin/events/1/sports/20?tab=rosters');
 
     const workflow = screen.getByRole('navigation', { name: 'Sport workflow' });
     expect(workflow).toHaveTextContent('Overview');

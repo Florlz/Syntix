@@ -199,6 +199,9 @@ final class RosterReadModel
         $published = $entry?->division?->tournaments?->contains(
             fn ($tournament): bool => $tournament->tournamentState() === TournamentState::Published,
         ) ?? false;
+        $eventIsMutable = ! $event->isArchived();
+        $rosterIsMutable = ! $locked && ! $published;
+        $membershipIsActive = $member !== null && (bool) $member->is_active;
         return [
             'id' => (string) $participant->getKey(),
             'display_name' => $participant->display_name,
@@ -216,11 +219,11 @@ final class RosterReadModel
             ],
             'exception' => $entry === null ? null : $participant->participationExceptions->where('entry_id', $entry->getKey())->sortByDesc('recorded_at')->first()?->only(['type', 'reason', 'recorded_at']),
             'capabilities' => [
-                'can_manage' => ! $event->isArchived(),
-                'can_edit_profile' => ! $event->isArchived(),
-                'can_edit_membership' => ! $event->isArchived() && ! $locked && ! $published && ! $blocked,
-                'can_restore_membership' => ! $event->isArchived() && ! $locked && ! $published && ! $blocked && $member !== null && ! $member->is_active,
-                'can_record_exception' => ! $event->isArchived() && $isPlayer,
+                'can_manage' => $eventIsMutable,
+                'can_edit_profile' => $eventIsMutable,
+                'can_edit_membership' => $eventIsMutable && $rosterIsMutable && ! $blocked,
+                'can_restore_membership' => $eventIsMutable && $rosterIsMutable && ! $blocked && $member !== null && ! $membershipIsActive,
+                'can_record_exception' => $eventIsMutable && ! $blocked && $isPlayer && $membershipIsActive && ($locked || $published),
             ],
         ];
     }

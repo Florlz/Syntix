@@ -16,6 +16,7 @@ use App\Models\Schedule;
 use App\Models\SchedulePublication;
 use App\Models\Venue;
 use App\Services\AuditLogger;
+use App\Services\SportWorkspaceReadModel;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ use Throwable;
 
 class PublicProgrammeController extends Controller
 {
-    public function index(Request $request, Event $event): Response
+    public function index(Request $request, Event $event, SportWorkspaceReadModel $workspaceReadModel): Response
     {
         $this->assertAdmin($request, $event);
         $filters = $request->validate([
@@ -81,19 +82,15 @@ class PublicProgrammeController extends Controller
                 'state' => $event->eventState()->value,
                 'archived' => $event->isArchived(),
             ],
-            'competitions' => $event->competitions->map(fn (Competition $competition) => [
-                'id' => (string) $competition->getKey(),
-                'name' => $competition->name,
-                'division_count' => $competition->divisions->count(),
-                'entry_count' => $competition->divisions->sum('entries_count'),
-                'divisions' => $competition->divisions->map(fn (Division $division) => [
-                    'id' => (string) $division->getKey(),
-                    'name' => $division->name,
-                    'entry_count' => (int) $division->entries_count,
-                ])->values()->all(),
-                'draft_cover' => $this->adminCover($event, $competition->draftCoverImage),
-                'published_cover' => $this->adminCover($event, $competition->publishedCoverImage),
-            ])->values()->all(),
+            'competitions' => $event->competitions->map(function (Competition $competition) use ($event, $workspaceReadModel): array {
+                $workspace = $workspaceReadModel->forSport($competition);
+
+                return array_merge($workspace['sport'], [
+                    'divisions' => $workspace['divisions'],
+                    'draft_cover' => $this->adminCover($event, $competition->draftCoverImage),
+                    'published_cover' => $this->adminCover($event, $competition->publishedCoverImage),
+                ]);
+            })->values()->all(),
             'venues' => $event->venues->map(fn (Venue $venue) => [
                 'id' => (string) $venue->getKey(),
                 'name' => $venue->name,

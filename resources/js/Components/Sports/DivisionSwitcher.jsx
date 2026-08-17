@@ -3,10 +3,12 @@ import Link from '@/Components/PrefetchLink';
 import { sportWorkspaceDivisionUrl, sportWorkspaceUrl } from '@/Support/sportWorkspaceRoutes';
 
 export default function DivisionSwitcher({ event, sport, divisions = [], division = null, activeSection = 'overview' }) {
+    const allDivisionsSection = activeSection === 'bracket' ? 'overview' : activeSection;
+
     return <nav aria-label="Divisions" className="scroll-fade-x -mx-1 overflow-x-auto px-1 py-1">
         <div className="flex min-w-max items-center gap-2">
             <Link
-                href={sportWorkspaceUrl(event.id, sport.id)}
+                href={sportWorkspaceUrl(event.id, sport.id, { section: allDivisionsSection })}
                 className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-sm font-bold transition ${!division ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-surface text-muted hover:border-primary hover:text-primary'}`}
                 aria-current={!division ? 'page' : undefined}
             >All divisions</Link>

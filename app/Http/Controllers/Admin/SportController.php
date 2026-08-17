@@ -13,6 +13,7 @@ use App\Models\Event;
 use App\Models\EventDelegation;
 use App\Services\RosterReadModel;
 use App\Services\AuditLogger;
+use App\Services\SportWorkspaceReadModel;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +25,13 @@ use Inertia\Response;
 
 class SportController extends Controller
 {
-    public function show(Request $request, Event $event, Competition $sport, RosterReadModel $rosters): Response
+    public function show(
+        Request $request,
+        Event $event,
+        Competition $sport,
+        RosterReadModel $rosters,
+        SportWorkspaceReadModel $workspaceReadModel,
+    ): Response
     {
         $this->assertAdmin($request, $event);
         $this->assertContained($event, $sport);
@@ -65,11 +72,25 @@ class SportController extends Controller
         $rosterWorkspace = $tab === 'rosters' && $selectedDivision !== null
             ? $rosters->forDivision($event, $sport, $selectedDivision, $selectedDepartment)
             : null;
+        $workspace = $workspaceReadModel->forSport($sport);
+        $draft = $sport->draftCoverImage;
+        $published = $sport->publishedCoverImage;
+        $cover = $draft ?? $published;
 
         return Inertia::render('Admin/Sports/Workspace', [
             'event' => ['id' => (string) $event->getKey(), 'name' => $event->name, 'archived' => $event->isArchived()],
-            'sport' => $this->sportWorkspacePayload($event, $sport),
-            'divisions' => $sport->divisions->map(fn (Division $division): array => $this->divisionWorkspacePayload($division))->values(),
+            'sport' => array_merge($workspace['sport'], [
+                'deactivation_reason' => $sport->deactivation_reason,
+                'cover' => $cover === null ? null : [
+                    'url' => $draft !== null
+                        ? route('admin.cover-images.preview', [$event, $draft])
+                        : ($published?->public_path === null ? null : \Illuminate\Support\Facades\Storage::disk('public')->url($published->public_path)),
+                    'alt' => $cover->alt_text,
+                ],
+                'draft_cover' => $this->coverPayload($event, $draft),
+                'published_cover' => $this->coverPayload($event, $published),
+            ]),
+            'divisions' => $workspace['divisions'],
             'selected_division' => $selectedDivision === null ? null : (string) $selectedDivision->getKey(),
             'active_tab' => $tab,
             'selected_department' => $selectedDepartment === null ? null : (string) $selectedDepartment->getKey(),
@@ -260,67 +281,4 @@ class SportController extends Controller
         ], $cases);
     }
 
-    /** @return array<string, mixed> */
-    private function sportWorkspacePayload(Event $event, Competition $sport): array
-    {
-        $entries = $sport->divisions->flatMap->entries;
-        $draft = $sport->draftCoverImage;
-        $published = $sport->publishedCoverImage;
-        $cover = $draft ?? $published;
-
-        return [
-            'id' => (string) $sport->getKey(),
-            'name' => $sport->name,
-            'slug' => $sport->slug,
-            'active' => (bool) $sport->is_active,
-            'deactivation_reason' => $sport->deactivation_reason,
-            'cover' => $cover === null ? null : [
-                'url' => $draft !== null
-                    ? route('admin.cover-images.preview', [$event, $draft])
-                    : ($published?->public_path === null ? null : \Illuminate\Support\Facades\Storage::disk('public')->url($published->public_path)),
-                'alt' => $cover->alt_text,
-            ],
-            'draft_cover' => $this->coverPayload($event, $draft),
-            'published_cover' => $this->coverPayload($event, $published),
-            'division_count' => $sport->divisions->where('is_active', true)->count(),
-            'entry_count' => $entries->count(),
-            'player_count' => $entries->flatMap->rosterMembers->where('is_active', true)->pluck('participant_id')->unique()->count(),
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private function divisionWorkspacePayload(Division $division): array
-    {
-        $rule = $division->governingRuleVersion ?? $division->ruleVersions()->latest('version')->first();
-        $entries = $division->entries;
-        $schedule = $division->schedules->sortBy('starts_at')->first(fn ($item): bool => $item->starts_at?->isFuture() ?? false);
-        $tournament = $division->tournaments->sortByDesc('id')->first(fn ($item): bool => in_array($item->tournamentState()->value, ['preview', 'published', 'uncontested'], true));
-        $submissions = $division->contests->flatMap->resultSubmissions;
-        $placements = $division->placements;
-        $pendingResults = $submissions->filter(fn ($item): bool => $item->submissionState()->value === 'submitted')->count()
-            + $placements->filter(fn ($item): bool => $item->placementState()->value === 'submitted')->count();
-        $approvedResults = $submissions->filter(fn ($item): bool => $item->submissionState()->value === 'approved')->count()
-            + $placements->filter(fn ($item): bool => $item->placementState()->value === 'approved')->count();
-        $resultsState = $pendingResults > 0
-            ? 'pending_review'
-            : ($approvedResults > 0 || $division->placements->isNotEmpty() ? 'complete' : ($division->contests->isNotEmpty() ? 'in_progress' : 'not_started'));
-
-        return [
-            'id' => (string) $division->getKey(),
-            'name' => $division->name,
-            'active' => (bool) $division->is_active,
-            'entry_count' => $entries->count(),
-            'locked_entry_count' => $entries->filter(fn ($entry): bool => $entry->entryStatus() === EntryStatus::Locked)->count(),
-            'player_count' => $entries->flatMap->rosterMembers->where('is_active', true)->pluck('participant_id')->unique()->count(),
-            'unlocked_entry_count' => $entries->filter(fn ($entry): bool => $entry->entryStatus() !== EntryStatus::Locked)->count(),
-            'format' => $rule?->format()?->value,
-            'participant_mode' => $rule?->participantMode()?->value,
-            'rule_state' => $rule?->lifecycleState()->value ?? 'missing',
-            'blockers' => $rule?->readinessErrors() ?? ['No rule version is configured.'],
-            'bracket_state' => $tournament?->tournamentState()->value ?? 'not_generated',
-            'schedule_state' => $schedule === null ? 'not_scheduled' : (($schedule->currentPublication !== null && ! $schedule->hasUnpublishedChanges()) ? 'published' : 'draft'),
-            'results_state' => $resultsState,
-            'next_schedule' => $schedule === null ? null : ['title' => $schedule->title, 'starts_at' => $schedule->starts_at?->toIso8601String(), 'venue' => $schedule->venue?->name],
-        ];
-    }
 }

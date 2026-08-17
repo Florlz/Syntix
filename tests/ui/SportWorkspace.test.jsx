@@ -82,6 +82,25 @@ test('focused roster editor keeps the existing editor and links back to Teams & 
     expect(screen.getByRole('navigation', { name: 'Sport workflow' })).toBeInTheDocument();
 });
 
+test('pending results need review and remain the next incomplete workflow step', () => {
+    const pendingDivision = {
+        ...divisions[0],
+        locked_entry_count: 4,
+        bracket_state: 'published',
+        schedule_state: 'published',
+        results_state: 'pending_review',
+    };
+
+    renderWorkspace({ divisions: [pendingDivision], selected_division: pendingDivision.id });
+
+    expect(screen.getByText('Needs review')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Review submitted results/ })).toHaveAttribute(
+        'href',
+        '/admin/events/1/approvals?competition=20&division=30',
+    );
+    expect(screen.queryByRole('link', { name: /Division is ready/ })).not.toBeInTheDocument();
+});
+
 test('workspaceUrl omits legacy tabs for normal hub links', () => {
     expect(workspaceUrl('1', '20')).toBe('/admin/events/1/sports/20');
     expect(workspaceUrl('1', '20', { division: '30' })).toBe('/admin/events/1/sports/20?division=30');

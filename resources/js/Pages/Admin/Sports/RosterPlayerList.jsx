@@ -33,6 +33,8 @@ export default function RosterPlayerList({
             {members.map((participant) => {
                 const role = participant.membership?.role;
                 const id = String(participant.id);
+                const canOpen = Boolean(onManage) && participant.capabilities?.can_manage !== false;
+                const actionLabel = participant.capabilities?.can_edit_membership === true ? 'Manage' : 'View status';
                 return <div key={id} className={row}>
                     {selectable ? <input
                         aria-label={`Select ${participant.display_name}`}
@@ -49,7 +51,7 @@ export default function RosterPlayerList({
                             {roleLabel(role)}{participant.exception ? ` / ${roleLabel(participant.exception.type)}` : ''}
                         </span>
                     </span>
-                    {onManage && !disabled ? <button type="button" onClick={() => onManage(participant)} className="text-xs font-bold text-primary underline underline-offset-4">Manage</button> : null}
+                    {canOpen ? <button type="button" onClick={() => onManage(participant)} className="text-xs font-bold text-primary underline underline-offset-4">{actionLabel}</button> : null}
                 </div>;
             })}
             {members.length === 0 ? <div className="border-t border-border px-5 py-6"><p className="text-sm text-muted">{emptyMessage}</p>{emptyAction ? <div className="mt-4">{emptyAction}</div> : null}</div> : null}

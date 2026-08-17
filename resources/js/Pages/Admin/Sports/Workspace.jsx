@@ -21,6 +21,37 @@ const legacySection = {
     results: 'results',
 };
 
+const resultPresentation = {
+    not_started: {
+        label: 'Not started',
+        tone: 'waiting',
+        ready: false,
+        nextLabel: 'Start recording results',
+        nextDetail: 'Record the first competition result when play begins.',
+    },
+    in_progress: {
+        label: 'In progress',
+        tone: 'progress',
+        ready: false,
+        nextLabel: 'Complete competition results',
+        nextDetail: 'Finish the remaining results and prepare the final placement for approval.',
+    },
+    pending_review: {
+        label: 'Needs review',
+        tone: 'attention',
+        ready: false,
+        nextLabel: 'Review submitted results',
+        nextDetail: 'Review the submitted scores or final placement before closing the division.',
+    },
+    complete: {
+        label: 'Complete',
+        tone: 'ready',
+        ready: true,
+        nextLabel: 'Division is complete',
+        nextDetail: 'The approved final placement completes this division workflow.',
+    },
+};
+
 /**
  * Backwards-compatible helper for existing consumers while the visible
  * navigation uses the shared sport workspace route builder.
@@ -63,10 +94,11 @@ function DivisionOverview({ event, sport, division }) {
     const teamsDetail = division.entry_count ? `${division.locked_entry_count || 0} of ${division.entry_count} team sheets ready` : 'No team sheets created yet';
     const bracketReady = !['not_generated', 'missing'].includes(division.bracket_state);
     const scheduleReady = !['not_scheduled', 'missing'].includes(division.schedule_state);
-    const resultsReady = Boolean(division.results_state && division.results_state !== 'not_started');
+    const results = resultPresentation[division.results_state] || resultPresentation.not_started;
+    const resultsReady = results.ready;
     const nextSection = !teamsReady ? 'teams' : !bracketReady ? 'bracket' : !scheduleReady ? 'schedule' : !resultsReady ? 'results' : 'overview';
-    const nextLabel = !teamsReady ? 'Complete team sheets' : !bracketReady ? 'Prepare the bracket' : !scheduleReady ? 'Set the schedule' : !resultsReady ? 'Review results' : 'Division is ready';
-    const nextDetail = !teamsReady ? 'Prepare competition rosters before generating the official draw.' : !bracketReady ? 'Generate the official draw once all team sheets are ready.' : !scheduleReady ? 'Set game times and venues for the official bracket.' : !resultsReady ? 'Review submitted scores and final standings.' : 'All of the main competition setup steps are ready to review.';
+    const nextLabel = !teamsReady ? 'Complete team sheets' : !bracketReady ? 'Prepare the bracket' : !scheduleReady ? 'Set the schedule' : results.nextLabel;
+    const nextDetail = !teamsReady ? 'Prepare competition rosters before generating the official draw.' : !bracketReady ? 'Generate the official draw once all team sheets are ready.' : !scheduleReady ? 'Set game times and venues for the official bracket.' : results.nextDetail;
 
     return <div className="flex flex-col gap-5">
         <section className={`${panel} p-5 sm:p-7`} aria-labelledby="division-overview-title">
@@ -75,7 +107,7 @@ function DivisionOverview({ event, sport, division }) {
                 <ReadinessRow event={event} sport={sport} division={division} section="teams" label="Teams & Rosters" detail={teamsDetail} state={teamsReady ? 'ready' : 'attention'} actionLabel="Manage rosters" />
                 <ReadinessRow event={event} sport={sport} division={division} section="bracket" label="Bracket" detail={humanize(division.bracket_state)} state={bracketReady ? 'ready' : 'attention'} actionLabel="Open bracket" />
                 <ReadinessRow event={event} sport={sport} division={division} section="schedule" label="Schedule" detail={humanize(division.schedule_state)} state={scheduleReady ? 'ready' : 'attention'} actionLabel="Open schedule" />
-                <ReadinessRow event={event} sport={sport} division={division} section="results" label="Results" detail={humanize(division.results_state, 'Not started')} state={resultsReady ? 'ready' : 'attention'} actionLabel="Open results" />
+                <ReadinessRow event={event} sport={sport} division={division} section="results" label="Results" detail={results.label} state={resultsReady ? 'ready' : 'attention'} actionLabel="Open results" />
             </div></div>
         </section>
         <WorkflowNotice title="Next step" tone={nextSection === 'overview' ? 'success' : 'attention'} action={<Link href={sportWorkspaceUrl(event.id, sport.id, { section: nextSection, division: division.id })} className={primary}>{nextLabel}<AppIcon name="arrow-right" className="size-4" /></Link>}>

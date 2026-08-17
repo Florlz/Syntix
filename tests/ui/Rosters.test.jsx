@@ -4,21 +4,25 @@ import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import Rosters from '../../resources/js/Pages/Admin/Sports/Rosters';
 
-const { routerPost } = vi.hoisted(() => ({ routerPost: vi.fn() }));
+const { routerPost, formPutCalls } = vi.hoisted(() => ({ routerPost: vi.fn(), formPutCalls: [] }));
 
 vi.mock('@inertiajs/react', () => ({
     router: { post: routerPost },
     useForm: (initial) => {
         const form = {
             data: initial,
+            transformedData: null,
             processing: false,
             errors: {},
             setData: vi.fn(),
             clearErrors: vi.fn(),
-            transform: vi.fn(() => form),
+            transform: vi.fn((callback) => {
+                form.transformedData = callback(form.data);
+                return form;
+            }),
             patch: vi.fn(),
             post: vi.fn(),
-            put: vi.fn(),
+            put: vi.fn((url, options) => formPutCalls.push({ url, options, data: form.transformedData ?? form.data })),
         };
         return form;
     },
@@ -65,6 +69,7 @@ function renderScoped(selectedRoster, props = {}) {
 
 beforeEach(() => {
     routerPost.mockReset();
+    formPutCalls.length = 0;
     globalThis.route = (name, params) => {
         if (name === 'admin.sports.show') return `/admin/events/${params[0]}/sports/${params[1]}`;
         if (name === 'admin.department-rosters.store') return `/admin/events/${params[0]}/divisions/${params[1]}/departments/${params[2]}/roster`;
@@ -131,6 +136,59 @@ test('locked roster hides add and review actions and exposes reopen only when pe
     expect(screen.queryByRole('button', { name: 'Add first player' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Lock team sheet' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Reopen team sheet' })).toBeInTheDocument();
+});
+
+test('locked player remains available for status review and participation exceptions', async () => {
+    const user = userEvent.setup();
+    const participant = {
+        id: '50',
+        display_name: 'Locked Athlete',
+        membership: { role: 'student_athlete', is_active: true, notes: 'Approved player' },
+        capabilities: {
+            can_manage: true,
+            can_edit_profile: true,
+            can_edit_membership: false,
+            can_restore_membership: false,
+            can_record_exception: true,
+        },
+    };
+    renderScoped(selected({
+        entry: {
+            ...entry,
+            status: 'locked',
+            approval_revision: 2,
+            capabilities: { ...entry.capabilities, can_add_players: false, can_lock: false, can_reopen: true },
+        },
+        participants: [participant],
+        counts: { active_players: 1 },
+        readiness: { ready: true, blockers: [], notices: [] },
+    }));
+
+    const viewStatus = screen.getByRole('button', { name: 'View status' });
+    await user.click(viewStatus);
+
+    expect(screen.getByRole('dialog', { name: 'Manage Locked Athlete' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Display name')).toBeEnabled();
+    expect(screen.getByLabelText('Role')).toBeDisabled();
+    expect(screen.getByLabelText('Notes')).toBeDisabled();
+    expect(screen.getByLabelText('Active and cleared to compete')).toBeDisabled();
+    expect(screen.getByText('Participation exception')).toBeInTheDocument();
+    expect(screen.getByLabelText('Exception type')).toBeInTheDocument();
+    expect(screen.getByLabelText('Required reason')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Record exception' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(formPutCalls.at(-1).data).toEqual({
+        profile: {
+            display_name: 'Locked Athlete',
+            given_name: '',
+            family_name: '',
+            student_number: '',
+            email: '',
+            phone: '',
+            private_notes: '',
+        },
+    });
 });
 
 test('archived and published rosters remain read-only', () => {

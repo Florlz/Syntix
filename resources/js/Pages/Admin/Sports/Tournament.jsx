@@ -20,7 +20,15 @@ function friendlyBlocker(value) {
     if (/Lock every assigned discipline Entry/i.test(text)) return 'Complete and lock every team assignment before generating this discipline draw.';
     if (/rule version is configured/i.test(text)) return 'Competition format and roster rules still need to be configured.';
     if (/archived/i.test(text)) return 'This event is archived and the bracket is read-only.';
-    return text.replaceAll('Entry', 'team').replaceAll('Entries', 'teams');
+    return text.replaceAll('Entries', 'teams').replaceAll('Entry', 'team');
+}
+function blockerKind(value) {
+    const text = String(value);
+    if (/archived/i.test(text)) return 'archived';
+    if (/rule version|competition format|rules/i.test(text)) return 'configuration';
+    if (/discipline/i.test(text)) return 'discipline';
+    if (/entry|entries|team sheet|roster/i.test(text)) return 'roster';
+    return 'general';
 }
 
 function MatchCard({ node, nodeRef }) {
@@ -87,6 +95,33 @@ function DisciplineEntryEditor({ event, discipline, entry }) {
     return <div className="rounded-lg border border-border bg-surface-muted p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold text-foreground">{entry.delegation?.abbreviation ?? entry.delegation?.name ?? entry.name}</p><p className="text-xs text-muted">Parent team: {entry.status} · Discipline assignment: {entry.discipline_entry?.state ?? 'not assigned'}</p></div><div className="flex gap-2"><button type="button" onClick={() => save('draft')} disabled={form.processing} className={quiet}>Save draft</button><button type="button" onClick={() => save('locked')} disabled={form.processing || !selected.length} className={primary}>Lock assignment</button></div></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{entry.participants.map((participant) => <label key={participant.id} className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${selected.includes(participant.id) ? 'border-primary bg-primary/5' : 'border-border bg-surface'}`}><input type="checkbox" checked={selected.includes(participant.id)} disabled={!participant.active || form.processing} onChange={() => setSelected((current) => current.includes(participant.id) ? current.filter((id) => id !== participant.id) : [...current, participant.id])} /><span className="min-w-0 flex-1 truncate">{participant.name}</span><input aria-label={`Starter for ${participant.name}`} type="radio" name={`starter-${entry.id}`} checked={String(starter) === String(participant.id)} disabled={!selected.includes(participant.id)} onChange={() => setStarter(participant.id)} /><span className="font-condensed text-[0.62rem] uppercase tracking-[0.1em] text-muted">starter</span></label>)}</div></div>;
 }
 
+function UncontestedSurface({ event, sport, division, entry }) {
+    const delegation = entry?.delegation;
+    const teamName = delegation?.name || entry?.name || 'Eligible team';
+    const teamCode = delegation?.abbreviation || entry?.code;
+    const activePlayers = entry?.participants?.filter((participant) => participant.active).length ?? 0;
+
+    return <section className={`${panel} overflow-hidden`} aria-labelledby="uncontested-title">
+        <div className="border-b border-primary/20 bg-primary/10 p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">UNCONTESTED</p>
+                    <h3 id="uncontested-title" className="mt-1 font-serif text-2xl font-bold text-foreground">One eligible team advances</h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Only one eligible team is in this division, so it advances without a bracket. Record the official final placement in Results.</p>
+                </div>
+                <a href={sportWorkspaceUrl(event.id, sport.id, { section: 'results', division: division.id })} className={primary}>Open Results<AppIcon name="arrow-right" className="size-4" /></a>
+            </div>
+        </div>
+        <div className="p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">Eligible team</p>
+            <div className="mt-3 flex flex-col gap-2 rounded-lg border border-border bg-surface-muted p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div><p className="font-serif text-xl font-bold text-foreground">{teamName}</p>{teamCode ? <p className="mt-1 text-sm font-semibold text-muted">{teamCode}</p> : null}</div>
+                <p className="text-sm text-muted">{activePlayers} active {activePlayers === 1 ? 'player' : 'players'}</p>
+            </div>
+        </div>
+    </section>;
+}
+
 export default function Tournament({ event, sport, sports = [], division, discipline, proposal, entries = [], tournament, bracket, blockers = [], can_generate: canGenerate, can_redraw: canRedraw, can_publish: canPublish, is_archived: isArchived }) {
     const { errors = {}, flash = {} } = usePage().props;
     const [lane, setLane] = useState('winners');
@@ -108,10 +143,19 @@ export default function Tournament({ event, sport, sports = [], division, discip
     };
     const publish = () => publishForm.post(route('admin.brackets.publish', bracket.id), { preserveScroll: true });
     const visibleNodes = bracket?.nodes ?? [];
-    const status = bracket?.state === 'published' || tournament?.state === 'published' ? 'Published' : bracket ? 'Draft' : 'Setup';
+    const isUncontested = tournament?.state === 'uncontested';
+    const status = isUncontested ? 'Uncontested' : bracket?.state === 'published' || tournament?.state === 'published' ? 'Published' : bracket ? 'Draft' : 'Setup';
     const heading = discipline ? `${division.name} · ${discipline.name}` : division.name;
-    const readinessBlockers = blockers.map(friendlyBlocker);
+    const blockerDetails = blockers.map((blocker) => ({ kind: blockerKind(blocker), label: friendlyBlocker(blocker) }));
+    const readinessBlockers = blockerDetails.map((blocker) => blocker.label);
     const manageRostersHref = sportWorkspaceUrl(event.id, sport.id, { section: 'teams', division: division.id });
+    const uncontestedEntry = entries.find((entry) => entry.status === 'locked' && (!discipline || entry.discipline_entry?.state === 'locked')) ?? entries[0];
+    const suppressBlockerAction = blockerDetails.some((blocker) => ['archived', 'configuration', 'general'].includes(blocker.kind));
+    const blockerAction = !suppressBlockerAction && blockerDetails.some((blocker) => blocker.kind === 'roster')
+        ? <a href={manageRostersHref} className={quiet}>Manage rosters<AppIcon name="arrow-right" className="size-4" /></a>
+        : !suppressBlockerAction && discipline && entries.length > 0 && blockerDetails.some((blocker) => blocker.kind === 'discipline')
+            ? <a href="#discipline-entries" className={quiet}>Review assignments<AppIcon name="arrow-right" className="size-4" /></a>
+            : null;
 
     return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Bracket</h1></div>}>
         <Head title={`${sport.name} ${heading} · Bracket`} />
@@ -124,12 +168,12 @@ export default function Tournament({ event, sport, sports = [], division, discip
 
                 <div className="grid gap-3 sm:grid-cols-3"><div className={`${panel} p-4`}><p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">Competition format</p><p className="mt-2 font-serif text-xl font-bold text-foreground">{formatLabel(format)}</p><p className="mt-1 text-xs text-muted">{discipline?.family ?? division.participant_mode ?? 'Rules not configured'}</p></div><div className={`${panel} p-4`}><p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">Team sheets</p><p className="mt-2 font-serif text-xl font-bold text-foreground">{division.locked_entry_count ?? 0} / {division.entry_count ?? 0}</p><p className="mt-1 text-xs text-muted">ready for the draw</p></div><div className={`${panel} p-4`}><p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">Eligible teams</p><p className="mt-2 font-serif text-xl font-bold text-foreground">{eligibleCount}</p><p className="mt-1 text-xs text-muted">included in this bracket scope</p></div></div>
 
-                {!bracket && readinessBlockers.length ? <WorkflowNotice title="Before generating the bracket" action={<a href={manageRostersHref} className={quiet}>Manage rosters<AppIcon name="arrow-right" className="size-4" /></a>}><span className="flex flex-col gap-1">{readinessBlockers.map((blocker) => <span key={blocker}>• {blocker}</span>)}</span></WorkflowNotice> : null}
-                {discipline && entries.length ? <section className={`${panel} p-5`}><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Discipline entries</p><h3 className="mt-1 font-serif text-2xl font-bold text-foreground">Assign participants</h3><p className="mt-1 text-sm leading-6 text-muted">Save drafts first, then lock each assignment after the parent team sheet is approved.</p></div><div className="mt-5 flex flex-col gap-3">{entries.map((entry) => <DisciplineEntryEditor key={entry.id} event={event} discipline={discipline} entry={entry} />)}</div></section> : null}
+                {!isUncontested && !bracket && readinessBlockers.length ? <WorkflowNotice title="Before generating the bracket" action={blockerAction}><span className="flex flex-col gap-1">{readinessBlockers.map((blocker) => <span key={blocker}>• {blocker}</span>)}</span></WorkflowNotice> : null}
+                {discipline && entries.length ? <section id="discipline-entries" className={`${panel} p-5`}><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">Discipline entries</p><h3 className="mt-1 font-serif text-2xl font-bold text-foreground">Assign participants</h3><p className="mt-1 text-sm leading-6 text-muted">Save drafts first, then lock each assignment after the parent team sheet is approved.</p></div><div className="mt-5 flex flex-col gap-3">{entries.map((entry) => <DisciplineEntryEditor key={entry.id} event={event} discipline={discipline} entry={entry} />)}</div></section> : null}
 
-                <section className={`${panel} p-5 sm:p-6`}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{bracket ? 'Official bracket' : 'Draw setup'}</p><h3 className="mt-1 font-serif text-2xl font-bold text-foreground">{bracket ? `${formatLabel(format)} · ${status}` : 'Generate bracket'}</h3></div><div className="flex flex-wrap gap-2">{bracket && canRedraw ? <button type="button" onClick={redraw} disabled={generateForm.processing || isArchived} className={quiet}>Redraw</button> : null}{bracket && canPublish ? <button type="button" onClick={publish} disabled={publishForm.processing || isArchived} className={primary}>Publish bracket</button> : null}</div></div>
+                {isUncontested ? <UncontestedSurface event={event} sport={sport} division={division} entry={uncontestedEntry} /> : <section className={`${panel} p-5 sm:p-6`}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{bracket ? 'Official bracket' : 'Draw setup'}</p><h3 className="mt-1 font-serif text-2xl font-bold text-foreground">{bracket ? `${formatLabel(format)} · ${status}` : 'Generate bracket'}</h3></div><div className="flex flex-wrap gap-2">{bracket && canRedraw ? <button type="button" onClick={redraw} disabled={generateForm.processing || isArchived} className={quiet}>Redraw</button> : null}{bracket && canPublish ? <button type="button" onClick={publish} disabled={publishForm.processing || isArchived} className={primary}>Publish bracket</button> : null}</div></div>
                     {!bracket ? <div className="mt-6 flex flex-col items-center gap-4 rounded-xl border border-dashed border-border bg-surface-muted p-8 text-center"><div><p className="font-serif text-xl font-bold text-foreground">{isArchived ? 'Archived event' : !proposal.supported_bracket ? 'Results-based competition' : readinessBlockers.length ? 'Complete the setup requirements' : 'Ready to generate'}</p><p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted">{!proposal.supported_bracket ? 'This competition uses measured results and standings; no elimination bracket is fabricated.' : readinessBlockers.length ? 'Complete the requirements above before generating the official draw.' : 'The generated preview remains editable until it is published.'}</p></div>{proposal.supported_bracket ? <button type="button" onClick={generate} disabled={!canGenerate || generateForm.processing || isArchived} className={primary}>{generateForm.processing ? 'Generating…' : 'Generate bracket'}<AppIcon name="arrow-right" className="size-4" /></button> : null}</div> : isRoundRobin ? <div className="mt-6"><RoundRobinBoard nodes={visibleNodes} /></div> : <div className="mt-6 flex flex-col gap-4"><div className="flex flex-wrap gap-2" role="tablist" aria-label="Bracket lanes">{[['winners', 'Winners'], ['losers', 'Losers'], ['championship', 'Championship']].filter(([value]) => value === 'winners' || visibleNodes.some((node) => node.side === value)).map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={lane === value} onClick={() => setLane(value)} className={`min-h-9 rounded-lg px-3 text-xs font-bold uppercase tracking-[0.12em] ${lane === value ? 'bg-primary text-primary-foreground' : 'border border-border bg-surface text-muted'}`}>{label}</button>)}</div><BracketCanvas nodes={visibleNodes} side={lane} /></div>}
-                </section>
+                </section>}
                 {bracket ? <p className="text-xs leading-5 text-muted">The published bracket is frozen. Schedule, venue, and official result details remain managed from their workflow pages.</p> : null}
             </div>
         </SportWorkspaceShell></main>

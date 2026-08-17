@@ -30,7 +30,15 @@ class TournamentWorkspaceTest extends TestCase
         $response->assertOk()->assertInertia(fn ($page) => $page
             ->component('Admin/Sports/Tournament')
             ->where('event.id', (string) $event->getKey())
+            ->has('sport.division_count')
+            ->has('sport.entry_count')
+            ->has('sport.player_count')
             ->where('division.id', (string) $division->getKey())
+            ->has('division.entry_count')
+            ->has('division.locked_entry_count')
+            ->has('division.unlocked_entry_count')
+            ->has('division.player_count')
+            ->has('division.results_state')
             ->where('discipline', null)
             ->has('sports')
             ->has('blockers'));
