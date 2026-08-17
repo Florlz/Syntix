@@ -1,6 +1,7 @@
 # Syntix Skills Setup Handoff
 
 Date: 2026-08-17  
+Last updated: 2026-08-18
 Project: Syntix  
 Purpose: preserve the agreed Codex skill setup and the workflow for future Syntix sessions.
 
@@ -90,12 +91,19 @@ The product `master` branch contains the application work and handoff documentat
 
 ## Current repository state
 
-- Remote `master` is at `ab7abb3`.
+- Remote `master` is at `ab4ccf8`.
 - `ab7abb3` contains the full-session handoff.
+- `ab4ccf8` contains this skills setup handoff.
 - `8654437` contains the sport workspace stabilization implementation.
 - The stabilization branch remains available as `agent/sport-workspace-stabilization`.
 - The local-only skill commits remain available as `local/source-first-ui-skill`.
 - User-provided plan documents under `docs/chatdocs/` and the Tailwind migration plan remain local/uncommitted unless explicitly requested.
+
+## Session continuation - 2026-08-18
+
+The handoff was updated after clarifying that the documentation should preserve the whole session context. The full-session handoff now records the Settings, notifications, Tailwind v4, sports workspace, source-first skill, stabilization, verification, and Git publishing history.
+
+The user also clarified that requested product and documentation commits should be pushed to `master`. To honor the earlier instruction not to push skill-development work, the two source-first skill commits remain isolated on `local/source-first-ui-skill`. The product stabilization and both handoff documents are now present on remote `master` through commits `8654437`, `ab7abb3`, and `ab4ccf8`.
 
 ## Future handoff guidance
 

@@ -1,6 +1,7 @@
 # Syntix Full Session Handoff
 
 Date: 2026-08-17  
+Last updated: 2026-08-18
 Project: Syntix  
 Working branch: `agent/sport-workspace-stabilization`
 
@@ -133,30 +134,46 @@ The stabilization work followed [`syntix-sport-workspace-stabilization-fix-plan.
 
 ## Commit and remote state
 
-The requested order was followed: implementation was committed and pushed before this full-session handoff was written.
+The requested order was followed: implementation was committed and pushed before the handoff documentation was written. The documentation was later explicitly approved for publication to `master`.
 
 - Commit: `8654437` - `fix(sports): stabilize unified workspace state and roster actions`
 - Branch: `agent/sport-workspace-stabilization`
 - Remote tracking branch: `origin/agent/sport-workspace-stabilization`
-- `origin/master`: `aa0f0f8`
+- Commit: `ab7abb3` - `docs: add full session handoff`
+- Commit: `ab4ccf8` - `docs: add skills setup handoff`
+- Current `origin/master`: `ab4ccf8`
 - Pull request: not opened because the requested scope was commit and push only.
 
-The current branch contains only the stabilization commit on top of `origin/master`. The source-first skill commits remain on the local `master` branch and were not pushed.
+The stabilization and handoff commits were fast-forward merged into `master`. The source-first skill commits remain on `local/source-first-ui-skill` and were not pushed.
 
 ## Current working tree
 
-The implementation branch is pushed and up to date. The following documentation is intentionally local/uncommitted:
+The current checkout is `master` and is up to date with `origin/master`. The handoff files are committed and pushed. The following documentation remains intentionally local/uncommitted:
 
 - `docs/chatdocs/` user-provided implementation plans
 - `docs/superpowers/plans/2026-08-17-tailwind-v4-migration.md`
-- This handoff file under `docs/handoffs/`
 
-Do not stage the plan documents or the handoff automatically unless the user explicitly asks for a documentation commit/push.
+Do not stage the plan documents automatically. Handoff documentation may be committed and pushed when the user explicitly requests it.
 
 ## Recommended next steps
 
-1. Review `agent/sport-workspace-stabilization` and open a pull request when ready.
+1. Review the published `master` history and open a pull request only if a separate review workflow is desired.
 2. Run the skipped PostgreSQL contract tests against the project's PostgreSQL environment.
 3. If fixtures are available, perform a browser smoke pass for locked-roster and uncontested-division states.
 4. Apply the notifications migration in any fresh environment before testing the Settings notification surfaces.
 5. Keep future UI changes source-first and Tailwind v4-compatible.
+
+## Session continuation - 2026-08-18
+
+The follow-up conversation clarified that the handoff should capture the whole chat/session rather than only the final stabilization task. The full-session content above was expanded to include the Settings work, notification error and migration context, Tailwind v4 setup, unified sports redesign, department color coding, source-first skill development, stabilization work, verification, and repository decisions.
+
+The publishing workflow was also clarified:
+
+- Product and requested documentation changes should be published to the remote `master` branch.
+- The local `master` branch previously contained the two source-first skill-development commits that the user had asked not to push.
+- Those commits were preserved on `local/source-first-ui-skill`.
+- Local `master` was aligned to `origin/master`, then `agent/sport-workspace-stabilization` was fast-forward merged into it.
+- The full-session handoff was committed as `ab7abb3` and pushed to `master`.
+- The skills setup handoff was committed as `ab4ccf8` and pushed to `master`.
+
+No application code changed during this continuation; the changes were documentation and branch-history updates only.
