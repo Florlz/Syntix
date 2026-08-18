@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Data\CompetitionRuleMetadata;
 use App\Enums\CompetitionFormat;
 use App\Enums\CriterionNumberMeaning;
 use App\Enums\ParticipantMode;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Auth\Access\AuthorizationException;
 
 #[Fillable([
     'competition_division_id',
@@ -165,6 +167,104 @@ class CompetitionRuleVersion extends Model
             RuleVersionState::Superseded,
             RuleVersionState::Archived,
         ], true);
+    }
+
+    public function metadata(): CompetitionRuleMetadata
+    {
+        $configuration = $this->scoring_configuration ?? [];
+
+        return new CompetitionRuleMetadata(
+            reliabilityLabel: (string) ($configuration['reliability_label'] ?? 'unresolved'),
+            sourcePages: array_values($configuration['source_pages'] ?? []),
+            eventControls: array_values($configuration['event_controls'] ?? []),
+            venueCandidates: array_values($configuration['venue_candidates'] ?? []),
+            programmeDayHint: $configuration['programme_day_hint'] ?? null,
+            sourceBlocker: $configuration['source_blocker'] ?? null,
+            deductionConfiguration: $this->deduction_configuration ?? [],
+        );
+    }
+
+    /** @return array<string, mixed>|null */
+    public function aggregationConfirmation(): ?array
+    {
+        $confirmation = ($this->scoring_configuration ?? [])['aggregation_confirmation'] ?? null;
+
+        return is_array($confirmation) ? $confirmation : null;
+    }
+
+    public function hasConfirmedAggregation(): bool
+    {
+        $confirmation = $this->aggregationConfirmation();
+
+        return $confirmation !== null
+            && ($confirmation['method'] ?? null) === $this->judge_aggregation_method
+            && filled($confirmation['confirmed_by'] ?? null)
+            && filled($confirmation['confirmed_at'] ?? null)
+            && filled($confirmation['reference'] ?? null)
+            && filled($confirmation['reason'] ?? null);
+    }
+
+    public function isAggregationReady(): bool
+    {
+        return $this->source_status !== 'blocked' && $this->hasConfirmedAggregation();
+    }
+
+    public function confirmAggregation(
+        User $actor,
+        string $method,
+        string $reference,
+        string $reason,
+    ): void {
+        if (! $actor->isGlobalAdmin()) {
+            throw new AuthorizationException('Only the active Global Admin can confirm Judge aggregation.');
+        }
+
+        if (! $this->isMutable()) {
+            throw new \DomainException('Judge aggregation may only be confirmed while the rule is mutable.');
+        }
+
+        $method = trim($method);
+        $reference = trim($reference);
+        $reason = trim($reason);
+
+        if ($method === '' || $reference === '' || $reason === '') {
+            throw new \DomainException('Aggregation method, reference, and reason are required.');
+        }
+
+        $configuration = $this->scoring_configuration ?? [];
+        $configuration['aggregation_confirmation'] = [
+            'method' => $method,
+            'confirmed_by' => $actor->getKey(),
+            'confirmed_at' => now()->toIso8601String(),
+            'reference' => $reference,
+            'reason' => $reason,
+        ];
+
+        $this->forceFill([
+            'judge_aggregation_method' => $method,
+            'scoring_configuration' => $configuration,
+        ])->save();
+    }
+
+    public function authorizeDeductionCalculation(User $actor, ?string $roundingPolicy, string $reference, string $reason): void
+    {
+        if (! $actor->isGlobalAdmin() || ! $this->isMutable()) {
+            throw new AuthorizationException('Only the active Global Admin may authorize deduction calculation while the rule is mutable.');
+        }
+        $configuration = $this->deduction_configuration ?? [];
+        if (($configuration['code'] ?? null) === null || trim($reference) === '' || trim($reason) === '') {
+            throw new \DomainException('A configured deduction, administrative reference, and reason are required.');
+        }
+        if (($configuration['type'] ?? null) === 'outside_range_interval' && ! in_array($roundingPolicy, ['ceiling', 'floor', 'nearest'], true)) {
+            throw new \DomainException('An explicit interval rounding policy is required.');
+        }
+        $configuration['rounding_policy'] = $roundingPolicy;
+        $configuration['calculation_status'] = 'authorized';
+        $configuration['authorization'] = [
+            'authorized_by' => $actor->getKey(), 'authorized_at' => now()->toIso8601String(),
+            'reference' => trim($reference), 'reason' => trim($reason),
+        ];
+        $this->forceFill(['deduction_configuration' => $configuration])->save();
     }
 
     /**

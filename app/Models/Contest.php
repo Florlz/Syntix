@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'completed_by',
     'cancelled_at',
     'cancel_reason',
+    'judging_panel_locked_at',
+    'judging_panel_locked_by',
 ])]
 class Contest extends Model
 {
@@ -45,6 +47,21 @@ class Contest extends Model
         return $this->hasMany(EntryScorecard::class);
     }
 
+    public function adjustments(): HasMany
+    {
+        return $this->hasMany(ScoringAdjustment::class);
+    }
+
+    public function tieResolutions(): HasMany
+    {
+        return $this->hasMany(JudgedTieResolution::class);
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(ScoringAssignment::class);
+    }
+
     public function entries(): HasMany
     {
         return $this->hasMany(ContestEntry::class);
@@ -58,6 +75,21 @@ class Contest extends Model
     public function officialOutcomes(): HasMany
     {
         return $this->hasMany(OfficialContestOutcome::class);
+    }
+
+    public function ruleVersion(): BelongsTo
+    {
+        return $this->belongsTo(CompetitionRuleVersion::class, 'competition_rule_version_id');
+    }
+
+    public function panelLocker(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'judging_panel_locked_by');
+    }
+
+    public function isJudgingPanelLocked(): bool
+    {
+        return $this->judging_panel_locked_at !== null;
     }
 
     public function currentOfficialOutcome(): ?OfficialContestOutcome
@@ -86,6 +118,7 @@ class Contest extends Model
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'judging_panel_locked_at' => 'datetime',
         ];
     }
 }

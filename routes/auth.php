@@ -11,8 +11,12 @@ use App\Http\Controllers\Auth\SetupAccountController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('account-setup/{token}', [SetupAccountController::class, 'create'])->name('account.setup');
+Route::post('account-setup/{token}/switch', [SetupAccountController::class, 'switchAccount'])
+    ->middleware('auth')
+    ->name('account.setup.switch');
+
 Route::middleware('guest')->group(function () {
-    Route::get('account-setup/{token}', [SetupAccountController::class, 'create'])->name('account.setup');
     Route::post('account-setup/{token}', [SetupAccountController::class, 'store']);
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])

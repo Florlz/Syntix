@@ -20,6 +20,28 @@ final class Siklab2025Programme
         ];
     }
 
+    /** @return list<array{name: string, code: string}> */
+    public static function venues(): array
+    {
+        return collect([
+            'CSPC Gymnasium',
+            'CSPC Sepak Takraw Court',
+            'CSPC Duran Hall',
+            'Academic Building III — Ground Floor',
+            'CSPC Library',
+            'Nabua Central Pilot School Oval',
+            'Nabua Central Pilot School',
+            'CSPC Auditorium',
+            'Library Commons',
+            'CEA Drafting Room',
+            'Pearl Function Hall',
+            'CSPC Grounds',
+        ])->map(fn (string $name): array => [
+            'name' => $name,
+            'code' => Str::upper(Str::of($name)->ascii()->slug('-')->value()),
+        ])->all();
+    }
+
     /** @return list<array<string, mixed>> */
     public static function sports(): array
     {
@@ -118,45 +140,45 @@ final class Siklab2025Programme
             ], 'individual', 'Proposal p. 19'),
             self::judged('Radio Drama', 'team', [
                 ['Radio Drama Script', 30], ['Technical Quality', 30], ['Vocal Quality', 30], ['Overall Appeal', 10],
-            ], 'standard', 'Proposal p. 20'),
+            ], 'standard', 'Proposal pp. 20–21'),
             self::judged('Pop Solo', 'individual', [
                 ['Tone Quality', 40], ['Musicianship', 40], ['Deportment', 20],
-            ], 'individual', 'Proposal p. 20'),
+            ], 'individual', 'Proposal pp. 21–22'),
             self::judged('Kundiman', 'individual', [
                 ['Tone Quality', 40], ['Musicianship', 40], ['Deportment', 20],
-            ], 'individual', 'Proposal p. 20'),
+            ], 'individual', 'Proposal p. 22'),
             self::judged('Vocal Duet', 'pair', [
                 ['Tone Quality and Vocal Technique', 30], ['Blending and Harmony', 30], ['Musicianship', 30], ['Deportment', 10],
             ], 'intermediate', 'Proposal p. 21'),
-            self::judged('Instrumental Solo — Bandurria', 'individual', self::instrumentalCriteria(), 'individual', 'Proposal p. 21'),
-            self::judged('Instrumental Solo — Piano', 'individual', self::instrumentalCriteria(), 'individual', 'Proposal p. 21'),
-            self::judged('Instrumental Solo — Classical Guitar', 'individual', self::instrumentalCriteria(), 'individual', 'Proposal p. 21'),
+            self::judged('Instrumental Solo — Bandurria', 'individual', self::instrumentalCriteria(), 'individual', 'Proposal pp. 22–23'),
+            self::judged('Instrumental Solo — Piano', 'individual', self::instrumentalCriteria(), 'individual', 'Proposal pp. 22–23'),
+            self::judged('Instrumental Solo — Classical Guitar', 'individual', self::instrumentalCriteria(), 'individual', 'Proposal pp. 22–23'),
             self::judged('Folk Dance', 'team', [
                 ['Performance', 40], ['Interpretation', 30], ['Costume, music and equipment', 20], ['Overall Impact', 10],
-            ], 'standard', 'Proposal p. 22'),
+            ], 'standard', 'Proposal pp. 23–24'),
             self::judged('Hip Hop Dance', 'team', [
                 ['Choreography', 20], ['Rhythm and Timing', 20], ['Costume', 10], ['Technique', 25], ['Performance', 25],
-            ], 'standard', 'Proposal p. 22'),
+            ], 'standard', 'Proposal p. 24'),
             self::judged('Contemporary Dance', 'team', [
                 ['Choreography and Composition', 30], ['Performance', 30], ['Technique', 20], ['Overall Impact', 20],
-            ], 'standard', 'Proposal p. 22'),
-            self::judged('Charcoal Rendering', 'individual', self::visualCriteria(), 'individual', 'Proposal p. 23'),
-            self::judged('Pencil Drawing', 'individual', self::visualCriteria(), 'individual', 'Proposal p. 23'),
-            self::judged('Painting', 'individual', self::visualCriteria(), 'individual', 'Proposal p. 23'),
-            self::judged('On-the-Spot Poster Making', 'individual', self::visualCriteria(), 'individual', 'Proposal p. 23'),
-            self::judged('Photography', 'individual', self::visualCriteria(), 'individual', 'Proposal p. 23'),
+            ], 'standard', 'Proposal pp. 24–25'),
+            self::judged('Charcoal Rendering', 'individual', self::visualCriteria(), 'individual', 'Proposal pp. 25–27'),
+            self::judged('Pencil Drawing', 'individual', self::visualCriteria(), 'individual', 'Proposal pp. 25–27'),
+            self::judged('Painting', 'individual', self::visualCriteria(), 'individual', 'Proposal pp. 25–27'),
+            self::judged('On-the-Spot Poster Making', 'individual', self::visualCriteria(), 'individual', 'Proposal pp. 25–27'),
+            self::judged('Photography', 'individual', self::visualCriteria(), 'individual', 'Proposal pp. 25–27'),
             self::judged('Essay Writing', 'individual', [
                 ['Content and Relevance', 30], ['Organization and Structure', 25], ['Creativity and Originality', 20], ['Grammar and Mechanics', 10], ['Impact and Persuasiveness', 10],
-            ], 'individual', 'Proposal p. 18', 'blocked', 'Criteria total 95 while the source prints 100.'),
+            ], 'individual', 'Proposal p. 20', 'blocked', 'Criteria total 95 while the source prints 100.'),
             self::judged('Pagsulat ng Sanaysay', 'individual', [
                 ['Nilalaman at Kaugnayan', 30], ['Organisasyon at Estruktura', 25], ['Pagkamalikhain at Orihinalidad', 20], ['Gramatika at Mekaniks', 10], ['Epekto at Panghihikayat', 10],
-            ], 'individual', 'Proposal p. 18', 'blocked', 'Criteria total 95 while the source prints 100.'),
+            ], 'individual', 'Proposal p. 20', 'blocked', 'Criteria total 95 while the source prints 100.'),
             self::judged('Dance Sports', 'pair', [
                 ['Floor craft', null], ['Timing and basic rhythm', null], ['Body lines', null], ['Movement', null], ['Rhythmic interpretation', null], ['Footwork', null], ['Dance characterization', null],
-            ], 'intermediate', 'Proposal p. 22', 'blocked', 'The proposal lists criteria without weights.'),
+            ], 'intermediate', 'Proposal p. 25', 'blocked', 'The proposal lists criteria without weights.'),
             self::judged('Cheer Dance', 'team', [
                 ['Choreography and Synchronization', 30], ['Overall relevance to theme', 25], ['Cheers and Music', 15], ['Costume and Props', 15], ['Overall Impact', 100],
-            ], 'standard', 'Proposal p. 24', 'blocked', 'Overall Impact is printed as 100 percent, producing an invalid total.'),
+            ], 'standard', 'Proposal p. 25', 'blocked', 'Overall Impact is printed as 100 percent, producing an invalid total.'),
         ];
     }
 
@@ -272,7 +294,113 @@ final class Siklab2025Programme
         string $sourceStatus = 'verified',
         ?string $blocker = null,
     ): array {
-        return compact('name', 'participantMode', 'criteria', 'template', 'sourceReference', 'sourceStatus', 'blocker');
+        return compact('name', 'participantMode', 'criteria', 'template', 'sourceReference', 'sourceStatus', 'blocker')
+            + [
+                'participant_mode' => $participantMode,
+                'source_reference' => $sourceReference,
+                'source_status' => $sourceStatus,
+            ]
+            + self::judgedMetadata($name, $sourceStatus, $blocker);
+    }
+
+    /** @return array<string, mixed> */
+    private static function judgedMetadata(string $name, string $sourceStatus, ?string $blocker): array
+    {
+        $literary = [
+            'Extemporaneous Speaking', 'Dagliang Talumpati', 'Essay Writing',
+            'Pagsulat ng Sanaysay', 'Story Telling', 'Pagkukwento', 'Radio Drama',
+        ];
+        $musical = [
+            'Pop Solo', 'Kundiman', 'Vocal Duet', 'Instrumental Solo — Bandurria',
+            'Instrumental Solo — Piano', 'Instrumental Solo — Classical Guitar',
+        ];
+        $dance = ['Folk Dance', 'Hip Hop Dance', 'Contemporary Dance', 'Dance Sports', 'Cheer Dance'];
+        $visual = ['Charcoal Rendering', 'Pencil Drawing', 'Painting', 'On-the-Spot Poster Making', 'Photography'];
+
+        $sourcePages = match (true) {
+            in_array($name, ['Extemporaneous Speaking', 'Dagliang Talumpati'], true) => [19],
+            in_array($name, ['Essay Writing', 'Pagsulat ng Sanaysay'], true) => [20],
+            in_array($name, ['Story Telling', 'Pagkukwento'], true) => [20],
+            $name === 'Radio Drama' => [20, 21],
+            $name === 'Pop Solo' => [21, 22],
+            $name === 'Kundiman' => [22],
+            in_array($name, ['Vocal Duet'], true) => [22],
+            in_array($name, ['Instrumental Solo — Bandurria', 'Instrumental Solo — Piano', 'Instrumental Solo — Classical Guitar'], true) => [22, 23],
+            in_array($name, ['Folk Dance', 'Hip Hop Dance'], true) => [23, 24],
+            $name === 'Contemporary Dance' => [24, 25],
+            $name === 'Dance Sports' => [25],
+            in_array($name, $visual, true) => [25, 26, 27],
+            $name === 'Cheer Dance' => [25],
+            default => [],
+        };
+
+        $venueCandidates = match (true) {
+            in_array($name, $literary, true) => ['CSPC Auditorium', 'Library Commons'],
+            in_array($name, $musical, true) => ['CSPC Auditorium'],
+            in_array($name, $dance, true) => ['CSPC Auditorium', 'CSPC Gymnasium'],
+            in_array($name, $visual, true) => ['CEA Drafting Room'],
+            default => [],
+        };
+
+        $programmeDayHint = match (true) {
+            in_array($name, $literary, true), in_array($name, $visual, true) => 'Nov 12',
+            in_array($name, $musical, true), in_array($name, ['Folk Dance', 'Hip Hop Dance', 'Contemporary Dance'], true) => 'Nov 13',
+            in_array($name, ['Cheer Dance', 'Dance Sports'], true) => 'Nov 14',
+            default => null,
+        };
+
+        $eventControls = match ($name) {
+            'Extemporaneous Speaking', 'Dagliang Talumpati' => ['4 minutes preparation', '4 minutes delivery'],
+            'Story Telling', 'Pagkukwento' => ['5–7 minutes'],
+            'Radio Drama' => ['5–7 minutes', 'Maximum 5 performers', '3 minutes setup'],
+            'Essay Writing', 'Pagsulat ng Sanaysay' => ['600–800 words', '1.5 hours'],
+            'Pop Solo', 'Kundiman' => ['OPM selection', 'Minus-one accompaniment', '3–7 minutes'],
+            default => [],
+        };
+
+        $deductionConfiguration = match ($name) {
+            'Story Telling', 'Pagkukwento' => [
+                'code' => 'performance_time',
+                'type' => 'outside_range_interval',
+                'minimum_seconds' => 300,
+                'maximum_seconds' => 420,
+                'interval_seconds' => 30,
+                'points_per_interval' => 1,
+                'rounding_policy' => null,
+                'calculation_status' => 'blocked',
+            ],
+            'Radio Drama' => [
+                'code' => 'performance_time',
+                'type' => 'outside_range_interval',
+                'minimum_seconds' => 300,
+                'maximum_seconds' => 420,
+                'interval_seconds' => 30,
+                'points_per_interval' => 5,
+                'rounding_policy' => null,
+                'calculation_status' => 'blocked',
+            ],
+            'Essay Writing', 'Pagsulat ng Sanaysay' => [
+                'code' => 'word_count',
+                'type' => 'outside_range_flat',
+                'minimum_words' => 600,
+                'maximum_words' => 800,
+                'points' => 2,
+                'calculation_status' => 'blocked',
+            ],
+            default => [],
+        };
+
+        return [
+            'reliability_label' => $sourceStatus === 'blocked'
+                ? ($name === 'Dance Sports' ? 'unresolved' : 'conflict')
+                : 'confirmed',
+            'source_pages' => $sourcePages,
+            'event_controls' => $eventControls,
+            'venue_candidates' => $venueCandidates,
+            'programme_day_hint' => $programmeDayHint,
+            'source_blocker' => $blocker,
+            'deduction_configuration' => $deductionConfiguration,
+        ];
     }
 
     /** @return list<array{0: string, 1: int}> */

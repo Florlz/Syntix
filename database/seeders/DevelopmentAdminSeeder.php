@@ -6,8 +6,10 @@ use App\Actions\Events\ApplySiklab2025Programme;
 use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Enums\AccountState;
 use App\Enums\EventState;
+use App\Models\Entry;
 use App\Models\Event;
 use App\Models\User;
+use App\Models\Venue;
 use Illuminate\Database\Seeder;
 
 class DevelopmentAdminSeeder extends Seeder
@@ -41,5 +43,9 @@ class DevelopmentAdminSeeder extends Seeder
         );
 
         (new ApplySiklab2025Programme)->handle($admin, $event);
+        Entry::query()
+            ->whereHas('division.competition', fn ($query) => $query->whereBelongsTo($event))
+            ->delete();
+        Venue::query()->whereBelongsTo($event)->delete();
     }
 }

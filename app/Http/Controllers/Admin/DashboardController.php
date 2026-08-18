@@ -7,8 +7,8 @@ use App\Enums\EventRole;
 use App\Enums\RuleVersionState;
 use App\Http\Controllers\Controller;
 use App\Models\Division;
-use App\Models\Event;
 use App\Models\EligibilityRecord;
+use App\Models\Event;
 use App\Models\ScoringAssignment;
 use App\Models\User;
 use App\Services\TournamentStandingCalculator;
@@ -61,11 +61,37 @@ class DashboardController extends Controller
                 ->values()->all();
 
         if (! $globalAdmin) {
+            $operationalRoles = collect([
+                EventRole::Judge->value,
+                EventRole::Tabulator->value,
+            ])->filter(fn (string $role): bool => in_array($role, $roles, true))->values();
+
+            if ($operationalRoles->count() === 1) {
+                $route = $operationalRoles->first() === EventRole::Judge->value
+                    ? 'judge.index'
+                    : 'tabulator.index';
+
+                return redirect()->route($route, ['event' => $event->getKey()]);
+            }
+
+            $roleDestinations = $operationalRoles->map(fn (string $role): array => [
+                'role' => $role,
+                'label' => $role === EventRole::Judge->value ? 'My Judging' : 'My Tabulation',
+                'description' => $role === EventRole::Judge->value
+                    ? 'Open your assigned scorecards and judging schedule.'
+                    : 'Open your assigned contests and tabulation schedule.',
+                'href' => route(
+                    $role === EventRole::Judge->value ? 'judge.index' : 'tabulator.index',
+                    ['event' => $event->getKey()],
+                    absolute: false,
+                ),
+            ])->all();
+
             return Inertia::render('Dashboard', [
                 ...$this->emptyPayload(false),
                 'events' => $events->map($this->eventOption(...))->values(),
                 'event' => $this->eventPayload($event, $roles),
-                'work_queue' => $this->workQueue($user, $event, $roles),
+                'role_destinations' => $roleDestinations,
             ]);
         }
 
@@ -282,30 +308,6 @@ class DashboardController extends Controller
         return Event::query()->whereIn('id', $eventIds)->latest('created_at')->get();
     }
 
-    private function workQueue(User $user, Event $event, array $roles): Collection
-    {
-        return $user->scoringAssignments()->active()->where('event_id', $event->getKey())->with([
-            'division.competition',
-            'contest.division.competition',
-            'entryScorecard.entry',
-            'entryScorecard.contest.division.competition',
-        ])->get()->map(function (ScoringAssignment $assignment) use ($roles): array {
-            $url = match ($assignment->scopeType()->value) {
-                'contest' => route('tabulator.contests.show', $assignment->contest_id),
-                'entry_scorecard' => route('judge.scorecards.show', $assignment->entry_scorecard_id),
-                default => null,
-            };
-
-            return [
-                'id' => (string) $assignment->getKey(),
-                'scope' => $assignment->scopeType()->value,
-                'label' => $this->assignmentLabel($assignment),
-                'roles' => $roles,
-                'url' => $url,
-            ];
-        })->values();
-    }
-
     private function assignmentLabel(ScoringAssignment $assignment): string
     {
         return match ($assignment->scopeType()->value) {
@@ -345,7 +347,6 @@ class DashboardController extends Controller
             'global_admin' => null,
             'pending_approvals' => [],
             'live_contests' => [],
-            'work_queue' => [],
             'capabilities' => ['global_admin' => $globalAdmin],
         ];
     }

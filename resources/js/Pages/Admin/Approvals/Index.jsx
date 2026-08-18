@@ -61,9 +61,24 @@ function canonicalSportHref(event, scope) {
     return scope.division_id ? `${href}?division=${encodeURIComponent(scope.division_id)}` : href;
 }
 
+function JudgedEvidence({ payload, selectedScorecards, onSelectionChange }) {
+    const rows = payload.ranked_entries || [];
+    const panel = rows[0]?.scorecards || [];
+    const toggle = (id) => onSelectionChange(selectedScorecards.includes(id)
+        ? selectedScorecards.filter((item) => item !== id)
+        : [...selectedScorecards, id]);
+
+    return <section aria-labelledby="judged-evidence-heading" className="mt-5 overflow-hidden rounded-xl border border-border">
+        <header className="bg-surface-muted p-4"><p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Judged evidence</p><h4 id="judged-evidence-heading" className="mt-1 font-serif text-xl font-bold">Panel totals and final ranking</h4><p className="mt-1 text-sm text-muted">{payload.aggregation_method} aggregation · {payload.source_reference || 'Source reference unavailable'}</p></header>
+        <div className="overflow-x-auto"><table className="w-full min-w-[48rem] text-left text-sm"><thead className="border-y border-border bg-surface text-xs uppercase tracking-[0.1em] text-muted"><tr><th className="px-4 py-3">Rank / entry</th>{panel.map((card) => <th key={card.judge_id} className="px-3 py-3">{card.judge || `Judge ${card.judge_id}`}</th>)}<th className="px-3 py-3">Aggregate</th><th className="px-3 py-3">Adjustments</th><th className="px-4 py-3">Final</th></tr></thead><tbody className="divide-y divide-border">{rows.map((row) => <tr key={row.entry_id}><th className="px-4 py-4"><span className="mr-2 font-mono text-primary">#{row.rank}</span>{row.entry}<span className="block text-xs font-normal text-muted">{row.delegation}</span></th>{row.scorecards.map((card) => <td key={card.scorecard_id} className="px-3 py-4 align-top"><label className="flex items-start gap-2"><input type="checkbox" checked={selectedScorecards.includes(Number(card.scorecard_id))} onChange={() => toggle(Number(card.scorecard_id))} className="mt-0.5 rounded border-border text-primary focus:ring-accent"/><span><span className="block font-mono font-bold tabular-nums">{card.raw_total}</span><span className="text-[0.65rem] text-muted">rev. {card.revision} · return for correction</span></span></label><details className="mt-2"><summary className="cursor-pointer text-xs font-bold text-primary">Criteria</summary><dl className="mt-1 space-y-1 text-xs text-muted">{(card.criteria || []).map((criterion) => <div key={criterion.criterion_id} className="flex justify-between gap-2"><dt>{criterion.criterion}</dt><dd className="font-mono">{criterion.weighted_value}</dd></div>)}</dl></details></td>)}<td className="px-3 py-4 font-mono tabular-nums">{row.aggregate_raw_total}</td><td className="px-3 py-4 font-mono text-danger">−{row.adjustment_total}</td><td className="px-4 py-4 font-mono font-bold tabular-nums">{row.final_total}</td></tr>)}</tbody></table></div>
+        {payload.tie_resolution ? <div className="border-t border-border bg-accent/10 p-4 text-sm"><strong>Tie authority:</strong> {payload.tie_resolution.reference} · {payload.tie_resolution.reason}</div> : null}
+    </section>;
+}
+
 function OutcomeReview({ submission }) {
     const approve = useForm({ reason: '' });
-    const reject = useForm({ reason: '' });
+    const reject = useForm({ reason: '', scorecard_ids: [] });
+    const isJudged = submission.technical_payload?.scoring_mode === 'judged';
     const homeScore = submission.home?.score;
     const awayScore = submission.away?.score;
     const hasScore = homeScore !== null && homeScore !== undefined && awayScore !== null && awayScore !== undefined;
@@ -81,12 +96,12 @@ function OutcomeReview({ submission }) {
                 <StatusPill>Needs review</StatusPill>
             </div>
 
-            <div className="mt-5 grid gap-3 rounded-2xl bg-surface-muted p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            {!isJudged ? <><div className="mt-5 grid gap-3 rounded-2xl bg-surface-muted p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                 <div><p className="text-xs font-bold uppercase tracking-[0.1em] text-muted">{submission.home?.name || 'Home side'}</p><p className="mt-1 font-mono text-3xl font-bold text-foreground">{homeScore ?? '—'}</p></div>
                 <span className="text-center text-xs font-bold uppercase tracking-[0.14em] text-muted">{hasScore ? 'Final' : 'Result'}</span>
                 <div className="text-left sm:text-right"><p className="text-xs font-bold uppercase tracking-[0.1em] text-muted">{submission.away?.name || 'Away side'}</p><p className="mt-1 font-mono text-3xl font-bold text-foreground">{awayScore ?? '—'}</p></div>
             </div>
-            <p className="mt-3 text-sm text-muted">Winner: <span className="font-bold text-foreground">{submission.winner || (submission.result === 'draw' ? 'Draw' : 'Not recorded')}</span></p>
+            <p className="mt-3 text-sm text-muted">Winner: <span className="font-bold text-foreground">{submission.winner || (submission.result === 'draw' ? 'Draw' : 'Not recorded')}</span></p></> : <JudgedEvidence payload={submission.technical_payload} selectedScorecards={reject.data.scorecard_ids} onSelectionChange={(ids) => reject.setData('scorecard_ids', ids)}/>}
 
             <details className="mt-5 rounded-xl border border-border bg-surface">
                 <summary className="cursor-pointer px-4 py-3 text-sm font-bold text-foreground">Technical details</summary>
@@ -100,7 +115,7 @@ function OutcomeReview({ submission }) {
                 </form>
                 <form onSubmit={(event) => { event.preventDefault(); reject.post(route('admin.results.reject', submission.id), { preserveScroll: true }); }} className="flex flex-col gap-2">
                     <label className="block text-xs font-bold uppercase tracking-[0.1em] text-muted" htmlFor={`reject-${submission.id}`}>Required correction reason</label>
-                    <div className="flex flex-col gap-2 sm:flex-row"><input id={`reject-${submission.id}`} required value={reject.data.reason} onChange={(event) => reject.setData('reason', event.target.value)} className={noteInput} placeholder="Tell the tabulator what to fix"/><button disabled={approve.processing || reject.processing} className={buttonDanger}>Return for correction</button></div>
+                    <div className="flex flex-col gap-2 sm:flex-row"><input id={`reject-${submission.id}`} required value={reject.data.reason} onChange={(event) => reject.setData('reason', event.target.value)} className={noteInput} placeholder={isJudged ? 'Explain the correction; select affected Judge cards above if needed' : 'Tell the tabulator what to fix'}/><button disabled={approve.processing || reject.processing} className={buttonDanger}>Return for correction</button></div>
                 </form>
             </div>
         </article>

@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\AutomaticPlacementDeriver;
 use App\Services\BracketAdvancer;
+use App\Actions\Scoring\SubmitDivisionPlacement;
 use App\Support\EventOperationGuard;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
@@ -92,8 +93,37 @@ final class ApproveContestOutcome
                 'approved_at' => now(),
             ]);
 
-            ($this->advancer ?? new BracketAdvancer)->apply($outcome);
-            ($this->placementDeriver ?? new AutomaticPlacementDeriver)->derive($actor, $outcome);
+            if (($payload['scoring_mode'] ?? null) === 'judged') {
+                $scorecardIds = collect($payload['ranked_entries'] ?? [])
+                    ->flatMap(fn (array $row): array => collect($row['scorecards'] ?? [])->pluck('scorecard_id')->filter()->all())
+                    ->unique()
+                    ->all();
+                $submission->contest->scorecards()
+                    ->whereIn('id', $scorecardIds)
+                    ->where('state', 'submitted')
+                    ->update(['state' => 'approved', 'approved_at' => now()]);
+
+                $items = collect($payload['ranked_entries'] ?? [])->values()->map(fn (array $row, int $index): array => [
+                    'entry_id' => (int) $row['entry_id'],
+                    'rank' => (int) $row['rank'],
+                    'placement_key' => match ($index) {
+                        0 => 'champion',
+                        1 => 'first_runner_up',
+                        2 => 'second_runner_up',
+                        default => 'participation',
+                    },
+                    'participation_eligible' => $index > 2,
+                ])->all();
+                (new SubmitDivisionPlacement)->handle($actor, $submission->contest->division, $items, [
+                    'source' => 'approved_judged_outcome',
+                    'official_contest_outcome_id' => $outcome->getKey(),
+                    'result_submission_id' => $submission->getKey(),
+                    'automatic' => true,
+                ]);
+            } else {
+                ($this->advancer ?? new BracketAdvancer)->apply($outcome);
+                ($this->placementDeriver ?? new AutomaticPlacementDeriver)->derive($actor, $outcome);
+            }
 
             ($this->audit ?? new AuditLogger)->record(
                 $actor,

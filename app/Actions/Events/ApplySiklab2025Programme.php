@@ -20,6 +20,7 @@ use App\Models\CoachCapacityRule;
 use App\Models\OrganizationalUnit;
 use App\Models\PlacementPointTemplate;
 use App\Models\User;
+use App\Models\Venue;
 use App\Services\AuditLogger;
 use App\Support\Siklab2025Programme;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -43,6 +44,7 @@ final class ApplySiklab2025Programme
         return DB::transaction(function () use ($actor, $event): Event {
             $event = Event::query()->whereKey($event->getKey())->lockForUpdate()->firstOrFail();
             $delegations = $this->createDelegations($event);
+            $this->createVenues($event);
 
             foreach (Siklab2025Programme::sports() as $sport) {
                 $this->createSport($actor, $event, $delegations, $sport);
@@ -108,6 +110,16 @@ final class ApplySiklab2025Programme
         }
 
         return $delegations;
+    }
+
+    private function createVenues(Event $event): void
+    {
+        foreach (Siklab2025Programme::venues() as $venue) {
+            Venue::query()->updateOrCreate(
+                ['event_id' => $event->getKey(), 'name' => $venue['name']],
+                ['code' => $venue['code'], 'is_active' => true],
+            );
+        }
     }
 
     /**
@@ -207,9 +219,15 @@ final class ApplySiklab2025Programme
             'source_reference' => $definition['sourceReference'],
             'source_status' => $definition['sourceStatus'],
             'verified_scorecard_total' => $weights->sum(),
+            'deduction_configuration' => $definition['deduction_configuration'],
             'scoring_configuration' => array_filter([
                 'outcome_profile' => 'criteria_total',
-                'source_blocker' => $definition['blocker'],
+                'reliability_label' => $definition['reliability_label'],
+                'source_pages' => $definition['source_pages'],
+                'event_controls' => $definition['event_controls'],
+                'venue_candidates' => $definition['venue_candidates'],
+                'programme_day_hint' => $definition['programme_day_hint'],
+                'source_blocker' => $definition['source_blocker'],
             ]),
         ]);
 
@@ -279,6 +297,7 @@ final class ApplySiklab2025Programme
                 : null,
             'verified_scorecard_total' => $definition['verified_scorecard_total'] ?? null,
             'judge_aggregation_method' => $definition['scoring_family'] === ScoringFamily::CriteriaBased ? 'average' : null,
+            'deduction_configuration' => $definition['deduction_configuration'] ?? null,
             'input_scale' => 2,
             'calculation_scale' => 4,
             'display_scale' => 2,

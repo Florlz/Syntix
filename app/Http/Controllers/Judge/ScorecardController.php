@@ -6,6 +6,8 @@ use App\Actions\Scoring\SaveJudgeScorecard;
 use App\Actions\Scoring\SubmitJudgeScorecard;
 use App\Http\Controllers\Controller;
 use App\Models\EntryScorecard;
+use App\Models\ScoringAdjustment;
+use App\Services\ContestScheduleReadModel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -15,7 +17,7 @@ use Inertia\Response;
 
 class ScorecardController extends Controller
 {
-    public function show(EntryScorecard $scorecard): Response
+    public function show(Request $request, EntryScorecard $scorecard, ContestScheduleReadModel $schedules): Response
     {
         Gate::authorize('view', $scorecard);
         $scorecard->load([
@@ -24,6 +26,29 @@ class ScorecardController extends Controller
             'ruleVersion.criteria',
             'values',
         ]);
+
+        $rule = $scorecard->ruleVersion;
+        $metadata = $rule?->metadata();
+        $schedule = $scorecard->contest === null ? null : $schedules->findForContest($scorecard->contest);
+
+        $assignedScorecards = EntryScorecard::query()
+            ->where('contest_id', $scorecard->contest_id)
+            ->where('judge_id', $request->user()->getKey())
+            ->whereIn('id', $request->user()->scoringAssignments()
+                ->active()
+                ->where('scope_type', 'entry_scorecard')
+                ->select('entry_scorecard_id'))
+            ->orderBy('entry_id')
+            ->get(['id']);
+        $position = $assignedScorecards->search(fn (EntryScorecard $item): bool => $item->is($scorecard));
+        $previous = $position !== false && $position > 0 ? $assignedScorecards[$position - 1] : null;
+        $next = $position !== false && $position < $assignedScorecards->count() - 1 ? $assignedScorecards[$position + 1] : null;
+        $adjustments = ScoringAdjustment::query()
+            ->with('recorder')
+            ->where('contest_id', $scorecard->contest_id)
+            ->where('entry_id', $scorecard->entry_id)
+            ->orderBy('recorded_at')
+            ->get();
 
         return Inertia::render('Judge/Scorecard', [
             'scorecard' => [
@@ -37,6 +62,34 @@ class ScorecardController extends Controller
                 'contest' => $scorecard->contest?->name,
                 'division' => $scorecard->contest?->division?->name,
                 'competition' => $scorecard->contest?->division?->competition?->name,
+                'source' => [
+                    'reference' => $rule?->source_reference,
+                    'pages' => $metadata?->sourcePages ?? [],
+                    'reliability' => $metadata?->reliabilityLabel ?? 'unresolved',
+                    'blocker' => $metadata?->sourceBlocker,
+                ],
+                'instructions' => $metadata?->eventControls ?? [],
+                'schedule' => [
+                    'venue' => $schedule?->venue?->name,
+                    'starts_at' => $schedule?->starts_at?->toIso8601String(),
+                    'ends_at' => $schedule?->ends_at?->toIso8601String(),
+                    'fallback' => $schedule === null ? 'Venue not scheduled yet' : null,
+                ],
+                'official_adjustments' => $adjustments->map(fn ($adjustment) => [
+                    'id' => (string) $adjustment->getKey(),
+                    'label' => $adjustment->label,
+                    'points' => (string) $adjustment->points,
+                    'input' => (string) $adjustment->input_value.' '.$adjustment->input_unit,
+                    'recorded_by' => $adjustment->recorder?->name,
+                    'recorded_at' => $adjustment->recorded_at?->toIso8601String(),
+                ])->values()->all(),
+                'official_deduction_total' => (string) $adjustments->sum('points'),
+                'navigation' => [
+                    'previous_id' => $previous === null ? null : (string) $previous->getKey(),
+                    'next_id' => $next === null ? null : (string) $next->getKey(),
+                    'position' => $position === false ? null : $position + 1,
+                    'total' => $assignedScorecards->count(),
+                ],
                 'criteria' => $scorecard->ruleVersion?->criteria
                     ->sortBy('display_order')
                     ->map(fn ($criterion) => [
@@ -71,16 +124,21 @@ class ScorecardController extends Controller
             'expected_revision' => ['required', 'integer', 'min:0'],
             'values' => ['required', 'array'],
             'values.*.criterion_id' => ['required', 'integer'],
-            'values.*.raw_value' => ['required', 'numeric'],
+            'values.*.raw_value' => ['nullable', 'numeric'],
             'values.*.deduction' => ['nullable', 'numeric', 'min:0'],
             'values.*.notes' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        $draftValues = array_values(array_filter(
+            $data['values'],
+            fn (array $value): bool => array_key_exists('raw_value', $value) && $value['raw_value'] !== null,
+        ));
 
         try {
             $save->handle(
                 $request->user(),
                 $scorecard,
-                $data['values'],
+                $draftValues,
                 (int) $data['expected_revision'],
             );
         } catch (\DomainException $exception) {

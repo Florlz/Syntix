@@ -52,6 +52,18 @@ class JudgedScorecardTest extends TestCase
         $this->assertSame(2, (int) $submitted->revision);
     }
 
+    public function test_judge_cannot_save_before_the_panel_and_aggregation_authority_are_locked(): void
+    {
+        $context = $this->context(panelLocked: false);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('panel and aggregation authority are locked');
+
+        (new SaveJudgeScorecard)->handle($context['judge'], $context['scorecard'], [
+            ['criterion_id' => $context['criteria'][0]->getKey(), 'raw_value' => '80'],
+        ], 0);
+    }
+
     public function test_judge_cannot_score_an_unassigned_scorecard(): void
     {
         $context = $this->context(assign: false);
@@ -60,6 +72,31 @@ class JudgedScorecardTest extends TestCase
         (new SaveJudgeScorecard)->handle($context['judge'], $context['scorecard'], [
             ['criterion_id' => $context['criteria'][0]->getKey(), 'raw_value' => '80'],
         ], 0);
+    }
+
+    public function test_judge_cannot_claim_a_null_judge_scorecard_when_saving(): void
+    {
+        $context = $this->context(bindJudge: false);
+
+        $this->expectException(AuthorizationException::class);
+
+        (new SaveJudgeScorecard)->handle($context['judge'], $context['scorecard'], [
+            ['criterion_id' => $context['criteria'][0]->getKey(), 'raw_value' => '80'],
+        ], 0);
+    }
+
+    public function test_judge_cannot_claim_a_null_judge_scorecard_when_submitting(): void
+    {
+        $context = $this->context();
+        $scorecard = (new SaveJudgeScorecard)->handle($context['judge'], $context['scorecard'], [
+            ['criterion_id' => $context['criteria'][0]->getKey(), 'raw_value' => '80'],
+            ['criterion_id' => $context['criteria'][1]->getKey(), 'raw_value' => '90'],
+        ], 0);
+        $scorecard->update(['judge_id' => null]);
+
+        $this->expectException(AuthorizationException::class);
+
+        (new SubmitJudgeScorecard)->handle($context['judge'], $scorecard->fresh());
     }
 
     public function test_a_different_assigned_judge_cannot_submit_an_existing_judges_scorecard(): void
@@ -113,6 +150,53 @@ class JudgedScorecardTest extends TestCase
         ]);
     }
 
+    public function test_sparse_draft_save_persists_the_submitted_criterion_when_another_raw_value_is_omitted(): void
+    {
+        $context = $this->context();
+
+        $this->actingAs($context['judge'])
+            ->patch(route('judge.scorecards.update', $context['scorecard']), [
+                'expected_revision' => 0,
+                'values' => [
+                    [
+                        'criterion_id' => $context['criteria'][0]->getKey(),
+                        'raw_value' => '80',
+                        'deduction' => 0,
+                        'notes' => 'Focused draft note',
+                    ],
+                    [
+                        'criterion_id' => $context['criteria'][1]->getKey(),
+                        'deduction' => 0,
+                        'notes' => null,
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $savedValues = $context['scorecard']->fresh('values')->values;
+
+        $this->assertCount(1, $savedValues);
+        $this->assertSame($context['criteria'][0]->getKey(), $savedValues->sole()->scoring_criterion_id);
+        $this->assertSame('80.0000', $savedValues->sole()->raw_value);
+        $this->assertSame('Focused draft note', $savedValues->sole()->notes);
+    }
+
+    public function test_submission_still_rejects_a_missing_required_persisted_criterion(): void
+    {
+        $context = $this->context();
+
+        $scorecard = (new SaveJudgeScorecard)->handle($context['judge'], $context['scorecard'], [
+            ['criterion_id' => $context['criteria'][0]->getKey(), 'raw_value' => '80'],
+        ], 0);
+
+        $this->actingAs($context['judge'])
+            ->post(route('judge.scorecards.submit', $scorecard))
+            ->assertSessionHasErrors('scorecard');
+
+        $this->assertSame('draft', $scorecard->fresh()->scorecardState()->value);
+    }
+
     public function test_judge_cannot_view_peer_scorecards_without_the_exact_assignment(): void
     {
         $context = $this->context();
@@ -130,8 +214,19 @@ class JudgedScorecardTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_judge_cannot_view_an_exactly_assigned_scorecard_bound_to_another_judge(): void
+    {
+        $context = $this->context();
+        $otherJudge = User::factory()->create(['email' => 'bound-peer-'.uniqid().'@example.com']);
+        $context['scorecard']->update(['judge_id' => $otherJudge->getKey()]);
+
+        $this->actingAs($context['judge'])
+            ->get(route('judge.scorecards.show', $context['scorecard']))
+            ->assertForbidden();
+    }
+
     /** @return array{admin: User, event: Event, judge: User, scorecard: EntryScorecard, criteria: list<ScoringCriterion>} */
-    private function context(bool $assign = true): array
+    private function context(bool $assign = true, bool $bindJudge = true, bool $panelLocked = true): array
     {
         $admin = (new BootstrapGlobalAdmin)->handle([
             'name' => 'Global Admin',
@@ -202,9 +297,17 @@ class JudgedScorecardTest extends TestCase
             ]),
         ];
         (new ActivateRuleVersion)->handle($admin, $version);
+        $version->confirmAggregation(
+            $admin,
+            'average',
+            'Authorized test authority',
+            'The test panel approved average aggregation.',
+        );
         $contest = Contest::factory()->create([
             'competition_division_id' => $division->getKey(),
             'competition_rule_version_id' => $version->getKey(),
+            'judging_panel_locked_at' => $panelLocked ? now() : null,
+            'judging_panel_locked_by' => $panelLocked ? $admin->getKey() : null,
         ]);
         $entry = Entry::create([
             'competition_division_id' => $division->getKey(),
@@ -216,6 +319,7 @@ class JudgedScorecardTest extends TestCase
         $scorecard = EntryScorecard::create([
             'contest_id' => $contest->getKey(),
             'entry_id' => $entry->getKey(),
+            'judge_id' => $bindJudge ? $judge->getKey() : null,
             'competition_rule_version_id' => $version->getKey(),
             'entry_reference' => 'solo-entry',
             'state' => 'draft',

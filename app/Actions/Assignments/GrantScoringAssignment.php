@@ -64,8 +64,7 @@ final class GrantScoringAssignment
             $hasRequiredRole = match ($scope) {
                 ScoringAssignmentScope::EntryScorecard => $assignee->hasActiveEventRole($event, EventRole::Judge),
                 ScoringAssignmentScope::Contest => $assignee->hasActiveEventRole($event, EventRole::Tabulator),
-                ScoringAssignmentScope::CompetitionDivision => $assignee->hasActiveEventRole($event, EventRole::Judge)
-                    || $assignee->hasActiveEventRole($event, EventRole::Tabulator),
+                ScoringAssignmentScope::CompetitionDivision => $assignee->hasActiveEventRole($event, EventRole::Tabulator),
             };
 
             if (! $hasRequiredRole) {

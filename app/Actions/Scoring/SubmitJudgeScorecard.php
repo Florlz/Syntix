@@ -23,10 +23,18 @@ final class SubmitJudgeScorecard
 
         return DB::transaction(function () use ($actor, $scorecard): EntryScorecard {
             $scorecard = EntryScorecard::query()
-                ->with('ruleVersion.criteria')
+                ->with('contest', 'ruleVersion.criteria')
                 ->whereKey($scorecard->getKey())
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            if (! $actor->canScoreEntryScorecard($scorecard)) {
+                throw new AuthorizationException('The Judge is not assigned to this scorecard.');
+            }
+
+            if (! $scorecard->contest?->isJudgingPanelLocked()) {
+                throw new \DomainException('Judge submission opens only after the judging panel is locked.');
+            }
 
             if (! in_array($scorecard->scorecardState(), [ScorecardState::Draft, ScorecardState::Rejected], true)) {
                 throw new \DomainException('Only draft or rejected scorecards can be submitted.');
@@ -36,7 +44,11 @@ final class SubmitJudgeScorecard
                 throw new \DomainException('Scorecard submission requires its frozen rule version.');
             }
 
-            if ($scorecard->judge_id !== null && (int) $scorecard->judge_id !== (int) $actor->getKey()) {
+            if ($scorecard->judge_id === null) {
+                throw new AuthorizationException('A scorecard must be pre-bound to a Judge.');
+            }
+
+            if ((int) $scorecard->judge_id !== (int) $actor->getKey()) {
                 throw new AuthorizationException('A scorecard belongs to another Judge.');
             }
 

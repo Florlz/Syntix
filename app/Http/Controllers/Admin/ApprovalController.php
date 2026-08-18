@@ -164,9 +164,13 @@ class ApprovalController extends Controller
         ResultSubmission $submission,
         RejectContestResult $reject,
     ): RedirectResponse {
-        $data = $request->validate(['reason' => ['required', 'string', 'max:2000']]);
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+            'scorecard_ids' => ['sometimes', 'array'],
+            'scorecard_ids.*' => ['integer', 'distinct'],
+        ]);
         try {
-            $reject->handle($request->user(), $submission, $data['reason']);
+            $reject->handle($request->user(), $submission, $data['reason'], $data['scorecard_ids'] ?? []);
         } catch (\DomainException $exception) {
             throw ValidationException::withMessages(['approval' => $exception->getMessage()]);
         }
