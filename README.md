@@ -6,21 +6,18 @@ The application is designed for multiple SIKLAB editions. The approved 2025 mate
 
 ## Current Status
 
-The repository contains a working proposal-backed implementation across identity, event foundations, scoring, approvals, randomized bracket generation, Judge and Tabulator workflows, Global Admin operations, public scoreboard pages, and a public CSPC landing surface.
+The repository contains a working proposal-backed implementation across identity, event setup, sports and divisions, registrations and rosters, schedules and publishing, tournament generation, Judge and Tabulator operations, result approvals, public scoreboards, and the championship-point ledger.
 
-Known incomplete or intentionally blocked areas include Laravel Reverb/Echo delivery, the full offline synchronization phase, PDF report/archive generation, and proposal rules whose printed values conflict or omit required detail.
-The Global Admin participant/roster Registration Desk is the next approved
-administrative slice and is not yet part of the verified implementation
-baseline.
+Event staff use invitation-only accounts. Judges receive exact scorecards through locked judging panels; Tabulators receive division or contest assignments. Their role dashboards are schedule-first and expose only server-authorized work. Account setup supports private link sharing and locally generated printable QR handoff cards.
 
-See the [product requirements](docs/prd/2026-08-09-syntix-product-prd.md) and [single system implementation plan](docs/plans/2026-08-09-syntix-system.md).
+Known incomplete or intentionally blocked areas include Laravel Reverb/Echo delivery, PDF report/archive generation, broader offline coverage outside the objective-scoring command queue, and proposal rules whose printed values conflict or omit required detail. Conflicting source rules remain blocked rather than guessed.
 
 ## Stack
 
 - Laravel 13 and PHP 8.4+
 - PostgreSQL as the application authority
 - React 18 with Inertia 2
-- Tailwind CSS 3 and Vite 8
+- Tailwind CSS 4 and Vite 8
 - Laravel session authentication
 - PHPUnit 12 and Laravel Pint
 - Installable PWA shell with public-only runtime caching
@@ -57,12 +54,25 @@ with `admin@example.com` / `password`, open **Syntix PostgreSQL**, and enter the
 database password `password` when prompted. Change these local credentials in
 `.env` if the services will be exposed beyond your machine.
 
-Common project commands run inside the PHP container:
+Common verification and maintenance commands run inside the containers:
 
 ```powershell
-docker compose exec app php artisan test
-docker compose exec app php vendor/bin/pint --test
-docker compose exec app php artisan migrate
+docker compose exec -T app php artisan test --compact
+docker compose exec -T app php vendor/bin/pint --test
+docker compose exec -T app php artisan migrate
+docker compose exec -T vite npm run test:ui -- --run
+docker compose exec -T vite npm run build
+docker compose -f compose.yaml -f compose.contract.yaml --profile contract run --rm contract
+```
+
+The default local seed creates `admin@syntix.test` with password `password`,
+the SIKLAB 2026 event, its sports, divisions, departments, and governing rule
+configuration. It intentionally creates no players, rosters, schedules, venues,
+contests, scoring staff, assignments, or results. Disposable showcase data is
+opt-in:
+
+```powershell
+docker compose exec -T app php artisan db:seed --class=DevelopmentShowcaseSeeder
 ```
 
 View application, Vite, or queue-worker logs with `docker compose logs -f app`,
@@ -75,13 +85,25 @@ docker compose down
 
 ## Documentation
 
-There are exactly two Markdown documentation authorities:
+Current behavior is defined by the application source, migrations, and tests.
+Use these documents for orientation and delivery history:
 
-- [`docs/prd/2026-08-09-syntix-product-prd.md`](docs/prd/2026-08-09-syntix-product-prd.md): product requirements, canonical terminology, architecture decisions, technical contracts, and open institutional decisions
-- [`docs/plans/2026-08-09-syntix-system.md`](docs/plans/2026-08-09-syntix-system.md): system implementation sequence and delivery evidence
+- [`agents/context.md`](agents/context.md): durable product, domain, architecture, privacy, and workflow conventions
+- [`docs/handoffs/`](docs/handoffs/): delivered behavior, verification evidence, and continuation notes
+- [`docs/superpowers/`](docs/superpowers/): approved design and implementation records retained in the repository
 
 The PDF and DOCX files under `docs/` are preserved institutional source
-artifacts. They do not override the PRD when sources conflict.
+artifacts. When those sources conflict or omit required rules, the affected
+workflow remains blocked until an authorized interpretation is recorded.
+
+## Judge and Tabulator Event-Day Flow
+
+1. The Global Admin creates the staff identity and event role under **Judges & Tabulators → People**.
+2. Syntix displays a one-time setup link. The Admin shares it privately or prints the named QR handoff card.
+3. The staff member creates a password. If another account is already signed in, Syntix requires an explicit account switch instead of silently redirecting.
+4. Judge-only accounts open **My Judging**; Tabulator-only accounts open **My Tabulation**. Dual-role accounts choose a workspace.
+5. Assignments are managed separately: Judges through judging panels, Tabulators through division or contest assignments.
+6. Schedule timelines show time, venue, state, and the next allowed action. Corrections, blockers, live work, and contests ready to finalize are also surfaced under **Needs attention**.
 
 ## Scope Boundaries
 
