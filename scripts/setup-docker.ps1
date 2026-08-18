@@ -55,5 +55,8 @@ if ($LASTEXITCODE -ne 0) { throw 'The development stack failed to start.' }
 Write-Host ''
 Write-Host 'Syntix is ready with Docker.' -ForegroundColor Green
 Write-Host 'Application: http://localhost:8000'
+Write-Host 'Application admin: admin@syntix.test / password'
+Write-Host 'Seeded workspace: SIKLAB 2026 configuration shell (no players, schedules, contests, or scoring staff)'
 Write-Host 'Database admin: http://localhost:5050 (admin@example.com / password)'
-Write-Host 'Vite hot reload is running at http://localhost:5173'
+Write-Host 'Vite hot reload: http://localhost:5173'
+Write-Warning 'These credentials are local defaults. Change them before exposing the services beyond this machine.'
