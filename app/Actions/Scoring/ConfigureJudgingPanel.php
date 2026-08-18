@@ -2,6 +2,7 @@
 
 namespace App\Actions\Scoring;
 
+use App\Actions\Assignments\RevokeScoringAssignment;
 use App\Actions\Assignments\GrantScoringAssignment;
 use App\Enums\AuditAction;
 use App\Enums\EventRole;
@@ -68,10 +69,29 @@ final class ConfigureJudgingPanel
             }
 
             if ($removed->isNotEmpty()) {
-                ScoringAssignment::query()
-                    ->whereIn('entry_scorecard_id', $removed->modelKeys())
-                    ->delete();
-                EntryScorecard::query()->whereKey($removed->modelKeys())->delete();
+                $revoke = new RevokeScoringAssignment;
+
+                foreach ($removed as $scorecard) {
+                    ScoringAssignment::query()
+                        ->active()
+                        ->where('entry_scorecard_id', $scorecard->getKey())
+                        ->get()
+                        ->each(fn (ScoringAssignment $assignment) => $revoke->handle(
+                            $assignment,
+                            $actor,
+                            'Judge removed from the judging panel.',
+                        ));
+
+                    // Keep the scorecard row as a detached operational record.
+                    // The assignment history retains its exact target through
+                    // the foreign key, while a future panel can create a new
+                    // scorecard for the same Judge/entry pair.
+                    if ((int) $scorecard->revision === 0
+                        && $scorecard->calculated_total === null
+                        && $scorecard->values->isEmpty()) {
+                        $scorecard->update(['judge_id' => null]);
+                    }
+                }
             }
 
             foreach ($selected as $judge) {

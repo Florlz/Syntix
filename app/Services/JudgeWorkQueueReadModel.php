@@ -8,13 +8,14 @@ use App\Enums\ScoringAssignmentScope;
 use App\Models\Contest;
 use App\Models\EntryScorecard;
 use App\Models\Event;
-use App\Models\Schedule;
 use App\Models\ScoringAssignment;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
 final class JudgeWorkQueueReadModel
 {
+    public function __construct(private readonly ContestScheduleReadModel $schedules) {}
+
     /**
      * @return array{event: ?array<string, mixed>, summary: array<string, int>, contests: list<array<string, mixed>>}
      */
@@ -97,7 +98,7 @@ final class JudgeWorkQueueReadModel
         $contest->loadMissing('division.competition', 'ruleVersion');
         $rule = $contest->ruleVersion;
         $metadata = $rule?->metadata();
-        $schedule = $this->scheduleFor($contest);
+        $schedule = $this->schedules->forContest($contest);
         $blocked = $metadata?->sourceBlocker !== null || $rule?->source_status === 'blocked' || ! $contest->isJudgingPanelLocked();
         $nextBlocker = $metadata?->sourceBlocker
             ?? ($rule?->source_status === 'blocked' ? 'The source rule is blocked.'
@@ -107,6 +108,7 @@ final class JudgeWorkQueueReadModel
             $state = $blocked ? 'blocked' : $this->statusFor($scorecard);
 
             return [
+                'id' => (string) $scorecard->getKey(),
                 'entry' => $scorecard->entry?->name ?? $scorecard->entry_reference ?? 'Assigned entry',
                 'delegation' => $scorecard->entry?->delegation?->name,
                 'status' => $state,
@@ -126,7 +128,7 @@ final class JudgeWorkQueueReadModel
             'scorecard_count' => count($cards),
             'entry_count' => count($cards),
             'counts' => $counts,
-            'schedule' => $this->scheduleDto($schedule),
+            'schedule' => $schedule,
             'source' => $this->sourceDto($metadata),
             'readiness' => [
                 'ready' => ! $blocked,
@@ -160,38 +162,6 @@ final class JudgeWorkQueueReadModel
             'blocked' => 'Blocked',
             default => 'Needs attention',
         };
-    }
-
-    private function scheduleFor(Contest $contest): ?Schedule
-    {
-        $schedule = Schedule::query()
-            ->with('venue')
-            ->where('event_id', $contest->division?->competition?->event_id)
-            ->where('contest_id', $contest->getKey())
-            ->orderBy('starts_at')
-            ->first();
-
-        return $schedule ?? Schedule::query()
-            ->with('venue')
-            ->where('event_id', $contest->division?->competition?->event_id)
-            ->where('competition_division_id', $contest->competition_division_id)
-            ->whereNull('contest_id')
-            ->orderBy('starts_at')
-            ->first();
-    }
-
-    /** @return array<string, mixed> */
-    private function scheduleDto(?Schedule $schedule): array
-    {
-        return [
-            'starts_at' => $schedule?->starts_at?->toIso8601String(),
-            'ends_at' => $schedule?->ends_at?->toIso8601String(),
-            'title' => $schedule?->title,
-            'venue' => $schedule?->venue === null ? null : [
-                'name' => $schedule->venue->name,
-                'location' => $schedule->venue->location,
-            ],
-        ];
     }
 
     /** @return array<string, mixed> */

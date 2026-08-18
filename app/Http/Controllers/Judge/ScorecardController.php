@@ -6,8 +6,8 @@ use App\Actions\Scoring\SaveJudgeScorecard;
 use App\Actions\Scoring\SubmitJudgeScorecard;
 use App\Http\Controllers\Controller;
 use App\Models\EntryScorecard;
-use App\Models\Schedule;
 use App\Models\ScoringAdjustment;
+use App\Services\ContestScheduleReadModel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,7 +17,7 @@ use Inertia\Response;
 
 class ScorecardController extends Controller
 {
-    public function show(Request $request, EntryScorecard $scorecard): Response
+    public function show(Request $request, EntryScorecard $scorecard, ContestScheduleReadModel $schedules): Response
     {
         Gate::authorize('view', $scorecard);
         $scorecard->load([
@@ -29,18 +29,7 @@ class ScorecardController extends Controller
 
         $rule = $scorecard->ruleVersion;
         $metadata = $rule?->metadata();
-        $schedule = Schedule::query()
-            ->with('venue')
-            ->where(function ($query) use ($scorecard): void {
-                $query->where('contest_id', $scorecard->contest_id)
-                    ->orWhere(function ($query) use ($scorecard): void {
-                        $query->whereNull('contest_id')
-                            ->where('competition_division_id', $scorecard->contest?->competition_division_id);
-                    });
-            })
-            ->orderByRaw('CASE WHEN contest_id IS NULL THEN 1 ELSE 0 END')
-            ->orderBy('starts_at')
-            ->first();
+        $schedule = $scorecard->contest === null ? null : $schedules->findForContest($scorecard->contest);
 
         $assignedScorecards = EntryScorecard::query()
             ->where('contest_id', $scorecard->contest_id)
@@ -135,16 +124,21 @@ class ScorecardController extends Controller
             'expected_revision' => ['required', 'integer', 'min:0'],
             'values' => ['required', 'array'],
             'values.*.criterion_id' => ['required', 'integer'],
-            'values.*.raw_value' => ['required', 'numeric'],
+            'values.*.raw_value' => ['nullable', 'numeric'],
             'values.*.deduction' => ['nullable', 'numeric', 'min:0'],
             'values.*.notes' => ['nullable', 'string', 'max:1000'],
         ]);
+
+        $draftValues = array_values(array_filter(
+            $data['values'],
+            fn (array $value): bool => array_key_exists('raw_value', $value) && $value['raw_value'] !== null,
+        ));
 
         try {
             $save->handle(
                 $request->user(),
                 $scorecard,
-                $data['values'],
+                $draftValues,
                 (int) $data['expected_revision'],
             );
         } catch (\DomainException $exception) {

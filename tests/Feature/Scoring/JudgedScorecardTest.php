@@ -150,6 +150,53 @@ class JudgedScorecardTest extends TestCase
         ]);
     }
 
+    public function test_sparse_draft_save_persists_the_submitted_criterion_when_another_raw_value_is_omitted(): void
+    {
+        $context = $this->context();
+
+        $this->actingAs($context['judge'])
+            ->patch(route('judge.scorecards.update', $context['scorecard']), [
+                'expected_revision' => 0,
+                'values' => [
+                    [
+                        'criterion_id' => $context['criteria'][0]->getKey(),
+                        'raw_value' => '80',
+                        'deduction' => 0,
+                        'notes' => 'Focused draft note',
+                    ],
+                    [
+                        'criterion_id' => $context['criteria'][1]->getKey(),
+                        'deduction' => 0,
+                        'notes' => null,
+                    ],
+                ],
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $savedValues = $context['scorecard']->fresh('values')->values;
+
+        $this->assertCount(1, $savedValues);
+        $this->assertSame($context['criteria'][0]->getKey(), $savedValues->sole()->scoring_criterion_id);
+        $this->assertSame('80.0000', $savedValues->sole()->raw_value);
+        $this->assertSame('Focused draft note', $savedValues->sole()->notes);
+    }
+
+    public function test_submission_still_rejects_a_missing_required_persisted_criterion(): void
+    {
+        $context = $this->context();
+
+        $scorecard = (new SaveJudgeScorecard)->handle($context['judge'], $context['scorecard'], [
+            ['criterion_id' => $context['criteria'][0]->getKey(), 'raw_value' => '80'],
+        ], 0);
+
+        $this->actingAs($context['judge'])
+            ->post(route('judge.scorecards.submit', $scorecard))
+            ->assertSessionHasErrors('scorecard');
+
+        $this->assertSame('draft', $scorecard->fresh()->scorecardState()->value);
+    }
+
     public function test_judge_cannot_view_peer_scorecards_without_the_exact_assignment(): void
     {
         $context = $this->context();

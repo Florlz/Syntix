@@ -30,8 +30,8 @@ class ContestController extends Controller
     {
         Gate::authorize('view', $contest);
 
-        $contest->load(['division.competition', 'division.governingRuleVersion', 'entries.entry', 'scorecards']);
-        $configuration = $contest->division?->governingRuleVersion?->scoring_configuration ?? [];
+        $contest->load(['division.competition', 'ruleVersion', 'entries.entry', 'scorecards']);
+        $configuration = $contest->ruleVersion?->scoring_configuration ?? [];
 
         if ($contest->ruleVersion?->scoringFamily() === ScoringFamily::CriteriaBased) {
             $matrix = $judged->forContest($contest);
@@ -57,13 +57,22 @@ class ContestController extends Controller
             ]);
         }
 
+        $submission = $contest->resultSubmissions()->latest('id')->first();
+        $displayState = match ($submission?->submissionState()->value) {
+            'approved' => 'approved',
+            'submitted' => 'submitted',
+            default => $contest->state->value,
+        };
+
         return Inertia::render('Tabulator/Contest', [
             'contest' => [
                 'id' => (string) $contest->getKey(),
                 'event_id' => (string) $contest->division?->competition?->event_id,
                 'division_id' => (string) $contest->competition_division_id,
                 'name' => $contest->name,
-                'state' => $contest->state->value,
+                'state' => $displayState,
+                'contest_state' => $contest->state->value,
+                'submission_state' => $submission?->submissionState()->value,
                 'revision' => $contest->revision,
                 'division' => $contest->division?->name,
                 'competition' => $contest->division?->competition?->name,

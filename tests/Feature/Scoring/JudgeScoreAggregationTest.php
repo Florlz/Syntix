@@ -176,6 +176,47 @@ class JudgeScoreAggregationTest extends TestCase
         $this->assertSame('2.0000', $matrix['entries'][0]['adjustments'][0]['points']);
     }
 
+    public function test_read_model_preserves_voided_adjustment_history_and_exposes_operational_state(): void
+    {
+        $context = $this->lockedContext();
+        $entries = $context['contest']->entries()->orderBy('slot')->get();
+        $totals = [];
+        foreach ($entries as $index => $contestEntry) {
+            $totals[$contestEntry->entry_id] = [
+                number_format(90 - $index, 4, '.', ''),
+                number_format(89 - $index, 4, '.', ''),
+            ];
+        }
+        $this->submitTotals($context['contest'], $totals);
+        $adjustment = ScoringAdjustment::create([
+            'contest_id' => $context['contest']->getKey(),
+            'entry_id' => $entries->first()->entry_id,
+            'competition_rule_version_id' => $context['rule']->getKey(),
+            'code' => 'test-adjustment',
+            'label' => 'Test adjustment',
+            'source_reference' => 'Test source',
+            'input_value' => '1',
+            'input_unit' => 'point',
+            'points' => '2.0000',
+            'recorded_by' => $context['admin']->getKey(),
+            'recorded_at' => now(),
+        ]);
+        $adjustment->update([
+            'voided_by' => $context['admin']->getKey(),
+            'voided_at' => now(),
+            'void_reason' => 'Timing sheet corrected',
+        ]);
+
+        $matrix = (new JudgedTabulationReadModel)->forContest($context['contest']);
+        $row = collect($matrix['entries'])->firstWhere('entry_id', (string) $entries->first()->entry_id);
+
+        $this->assertSame([], $row['adjustments']);
+        $this->assertSame('voided', $row['adjustment_history'][0]['status']);
+        $this->assertSame('Timing sheet corrected', $row['adjustment_history'][0]['void_reason']);
+        $this->assertSame('ready', $matrix['operational_state']);
+        $this->assertNull($matrix['submission']);
+    }
+
     public function test_scorecard_bound_to_a_different_rule_version_blocks_aggregation(): void
     {
         $context = $this->lockedContext();

@@ -2,13 +2,13 @@
 
 namespace App\Actions\Scoring;
 
+use App\Actions\Assignments\RevokeScoringAssignment;
 use App\Enums\AuditAction;
 use App\Enums\EntryStatus;
 use App\Enums\ScoringFamily;
 use App\Models\Contest;
 use App\Models\Division;
 use App\Models\Event;
-use App\Models\EntryScorecard;
 use App\Models\ScoringAssignment;
 use App\Models\User;
 use App\Services\AuditLogger;
@@ -70,8 +70,20 @@ final class PrepareJudgedContest
                 if ($staleCards->contains(fn ($card): bool => (int) $card->revision > 0 || $card->calculated_total !== null || $card->values->isNotEmpty())) {
                     throw new \DomainException('An ineligible prepared entry already has scoring evidence and requires an audited correction.');
                 }
-                ScoringAssignment::query()->whereIn('entry_scorecard_id', $staleCards->modelKeys())->delete();
-                EntryScorecard::query()->whereKey($staleCards->modelKeys())->delete();
+
+                $revoke = new RevokeScoringAssignment;
+                foreach ($staleCards as $scorecard) {
+                    ScoringAssignment::query()
+                        ->active()
+                        ->where('entry_scorecard_id', $scorecard->getKey())
+                        ->get()
+                        ->each(fn (ScoringAssignment $assignment) => $revoke->handle(
+                            $assignment,
+                            $actor,
+                            'Entry removed from the prepared judging contest.',
+                        ));
+                    $scorecard->update(['judge_id' => null]);
+                }
                 $contest->entries()->whereKey($stale->modelKeys())->delete();
             }
 

@@ -130,6 +130,68 @@ class AutomaticTournamentScoringTest extends TestCase
         ], 1);
     }
 
+    public function test_best_of_sets_declared_result_cannot_contradict_set_evidence(): void
+    {
+        $context = $this->context(CompetitionFormat::SingleElimination, 'best_of_sets');
+        $contest = $this->publishedContest($context);
+        $started = (new StartContest)->handle($context['tabulator'], $contest);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('does not match the evidence');
+
+        (new CompleteContest)->handle($context['tabulator'], $started, [
+            'outcome_type' => 'played',
+            'home' => 2,
+            'away' => 0,
+            'result' => 'away_win',
+            'evidence' => [
+                'profile' => 'best_of_sets',
+                'data' => ['home_scores' => [25, 25], 'away_scores' => [20, 18]],
+            ],
+        ], 1);
+    }
+
+    public function test_team_tie_derives_the_winner_from_all_three_rubbers(): void
+    {
+        $context = $this->context(CompetitionFormat::SingleElimination, 'team_tie');
+        $contest = $this->publishedContest($context);
+        $started = (new StartContest)->handle($context['tabulator'], $contest);
+
+        $completed = (new CompleteContest)->handle($context['tabulator'], $started, [
+            'outcome_type' => 'played',
+            'home' => 2,
+            'away' => 1,
+            'evidence' => [
+                'profile' => 'team_tie',
+                'data' => ['rubbers' => ['home', 'away', 'home']],
+            ],
+        ], 1);
+
+        $this->assertSame(2, $completed->result_payload['home']);
+        $this->assertSame(1, $completed->result_payload['away']);
+        $this->assertSame('home_win', $completed->result_payload['result']);
+    }
+
+    public function test_team_tie_declared_totals_cannot_contradict_rubber_evidence(): void
+    {
+        $context = $this->context(CompetitionFormat::SingleElimination, 'team_tie');
+        $contest = $this->publishedContest($context);
+        $started = (new StartContest)->handle($context['tabulator'], $contest);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('declared score does not match the evidence');
+
+        (new CompleteContest)->handle($context['tabulator'], $started, [
+            'outcome_type' => 'played',
+            'home' => 1,
+            'away' => 2,
+            'evidence' => [
+                'profile' => 'team_tie',
+                'data' => ['rubbers' => ['home', 'away', 'home']],
+            ],
+        ], 1);
+    }
+
     /** @return array<string, mixed> */
     private function context(CompetitionFormat $format, string $profile, array $configuration = []): array
     {

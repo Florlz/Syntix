@@ -14,6 +14,7 @@ use App\Models\Contest;
 use App\Models\Division;
 use App\Models\Event;
 use App\Models\User;
+use App\Models\ScoringAssignment;
 use Database\Seeders\SiklabReferenceSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -65,7 +66,7 @@ class JudgingPanelPreparationTest extends TestCase
         );
     }
 
-    public function test_unused_removed_judge_scorecards_are_removed_but_scoring_history_blocks_panel_change(): void
+    public function test_unused_removed_judge_scorecards_are_detached_but_assignment_history_is_revoked(): void
     {
         [$admin, $event, $division] = $this->context('pop-solo');
         $contest = (new PrepareJudgedContest)->handle($admin, $division);
@@ -74,8 +75,23 @@ class JudgingPanelPreparationTest extends TestCase
         $action->handle($admin, $contest, [$judgeA, $judgeB]);
 
         $action->handle($admin, $contest, [$judgeA]);
-        $this->assertSame(7, $contest->scorecards()->count());
+        $this->assertSame(7, $contest->scorecards()->where('judge_id', $judgeA->getKey())->count());
         $this->assertSame(0, $contest->scorecards()->where('judge_id', $judgeB->getKey())->count());
+        $this->assertSame(7, $contest->scorecards()->whereNotNull('judge_id')->count());
+        $this->assertDatabaseHas('scoring_assignments', [
+            'user_id' => $judgeB->getKey(),
+            'event_id' => $event->getKey(),
+            'scope_type' => 'entry_scorecard',
+            'revoked_by' => $admin->getKey(),
+            'reason' => 'Judge removed from the judging panel.',
+        ]);
+        $this->assertNotNull(
+            ScoringAssignment::query()
+                ->where('user_id', $judgeB->getKey())
+                ->where('scope_type', 'entry_scorecard')
+                ->firstOrFail()
+                ->revoked_at,
+        );
 
         $scorecard = $contest->scorecards()->where('judge_id', $judgeA->getKey())->firstOrFail();
         $scorecard->update(['revision' => 1]);
@@ -104,7 +120,9 @@ class JudgingPanelPreparationTest extends TestCase
     {
         [$admin, $event, $division] = $this->context('pop-solo');
         $contest = (new PrepareJudgedContest)->handle($admin, $division);
+        (new ConfigureJudgingPanel)->handle($admin, $contest, $this->judges($admin, $event, 1));
         $staleEntry = $contest->entries()->firstOrFail()->entry;
+        $staleScorecardId = $contest->scorecards()->where('entry_id', $staleEntry->getKey())->value('id');
         $before = $contest->entries()->count();
         $staleEntry->update(['status' => 'withdrawn']);
 
@@ -114,6 +132,10 @@ class JudgingPanelPreparationTest extends TestCase
         $this->assertDatabaseMissing('contest_entries', [
             'contest_id' => $contest->getKey(),
             'entry_id' => $staleEntry->getKey(),
+        ]);
+        $this->assertDatabaseHas('scoring_assignments', [
+            'entry_scorecard_id' => $staleScorecardId,
+            'revoked_by' => $admin->getKey(),
         ]);
     }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import AuthenticatedLayout from '../../resources/js/Layouts/AuthenticatedLayout';
 import AdminStaff from '../../resources/js/Pages/Admin/Staff/Index';
@@ -49,10 +49,11 @@ test('admin staff workspace uses normal URL sections and names the readiness blo
             name: 'Essay Writing',
             competition: 'Essay Writing',
             state: 'blocked',
-            source: { reliability: 'conflict', blocker: 'Criteria total 95 while the source prints 100.', pages: [19] },
+            source: { reliability: 'conflict', blocker: 'Criteria total 95 while the source prints 100.', pages: [20] },
             next_blocker: 'Criteria total 95 while the source prints 100.',
             counts: { entries: 7, judges: 0, tabulators: 0 },
-            schedule: { starts_at: null, ends_at: null, venue: null },
+            schedule: { starts_at: '2026-08-18T09:00:00Z', ends_at: null, title: 'Morning judging call', venue: { id: '3', name: 'CSPC Auditorium', location: 'Main campus' } },
+            readiness_steps: [{ key: 'contest', label: 'Contest', state: 'prepared', detail: 'Prepared' }, { key: 'panel', label: 'Judge panel', state: 'pending', detail: 'Not configured' }],
             actions: { prepare: null, panel: null, lock: null },
         }]}
     />);
@@ -62,6 +63,40 @@ test('admin staff workspace uses normal URL sections and names the readiness blo
     expect(screen.getByText('Essay Writing')).toBeInTheDocument();
     expect(screen.getByText('Criteria total 95 while the source prints 100.')).toBeInTheDocument();
     expect(screen.getByText('Blocked')).toBeInTheDocument();
+    expect(screen.getByText('Morning judging call')).toBeInTheDocument();
+    expect(screen.getByText('CSPC Auditorium · Main campus')).toBeInTheDocument();
+    expect(screen.getByText('Judge panel')).toBeInTheDocument();
+});
+
+test('staff drawer keeps Judge panel assignments separate from Tabulator scopes', () => {
+    render(<AdminStaff
+        event={{ id: '1', name: 'SIKLAB 2026', archived: false }}
+        section="people"
+        targets={{ competition_division: [{ id: '10', label: 'Pop Solo / Individual' }], contest: [{ id: '20', label: 'Pop Solo / Final' }] }}
+        readiness={[]}
+        staff={[{
+            id: '5',
+            name: 'Dual-role operator',
+            email: 'dual@example.com',
+            account_state: 'active',
+            roles: [{ id: 'r1', role: 'judge' }, { id: 'r2', role: 'tabulator' }],
+            assignments: [],
+            judging_assignments: [{ id: 'j1', scope: 'judging_panel', label: 'Pop Solo / CCS' }],
+            tabulator_assignments: [],
+            invitation: null,
+            event_memberships: [],
+            audit: [],
+        }]}
+    />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Dual-role operator/ }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Judging assignments' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tabulator assignments' })).toBeInTheDocument();
+    expect(screen.getByText('Assignments are managed through judging panels.')).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: 'Scorecard' })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Tabulator assignment scope' })).toBeInTheDocument();
 });
 
 test('judge and tabulator landing pages present operational work modes', () => {
@@ -75,13 +110,21 @@ test('judge and tabulator landing pages present operational work modes', () => {
             entry_count: 1,
             scorecard_count: 1,
             counts: { not_started: 1, in_progress: 0, needs_correction: 0, submitted: 0, approved: 0, blocked: 0 },
-            schedule: { starts_at: null, ends_at: null, venue: null },
-            scorecards: [{ entry: 'CCS', status: 'not_started', status_label: 'Not started', href: '/judge/scorecards/1' }],
+            schedule: { starts_at: '2026-11-13T13:00:00+08:00', ends_at: null, venue: { name: 'CSPC Auditorium', location: 'Main campus' } },
+            scorecards: [{ id: '1', entry: 'CCS', status: 'not_started', status_label: 'Not started', href: '/judge/scorecards/1' }],
             readiness: { ready: true, next_blocker: null },
         }]}
     />);
     expect(screen.getByRole('heading', { name: 'My Judging' })).toBeInTheDocument();
-    expect(screen.getByText('Pop Solo')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pop Solo' })).toBeInTheDocument();
+    expect(screen.getByText('What')).toBeInTheDocument();
+    expect(screen.getByText('When')).toBeInTheDocument();
+    expect(screen.getByText('Where')).toBeInTheDocument();
+    expect(screen.getByText('Next')).toBeInTheDocument();
+    expect(screen.getByText('Remain')).toBeInTheDocument();
+    expect(screen.getByText('Pop Solo / Individual')).toBeInTheDocument();
+    expect(screen.getByText('CSPC Auditorium · Main campus')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Start' })).toHaveAttribute('href', '/judge/scorecards/1');
 
     rerender(<TabulatorIndex
         event={{ id: '1', name: 'SIKLAB 2026' }}
@@ -93,4 +136,26 @@ test('judge and tabulator landing pages present operational work modes', () => {
     expect(screen.getByText('Judged')).toBeInTheDocument();
     expect(screen.getByText('Objective')).toBeInTheDocument();
     expect(screen.getByText('Waiting for 3 Judge scorecards.')).toBeInTheDocument();
+});
+
+test('blocked judge scorecards remain visible without a link', () => {
+    render(<JudgeIndex
+        event={{ id: '1', name: 'SIKLAB 2026' }}
+        summary={{ assigned: 1, submitted: 0, blocked: 1 }}
+        contests={[{
+            name: 'Essay Writing',
+            competition: 'Literary Events',
+            division: 'Individual',
+            scorecard_count: 1,
+            counts: { not_started: 0, in_progress: 0, needs_correction: 0, submitted: 0, approved: 0, blocked: 1 },
+            schedule: { starts_at: null, ends_at: null, venue: null },
+            scorecards: [{ id: '22', entry: 'CCS Essayist', status: 'blocked', status_label: 'Blocked', href: null }],
+            readiness: { ready: false, next_blocker: 'Criteria total 95 while the source prints 100.' },
+        }]}
+    />);
+
+    const blockedRow = screen.getByText('CCS Essayist').closest('li');
+    expect(within(blockedRow).getByText('Blocked')).toBeInTheDocument();
+    expect(within(blockedRow).getByText('Unavailable until ready')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /open|start/i })).not.toBeInTheDocument();
 });

@@ -67,8 +67,24 @@ class Task3OperationsTest extends TestCase
                     && collect($scorecards)->every(fn (array $scorecard): bool => ! array_key_exists('calculated_total', $scorecard));
             })
             ->missing('contests.0.scorecards.0.peer_scores')
+            ->where('contests.0.scorecards.0.id', (string) $contest->scorecards()->where('judge_id', $judge->getKey())->firstOrFail()->getKey())
             ->where('contests.0.scorecards.0.href', route('judge.scorecards.show', $contest->scorecards()->where('judge_id', $judge->getKey())->firstOrFail()))
         );
+    }
+
+    public function test_blocked_judge_scorecard_dto_keeps_its_id_and_has_no_href(): void
+    {
+        [, , $contest, $judge] = $this->judgedContext();
+        $scorecard = $contest->scorecards()->where('judge_id', $judge->getKey())->orderBy('entry_id')->firstOrFail();
+
+        $this->actingAs($judge)
+            ->get(route('judge.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('contests.0.scorecards.0.id', (string) $scorecard->getKey())
+                ->where('contests.0.scorecards.0.status', 'blocked')
+                ->where('contests.0.scorecards.0.href', null)
+            );
     }
 
     public function test_tabulator_landing_separates_judged_and_objective_work_and_surfaces_readiness(): void

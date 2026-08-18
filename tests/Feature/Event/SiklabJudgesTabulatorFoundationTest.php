@@ -3,6 +3,7 @@
 namespace Tests\Feature\Event;
 
 use App\Actions\Events\ApplySiklab2025Programme;
+use App\Actions\Events\BackfillSiklabScoringMetadata;
 use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Data\CompetitionRuleMetadata;
 use App\Enums\RuleVersionState;
@@ -32,6 +33,12 @@ class SiklabJudgesTabulatorFoundationTest extends TestCase
         $this->assertSame('confirmed', $definitions['Story Telling']['reliability_label']);
         $this->assertSame([20], $definitions['Story Telling']['source_pages']);
         $this->assertSame('Nov 12', $definitions['Story Telling']['programme_day_hint']);
+        $this->assertSame([20], $definitions['Essay Writing']['source_pages']);
+        $this->assertSame([20, 21], $definitions['Radio Drama']['source_pages']);
+        $this->assertSame([22, 23], $definitions['Instrumental Solo — Piano']['source_pages']);
+        $this->assertSame([24, 25], $definitions['Contemporary Dance']['source_pages']);
+        $this->assertSame([25], $definitions['Dance Sports']['source_pages']);
+        $this->assertSame([25], $definitions['Cheer Dance']['source_pages']);
 
         $this->assertSame([
             ['Tone Quality', 40],
@@ -175,6 +182,50 @@ class SiklabJudgesTabulatorFoundationTest extends TestCase
         $this->expectExceptionMessage('mutable');
 
         $rule->confirmAggregation($admin, 'average', 'Reference', 'Reason');
+    }
+
+    public function test_metadata_backfill_is_safe_idempotent_and_preserves_calculation_configuration(): void
+    {
+        [$admin, $event] = $this->programme();
+        $rule = $this->ruleFor($event, 'pop-solo');
+        $originalDeduction = $rule->deduction_configuration;
+        $configuration = $rule->scoring_configuration;
+        unset($configuration['venue_candidates'], $configuration['source_pages']);
+        $configuration['operator_note'] = 'keep this';
+        $rule->update(['scoring_configuration' => $configuration]);
+
+        $report = (new BackfillSiklabScoringMetadata)->handle($event->fresh(), false, $admin);
+        $updated = $rule->fresh();
+
+        $this->assertGreaterThan(0, $report['updated']);
+        $this->assertSame(['CSPC Auditorium'], $updated->metadata()->venueCandidates);
+        $this->assertSame([21, 22], $updated->metadata()->sourcePages);
+        $this->assertSame('keep this', $updated->scoring_configuration['operator_note']);
+        $this->assertSame($originalDeduction, $updated->deduction_configuration);
+
+        $second = (new BackfillSiklabScoringMetadata)->handle($updated->eventRecord(), false, $admin);
+        $this->assertSame(0, $second['updated']);
+    }
+
+    public function test_frozen_rule_backfill_does_not_change_calculation_fields(): void
+    {
+        [$admin, $event] = $this->programme();
+        $rule = $this->ruleFor($event, 'pop-solo');
+        $configuration = $rule->scoring_configuration;
+        unset($configuration['venue_candidates']);
+        $rule->update(['scoring_configuration' => $configuration]);
+        $rule->update(['lifecycle_state' => RuleVersionState::Frozen]);
+        $before = [
+            'judge_aggregation_method' => $rule->judge_aggregation_method,
+            'deduction_configuration' => $rule->deduction_configuration,
+        ];
+
+        (new BackfillSiklabScoringMetadata)->handle($event->fresh(), false, $admin);
+
+        $after = $rule->fresh();
+        $this->assertSame($before['judge_aggregation_method'], $after->judge_aggregation_method);
+        $this->assertSame($before['deduction_configuration'], $after->deduction_configuration);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'scoring_metadata.backfilled']);
     }
 
     public function test_unresolved_interval_rounding_blocks_automatic_calculation(): void

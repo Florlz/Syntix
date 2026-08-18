@@ -9,13 +9,14 @@ use App\Enums\ScoringAssignmentScope;
 use App\Enums\ScoringFamily;
 use App\Models\Contest;
 use App\Models\Event;
-use App\Models\Schedule;
 use App\Models\ScoringAssignment;
 use App\Models\User;
 use Illuminate\Support\Collection;
 
 final class TabulatorWorkQueueReadModel
 {
+    public function __construct(private readonly ContestScheduleReadModel $schedules) {}
+
     /**
      * @return array{event: ?array<string, mixed>, summary: array<string, int>, judged: list<array<string, mixed>>, objective: list<array<string, mixed>>}
      */
@@ -92,7 +93,7 @@ final class TabulatorWorkQueueReadModel
             || $rule?->scoringFamily() === ScoringFamily::CriteriaBased
             ? 'judged'
             : 'objective';
-        $schedule = $this->scheduleFor($contest);
+        $schedule = $this->schedules->forContest($contest);
 
         if ($mode === 'objective') {
             return [
@@ -103,7 +104,7 @@ final class TabulatorWorkQueueReadModel
                 'state' => $contest->state instanceof ContestState ? $contest->state->value : (string) $contest->state,
                 'state_label' => $this->objectiveStateLabel($contest),
                 'href' => route('tabulator.contests.show', $contest),
-                'schedule' => $this->scheduleDto($schedule),
+                'schedule' => $schedule,
                 'source' => $this->sourceDto($metadata),
             ];
         }
@@ -123,7 +124,7 @@ final class TabulatorWorkQueueReadModel
             'competition' => $contest->division?->competition?->name,
             'division' => $contest->division?->name,
             'href' => route('tabulator.contests.show', $contest),
-            'schedule' => $this->scheduleDto($schedule),
+            'schedule' => $schedule,
             'completion' => ['submitted' => $submitted, 'expected' => $expected, 'waiting' => $waiting],
             'readiness' => ['ready' => $nextBlocker === null, 'next_blocker' => $nextBlocker],
             'panel' => ['locked' => $contest->isJudgingPanelLocked(), 'judge_count' => $judgeCount],
@@ -164,25 +165,6 @@ final class TabulatorWorkQueueReadModel
             ContestState::Cancelled, ContestState::Suspended => 'Needs attention',
             default => 'Ready',
         };
-    }
-
-    private function scheduleFor(Contest $contest): ?Schedule
-    {
-        $eventId = $contest->division?->competition?->event_id;
-
-        return Schedule::query()->with('venue')->where('event_id', $eventId)->where('contest_id', $contest->getKey())->orderBy('starts_at')->first()
-            ?? Schedule::query()->with('venue')->where('event_id', $eventId)->where('competition_division_id', $contest->competition_division_id)->whereNull('contest_id')->orderBy('starts_at')->first();
-    }
-
-    /** @return array<string, mixed> */
-    private function scheduleDto(?Schedule $schedule): array
-    {
-        return [
-            'starts_at' => $schedule?->starts_at?->toIso8601String(),
-            'ends_at' => $schedule?->ends_at?->toIso8601String(),
-            'title' => $schedule?->title,
-            'venue' => $schedule?->venue === null ? null : ['name' => $schedule->venue->name, 'location' => $schedule->venue->location],
-        ];
     }
 
     /** @return array<string, mixed> */
