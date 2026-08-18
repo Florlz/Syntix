@@ -11,65 +11,110 @@ const statusTone = {
     not_started: 'bg-surface-muted text-muted',
 };
 
-function formatSchedule(startsAt) {
-    if (!startsAt) return 'Schedule pending';
+function scheduleTime(startsAt) {
+    if (!startsAt) return 'Unscheduled';
 
     return new Intl.DateTimeFormat(undefined, {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+        hour: 'numeric',
+        minute: '2-digit',
     }).format(new Date(startsAt));
 }
 
-function remainingScorecards(contest) {
-    return Math.max(0, contest.scorecard_count - (contest.counts.submitted ?? 0) - (contest.counts.approved ?? 0));
+function scheduleDate(startsAt) {
+    if (!startsAt) return 'Date pending';
+
+    return new Intl.DateTimeFormat(undefined, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+    }).format(new Date(startsAt));
 }
 
-function nextStep(contest, remaining) {
-    if (contest.readiness?.next_blocker) return contest.readiness.next_blocker;
-    if ((contest.counts.needs_correction ?? 0) > 0) return 'Correct returned scorecards.';
-    if (remaining > 0) return 'Open the next assigned scorecard.';
-    return 'Await scorecard review.';
+function actionLabel(status) {
+    return {
+        not_started: 'Start scorecard',
+        in_progress: 'Continue draft',
+        needs_correction: 'Correct scorecard',
+        submitted: 'Review submission',
+        approved: 'View scorecard',
+    }[status] ?? 'Open scorecard';
+}
+
+function queueItems(contests) {
+    return contests.flatMap((contest) => contest.scorecards.map((scorecard) => ({
+        ...scorecard,
+        contest: contest.name,
+        competition: contest.competition,
+        division: contest.division,
+        schedule: contest.schedule,
+        blocker: contest.readiness?.next_blocker,
+    }))).sort((left, right) => {
+        const leftTime = left.schedule?.starts_at ? new Date(left.schedule.starts_at).getTime() : Number.MAX_SAFE_INTEGER;
+        const rightTime = right.schedule?.starts_at ? new Date(right.schedule.starts_at).getTime() : Number.MAX_SAFE_INTEGER;
+
+        return leftTime - rightTime || left.contest.localeCompare(right.contest) || left.entry.localeCompare(right.entry);
+    });
+}
+
+function ScorecardAction({ item }) {
+    if (!item.href) {
+        return <span className="inline-flex min-h-11 items-center rounded-lg border border-border bg-surface-muted px-4 text-sm font-bold text-muted" aria-disabled="true">Waiting for readiness</span>;
+    }
+
+    return <Link href={item.href} className="inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent">{actionLabel(item.status)}</Link>;
+}
+
+function AssignmentCard({ item, compact = false }) {
+    const venue = item.schedule?.venue;
+
+    return <article className={`rounded-xl border bg-surface ${item.status === 'needs_correction' || item.status === 'blocked' ? 'border-danger/40' : 'border-border'} ${compact ? 'p-4' : 'p-5'}`}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone[item.status] ?? statusTone.not_started}`}>{item.status_label}</span>
+                    <span className="text-xs font-semibold text-muted">{item.competition} · {item.division}</span>
+                </div>
+                <h3 className="mt-2 font-serif text-xl font-bold">{item.contest}</h3>
+                <p className="mt-1 text-sm font-semibold">{item.entry}</p>
+                {item.delegation ? <p className="mt-0.5 text-sm text-muted">{item.delegation}</p> : null}
+                <p className="mt-2 text-xs text-muted">{venue ? `${venue.name}${venue.location ? ` · ${venue.location}` : ''}` : 'Venue pending'}</p>
+                {item.blocker ? <p className="mt-2 text-sm font-semibold text-danger">{item.blocker}</p> : null}
+            </div>
+            <ScorecardAction item={item}/>
+        </div>
+    </article>;
 }
 
 export default function Index({ event, summary = {}, contests = [] }) {
-    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.15em] text-primary">{event?.name ?? 'Scoring operations'}</p><h1 className="font-serif text-2xl font-bold">My Judging</h1></div>}>
-        <Head title="My Judging" />
-        <main className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground sm:p-7 lg:p-8"><div className="mx-auto max-w-6xl space-y-6">
-            <section aria-label="Judging summary" className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">
-                {[
-                    ['Assigned', summary.assigned ?? 0],
-                    ['Submitted', summary.submitted ?? 0],
-                    ['Needs correction', summary.needs_correction ?? 0],
-                    ['Blocked', summary.blocked ?? 0],
-                ].map(([label, value]) => <div key={label} className="bg-surface p-4"><p className="text-xs font-bold uppercase tracking-[0.12em] text-muted">{label}</p><p className="mt-1 font-serif text-3xl font-bold tabular-nums">{value}</p></div>)}
-            </section>
+    const items = queueItems(contests);
+    const attention = items.filter((item) => item.status === 'needs_correction' || item.status === 'blocked');
+    const scheduled = items.filter((item) => !attention.includes(item));
 
-            {contests.length ? <div className="space-y-5">{contests.map((contest) => {
-                const remaining = remainingScorecards(contest);
-                const venue = contest.schedule?.venue;
+    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.15em] text-primary">{event?.name ?? 'Scoring operations'} · Judge</p><h1 className="font-serif text-2xl font-bold">My Judging</h1></div>}>
+        <Head title="My Judging"/>
+        <main className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground sm:p-7 lg:p-8">
+            <div className="mx-auto max-w-6xl space-y-7">
+                <section aria-label="Judging summary" className="grid gap-3 sm:grid-cols-3">
+                    {[
+                        ['Assigned', summary.assigned ?? items.length],
+                        ['Submitted', summary.submitted ?? 0],
+                        ['Needs attention', (summary.needs_correction ?? 0) + (summary.blocked ?? 0)],
+                    ].map(([label, value]) => <div key={label} className="rounded-xl border border-border bg-surface p-4"><p className="text-xs font-bold uppercase tracking-[0.12em] text-muted">{label}</p><p className="mt-1 font-serif text-3xl font-bold tabular-nums">{value}</p></div>)}
+                </section>
 
-                return <section key={`${contest.name}-${contest.division}`} className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-                    <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border p-5">
-                        <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Assigned contest</p><h2 className="mt-1 font-serif text-2xl font-bold">{contest.name}</h2><p className="mt-1 text-sm text-muted">{contest.scorecard_count} assigned entries</p></div>
-                        <p className="text-sm font-semibold text-muted">{(contest.counts.submitted ?? 0) + (contest.counts.approved ?? 0)} / {contest.scorecard_count} submitted</p>
-                    </header>
+                {attention.length ? <section aria-labelledby="judge-attention-title">
+                    <div className="mb-3"><p className="text-xs font-bold uppercase tracking-[0.14em] text-danger">Act first</p><h2 id="judge-attention-title" className="mt-1 font-serif text-2xl font-bold">Needs attention</h2></div>
+                    <div className="grid gap-3 lg:grid-cols-2">{attention.map((item) => <AssignmentCard key={item.id} item={item} compact/>)}</div>
+                </section> : null}
 
-                    <dl className="grid gap-px border-b border-border bg-border sm:grid-cols-2 lg:grid-cols-5">
-                        <div className="bg-surface-muted p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">What</dt><dd className="mt-1 text-sm font-semibold text-foreground">{contest.competition} / {contest.division}</dd></div>
-                        <div className="bg-surface-muted p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">When</dt><dd className="mt-1 text-sm font-semibold text-foreground">{formatSchedule(contest.schedule?.starts_at)}</dd></div>
-                        <div className="bg-surface-muted p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Where</dt><dd className="mt-1 text-sm font-semibold text-foreground">{venue ? `${venue.name}${venue.location ? ` · ${venue.location}` : ''}` : 'Venue not scheduled yet'}</dd></div>
-                        <div className="bg-surface-muted p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Next</dt><dd className={`mt-1 text-sm font-semibold ${contest.readiness?.ready ? 'text-foreground' : 'text-danger'}`}>{nextStep(contest, remaining)}</dd></div>
-                        <div className="bg-surface-muted p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Remain</dt><dd className="mt-1 text-sm font-semibold text-foreground">{remaining} scorecards</dd></div>
-                    </dl>
-
-                    <ul className="divide-y divide-border">{contest.scorecards.map((scorecard) => <li key={scorecard.id} className="flex flex-wrap items-center justify-between gap-3 p-4 sm:px-5">
-                        <div><strong>{scorecard.entry}</strong>{scorecard.delegation ? <p className="mt-0.5 text-sm text-muted">{scorecard.delegation}</p> : null}</div>
-                        <div className="flex flex-wrap items-center justify-end gap-3">
-                            <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone[scorecard.status] ?? statusTone.not_started}`}>{scorecard.status_label}</span>
-                            {scorecard.href ? <Link href={scorecard.href} className="min-h-11 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent">{scorecard.status === 'not_started' ? 'Start' : 'Open'}</Link> : <span className="min-h-11 rounded-lg border border-border bg-surface-muted px-4 py-2.5 text-sm font-bold text-muted" aria-disabled="true">Unavailable until ready</span>}
-                        </div>
-                    </li>)}</ul>
-                </section>;
-            })}</div> : <div className="rounded-xl border border-dashed border-border bg-surface p-10 text-center"><h2 className="font-serif text-xl font-bold">No judging assignments yet</h2><p className="mt-2 text-sm text-muted">Your assigned contests and entries will appear here.</p></div>}
-        </div></main>
+                <section aria-label="Today's judging schedule">
+                    <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Schedule</p><h2 className="mt-1 font-serif text-2xl font-bold">Your judging timeline</h2></div><p className="text-sm text-muted">Scheduled work first · unscheduled work last</p></div>
+                    {scheduled.length ? <ol className="space-y-3">{scheduled.map((item) => <li key={item.id} className="grid gap-2 sm:grid-cols-[7rem_1fr] sm:gap-4">
+                        <div className="pt-3 sm:text-right"><p className="text-sm font-bold tabular-nums">{scheduleTime(item.schedule?.starts_at)}</p><p className="mt-1 text-xs text-muted">{scheduleDate(item.schedule?.starts_at)}</p></div>
+                        <AssignmentCard item={item}/>
+                    </li>)}</ol> : <div className="rounded-xl border border-dashed border-border bg-surface p-10 text-center"><h2 className="font-serif text-xl font-bold">No judging assignments yet</h2><p className="mt-2 text-sm text-muted">Your role is active. Assigned contests appear here after the Global Admin adds you to a judging panel.</p></div>}
+                </section>
+            </div>
+        </main>
     </AuthenticatedLayout>;
 }

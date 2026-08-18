@@ -17,14 +17,35 @@ use Inertia\Response;
 
 class SetupAccountController extends Controller
 {
-    public function create(string $token): Response
+    public function create(Request $request, string $token): Response
     {
         $invitation = $this->invitation($token);
+        $conflict = $invitation !== null
+            && $request->user() !== null
+            && (int) $request->user()->getKey() !== (int) $invitation->user_id;
 
         return Inertia::render('Auth/SetupAccount', [
             'valid' => $invitation !== null,
             'email' => $invitation?->user?->email,
+            'conflict' => $conflict,
+            'authenticatedEmail' => $conflict ? $request->user()?->email : null,
+            'switchUrl' => $conflict
+                ? route('account.setup.switch', ['token' => $token])
+                : null,
         ]);
+    }
+
+    public function switchAccount(Request $request, string $token): RedirectResponse
+    {
+        if ($this->invitation($token) === null) {
+            return redirect()->route('account.setup', ['token' => $token]);
+        }
+
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('account.setup', ['token' => $token]);
     }
 
     public function store(Request $request, string $token, AuditLogger $audit): RedirectResponse

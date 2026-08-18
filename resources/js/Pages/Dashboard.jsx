@@ -130,15 +130,28 @@ function WorkspaceCards({ event, summary, departmentCount }) {
     </div></section>;
 }
 
-function WorkerDashboard({ event, workQueue }) {
-    return <AuthenticatedLayout header={<h1 className="font-serif text-xl font-bold">My scoring assignments</h1>}><Head title="My scoring assignments"/><main className="p-4 sm:p-7"><div className="mx-auto max-w-5xl"><p className="text-sm text-[#68767E]">{event.name} · access is limited to the assignments below.</p><div className="mt-5 grid gap-3 sm:grid-cols-2">{workQueue.length ? workQueue.map((work) => <article key={work.id} className={`${panel} p-5`}><p className="text-xs font-bold uppercase text-[#0B536D]">{work.scope.replaceAll('_', ' ')}</p><h2 className="mt-2 font-serif text-lg font-bold">{work.label}</h2>{work.url ? <Link href={work.url} className="mt-4 inline-flex rounded-lg bg-[#0B536D] px-4 py-2 text-sm font-bold text-white">Open assignment</Link> : null}</article>) : <Empty title="No assignments yet" detail="Your role is active, but an administrator has not assigned a scoring target."/>}</div></div></main></AuthenticatedLayout>;
+function RoleChooser({ event, destinations }) {
+    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Choose your scoring workspace</h1></div>}>
+        <Head title="Choose scoring workspace"/>
+        <main className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground sm:p-7 lg:p-8">
+            <div className="mx-auto max-w-4xl">
+                <p className="max-w-2xl text-sm leading-6 text-muted">Your account has more than one event role. Choose the workspace you need now; you can switch roles from the sidebar at any time.</p>
+                {destinations.length ? <div className="mt-6 grid gap-4 sm:grid-cols-2">{destinations.map((destination) => <Link key={destination.role} href={destination.href} className={`${panel} group p-6 transition hover:-translate-y-0.5 hover:border-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent`}>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{destination.role}</p>
+                    <h2 className="mt-2 font-serif text-2xl font-bold">{destination.label}</h2>
+                    <p className="mt-2 text-sm leading-6 text-muted">{destination.description}</p>
+                    <span className="mt-5 inline-flex min-h-11 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">Open workspace</span>
+                </Link>)}</div> : <div className="mt-6 rounded-xl border border-dashed border-border bg-surface p-6"><h2 className="font-serif text-xl font-bold">No operational role assigned</h2><p className="mt-2 text-sm text-muted">Ask the Global Admin to grant a Judge or Tabulator role for this event.</p></div>}
+            </div>
+        </main>
+    </AuthenticatedLayout>;
 }
 
-export default function Dashboard({ events = [], event, summary = {}, teams = [], work_queue: workQueue = [], capabilities = {} }) {
+export default function Dashboard({ events = [], event, summary = {}, teams = [], role_destinations: roleDestinations = [], capabilities = {} }) {
     const flash = usePage().props.flash?.status;
     const departmentCount = teams.length;
 
-    if (event && !capabilities.global_admin) return <WorkerDashboard event={event} workQueue={workQueue}/>;
+    if (event && !capabilities.global_admin) return <RoleChooser event={event} destinations={roleDestinations}/>;
 
     return <AuthenticatedLayout header={<div><p className="text-[0.68rem] font-bold uppercase tracking-[0.15em] text-primary">{event?.name ?? 'Syntix events'}</p><h1 className="font-serif text-2xl font-bold">Event home</h1></div>}><Head title="Event home"/><main className="min-h-[calc(100vh-4rem)] overflow-x-hidden bg-background p-4 sm:p-7 lg:p-8"><div className="mx-auto max-w-[96rem] space-y-6">
         {flash ? <div role="status" className="border-l-4 border-primary bg-primary/10 p-4 text-sm text-primary">{flash}</div> : null}

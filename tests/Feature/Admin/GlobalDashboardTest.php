@@ -2,15 +2,11 @@
 
 namespace Tests\Feature\Admin;
 
-use App\Actions\Assignments\GrantScoringAssignment;
-use App\Actions\Scoring\ConfigureJudgingPanel;
-use App\Actions\Scoring\PrepareJudgedContest;
 use App\Actions\Events\ApplySiklab2025Programme;
 use App\Actions\Events\GrantEventRole;
 use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Enums\EventRole;
 use App\Enums\PublicationState;
-use App\Enums\ScoringAssignmentScope;
 use App\Enums\ScheduleStatus;
 use App\Models\Competition;
 use App\Models\Event;
@@ -90,27 +86,40 @@ class GlobalDashboardTest extends TestCase
                 ->where('summary.schedule_draft_changes', 1));
     }
 
-    public function test_judge_dashboard_contains_only_the_judges_event_and_exact_assignment(): void
+    public function test_single_role_workers_are_redirected_to_their_event_day_workspace(): void
     {
         [$admin, $event] = $this->programme();
-        $division = Competition::query()->whereBelongsTo($event)->where('slug', 'extemporaneous-speaking')
-            ->firstOrFail()->divisions()->firstOrFail();
         $judge = User::factory()->create();
+        $tabulator = User::factory()->create();
         (new GrantEventRole)->handle($admin, $event, $judge, EventRole::Judge);
-        $contest = (new PrepareJudgedContest)->handle($admin, $division);
-        (new ConfigureJudgingPanel)->handle($admin, $contest, [$judge]);
+        (new GrantEventRole)->handle($admin, $event, $tabulator, EventRole::Tabulator);
 
-        $this->actingAs($judge)->get('/dashboard')
+        $this->actingAs($judge)
+            ->get('/dashboard')
+            ->assertRedirect(route('judge.index', ['event' => $event->getKey()]));
+        $this->actingAs($tabulator)
+            ->get('/dashboard')
+            ->assertRedirect(route('tabulator.index', ['event' => $event->getKey()]));
+    }
+
+    public function test_dual_role_worker_dashboard_is_only_a_role_chooser(): void
+    {
+        [$admin, $event] = $this->programme();
+        $worker = User::factory()->create();
+        (new GrantEventRole)->handle($admin, $event, $worker, EventRole::Judge);
+        (new GrantEventRole)->handle($admin, $event, $worker, EventRole::Tabulator);
+
+        $this->actingAs($worker)
+            ->get('/dashboard')
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Dashboard')
                 ->where('capabilities.global_admin', false)
-                ->where('event.roles.0', 'judge')
-                ->has('events', 1)
-                ->has('work_queue', 7)
-                ->where('work_queue.0.scope', 'entry_scorecard')
-                ->has('programme', 0)
-                ->has('people', 0));
+                ->where('event.id', (string) $event->getKey())
+                ->has('role_destinations', 2)
+                ->where('role_destinations.0.role', 'judge')
+                ->where('role_destinations.1.role', 'tabulator')
+                ->missing('work_queue'));
     }
 
     /** @return array{0: User, 1: Event} */

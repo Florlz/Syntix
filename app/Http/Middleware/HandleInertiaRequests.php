@@ -3,8 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Enums\EventRole;
-use App\Models\Event;
 use App\Models\DivisionPlacement;
+use App\Models\Event;
 use App\Models\ResultSubmission;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -162,10 +162,12 @@ class HandleInertiaRequests extends Middleware
             'flash' => $public || $user === null ? [
                 'status' => null,
                 'setup_url' => null,
+                'setup_invitation' => null,
                 'selected_participant_ids' => [],
             ] : [
                 'status' => $request->session()->get('status'),
                 'setup_url' => $request->session()->get('setup_url'),
+                'setup_invitation' => $request->session()->get('setup_invitation'),
                 'selected_participant_ids' => $request->session()->get('selected_participant_ids', []),
             ],
             'nav_badges' => $navBadges,

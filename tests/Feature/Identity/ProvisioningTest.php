@@ -37,7 +37,21 @@ class ProvisioningTest extends TestCase
         $this->assertNotSame($result['token'], $result['invitation']->token_hash);
         $this->get('/account-setup/'.$result['token'])
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('valid', true)->where('email', 'judge@example.com'));
+            ->assertInertia(fn ($page) => $page
+                ->where('valid', true)
+                ->where('conflict', false)
+                ->where('email', 'judge@example.com'));
+
+        $this->actingAs($admin)
+            ->get('/account-setup/'.$result['token'])
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('valid', true)
+                ->where('conflict', true)
+                ->where('authenticatedEmail', 'creator@example.com'));
+        $this->post(route('account.setup.switch', ['token' => $result['token']]))
+            ->assertRedirect(route('account.setup', ['token' => $result['token']]));
+        $this->assertGuest();
 
         $this->post('/account-setup/'.$result['token'], [
             'password' => 'new-secure-password',
@@ -47,7 +61,9 @@ class ProvisioningTest extends TestCase
         $this->assertAuthenticatedAs($result['user']->fresh());
         $this->assertTrue(Hash::check('new-secure-password', $result['user']->fresh()->password));
         $this->assertNotNull(UserInvitation::query()->find($result['invitation']->getKey())->consumed_at);
-        $this->get('/account-setup/'.$result['token'])->assertRedirect('/dashboard');
+        $this->get('/account-setup/'.$result['token'])
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('valid', false));
     }
 
     public function test_admin_provisioning_response_contains_the_one_time_setup_url(): void
@@ -58,16 +74,13 @@ class ProvisioningTest extends TestCase
             'password' => 'secure-bootstrap-password',
         ]);
         $event = (new CreateEvent)->handle($admin, ['name' => 'SIKLAB '.uniqid()]);
-        $competition = Competition::factory()->for($event)->create();
-        $division = Division::factory()->for($competition)->create();
+        Competition::factory()->for($event)->has(Division::factory())->create();
 
         $this->actingAs($admin)
             ->post('/admin/events/'.$event->getKey().'/accounts', [
                 'name' => 'Judge One',
                 'email' => 'judge-'.uniqid().'@example.com',
                 'role' => EventRole::Judge->value,
-                'scope_type' => 'competition_division',
-                'target_id' => $division->getKey(),
             ])
             ->assertRedirect();
 
@@ -79,8 +92,6 @@ class ProvisioningTest extends TestCase
         $this->assertDatabaseMissing('scoring_assignments', [
             'event_id' => $event->getKey(),
             'user_id' => $judge->getKey(),
-            'scope_type' => 'competition_division',
-            'competition_division_id' => $division->getKey(),
         ]);
         $this->get('/dashboard')->assertInertia(fn ($page) => $page
             ->where('flash.setup_url', $setupUrl));

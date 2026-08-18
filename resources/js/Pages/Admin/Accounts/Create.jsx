@@ -1,99 +1,187 @@
+import React, { useEffect, useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import InputError from '@/Components/InputError';
 import { Head, useForm, usePage } from '@inertiajs/react';
+import QRCode from 'qrcode';
 
-export default function Create({ event, targets }) {
+export default function Create({ event }) {
     const form = useForm({
         name: '',
         email: '',
         role: 'judge',
-        scope_type: 'competition_division',
-        target_id: targets.competition_division[0]?.id ?? '',
     });
-    const setupUrl = usePage().props.flash?.setup_url;
+    const { flash = {} } = usePage().props;
+    const setupUrl = flash.setup_url;
+    const setupInvitation = flash.setup_invitation ?? {};
+    const [qrDataUrl, setQrDataUrl] = useState(null);
+    const [copied, setCopied] = useState(false);
 
-    const scopes = form.data.role === 'judge'
-        ? [
-            { value: 'competition_division', label: 'Entire competition division' },
-            { value: 'entry_scorecard', label: 'One exact scorecard' },
-        ]
-        : [
-            { value: 'competition_division', label: 'Entire competition division' },
-            { value: 'contest', label: 'One exact contest' },
-        ];
+    useEffect(() => {
+        let current = true;
 
-    function selectRole(role) {
-        const scope = 'competition_division';
-        form.setData((data) => ({
-            ...data,
-            role,
-            scope_type: scope,
-            target_id: targets[scope][0]?.id ?? '',
-        }));
-    }
+        if (!setupUrl) {
+            setQrDataUrl(null);
+            return undefined;
+        }
 
-    function selectScope(scope) {
-        form.setData((data) => ({
-            ...data,
-            scope_type: scope,
-            target_id: targets[scope][0]?.id ?? '',
-        }));
-    }
+        QRCode.toDataURL(setupUrl, {
+            errorCorrectionLevel: 'M',
+            margin: 1,
+            width: 320,
+            color: { dark: '#17212b', light: '#ffffff' },
+        }).then((value) => {
+            if (current) setQrDataUrl(value);
+        });
+
+        return () => {
+            current = false;
+        };
+    }, [setupUrl]);
 
     function submit(submitEvent) {
         submitEvent.preventDefault();
         form.post(route('admin.accounts.store', event.id));
     }
 
+    async function copySetupLink() {
+        await navigator.clipboard.writeText(setupUrl);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+    }
+
+    const expiresAt = setupInvitation.expires_at
+        ? new Intl.DateTimeFormat(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+        }).format(new Date(setupInvitation.expires_at))
+        : '24 hours after issue';
+
     return (
-        <AuthenticatedLayout header={<h1 className="text-2xl font-semibold tracking-tight text-slate-900">Provision account</h1>}>
-            <Head title="Provision account" />
-            <main className="min-h-[calc(100vh-9rem)] bg-[#f4f6f8] px-4 py-8 sm:px-6 lg:px-10">
-                <form onSubmit={submit} className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-6 shadow-xs sm:p-8">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#0b2e4f]">Event-scoped access</p>
-                    <h2 className="mt-2 font-serif text-3xl font-semibold tracking-tight">Invite a Judge or Tabulator</h2>
-                    <p className="mt-3 text-sm leading-6 text-slate-600">{event.name}. Choose the role and exact work area before creating the 24-hour setup link.</p>
-                    {setupUrl ? (
-                        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-                            <p className="font-semibold">Setup invitation created</p>
-                            <p className="mt-1 break-all">Share this one-time link with the invited account:</p>
-                            <a href={setupUrl} className="mt-2 block font-medium underline underline-offset-4">{setupUrl}</a>
+        <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Invite event staff</h1></div>}>
+            <Head title="Invite event staff" />
+            <style>{`@media print { body * { visibility: hidden !important; } #setup-card, #setup-card * { visibility: visible !important; } #setup-card { position: absolute; inset: 0 auto auto 0; width: 100%; box-shadow: none !important; border: 0 !important; } }`}</style>
+            <main className="min-h-[calc(100vh-4rem)] bg-background px-4 py-8 text-foreground sm:px-6 lg:px-10">
+                <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+                    <form onSubmit={submit} className="rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Account and event role</p>
+                        <h2 className="mt-2 font-serif text-3xl font-bold">Invite event staff</h2>
+                        <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
+                            Create the account first. Judges receive work through judging panels; Tabulators receive division or contest assignments from the staff workspace.
+                        </p>
+
+                        <div className="mt-8 space-y-5">
+                            <label className="block">
+                                <span className="text-sm font-semibold">Name</span>
+                                <input
+                                    name="name"
+                                    autoComplete="name"
+                                    value={form.data.name}
+                                    onChange={(input) => form.setData('name', input.target.value)}
+                                    className="mt-2 w-full rounded-xl border-border bg-surface text-foreground focus:border-primary focus:ring-primary"
+                                    required
+                                />
+                                <InputError message={form.errors.name} className="mt-2" />
+                            </label>
+                            <label className="block">
+                                <span className="text-sm font-semibold">Institutional email</span>
+                                <input
+                                    name="email"
+                                    autoComplete="email"
+                                    spellCheck={false}
+                                    type="email"
+                                    value={form.data.email}
+                                    onChange={(input) => form.setData('email', input.target.value)}
+                                    className="mt-2 w-full rounded-xl border-border bg-surface text-foreground focus:border-primary focus:ring-primary"
+                                    required
+                                />
+                                <InputError message={form.errors.email} className="mt-2" />
+                            </label>
+                            <fieldset>
+                                <legend className="text-sm font-semibold">Event role</legend>
+                                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                                    {[
+                                        ['judge', 'Judge', 'Scores only the entries assigned through a judging panel.'],
+                                        ['tabulator', 'Tabulator', 'Records or finalizes results for assigned contests.'],
+                                    ].map(([role, label, detail]) => (
+                                        <label key={role} className={`cursor-pointer rounded-xl border p-4 ${form.data.role === role ? 'border-accent bg-accent/10' : 'border-border bg-surface'}`}>
+                                            <span className="flex items-center gap-2">
+                                                <input
+                                                    className="text-primary focus:ring-accent"
+                                                    type="radio"
+                                                    name="role"
+                                                    value={role}
+                                                    checked={form.data.role === role}
+                                                    onChange={() => form.setData('role', role)}
+                                                />
+                                                <span className="font-bold">{label}</span>
+                                            </span>
+                                            <span className="mt-2 block text-xs leading-5 text-muted">{detail}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <InputError message={form.errors.role} className="mt-2" />
+                            </fieldset>
                         </div>
-                    ) : null}
-                    <div className="mt-8 space-y-5">
-                        <label className="block"><span className="text-sm font-medium text-slate-700">Name</span><input name="name" autoComplete="name" value={form.data.name} onChange={(input) => form.setData('name', input.target.value)} className="mt-2 w-full rounded-xl border-slate-300 focus:border-[#d5a21f] focus:ring-[#d5a21f]" required /><InputError message={form.errors.name} className="mt-2" /></label>
-                        <label className="block"><span className="text-sm font-medium text-slate-700">Institutional Email</span><input name="email" autoComplete="email" spellCheck={false} type="email" value={form.data.email} onChange={(input) => form.setData('email', input.target.value)} className="mt-2 w-full rounded-xl border-slate-300 focus:border-[#d5a21f] focus:ring-[#d5a21f]" required /><InputError message={form.errors.email} className="mt-2" /></label>
-                        <fieldset>
-                            <legend className="text-sm font-medium text-slate-700">Event Role</legend>
-                            <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                                {['judge', 'tabulator'].map((role) => (
-                                    <label key={role} className={`cursor-pointer rounded-xl border p-4 ${form.data.role === role ? 'border-[#d5a21f] bg-amber-50' : 'border-slate-200'}`}>
-                                        <input className="mr-2 text-[#0b2e4f] focus:ring-[#d5a21f]" type="radio" name="role" value={role} checked={form.data.role === role} onChange={() => selectRole(role)} />
-                                        <span className="font-semibold capitalize text-slate-900">{role}</span>
-                                    </label>
-                                ))}
+
+                        <button disabled={form.processing} className="mt-8 min-h-11 rounded-lg bg-primary px-6 text-sm font-bold text-primary-foreground disabled:opacity-50">
+                            {form.processing ? 'Creating invitation…' : 'Create invitation'}
+                        </button>
+                    </form>
+
+                    <aside className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+                        <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Secure handoff</p>
+                        {setupUrl ? (
+                            <div className="mt-4">
+                                <h2 className="font-serif text-xl font-bold">Setup invitation ready</h2>
+                                <p className="mt-2 text-sm leading-6 text-muted">Copy the link through a private channel or print one card and hand it directly to the named staff member.</p>
+                                <label className="mt-4 block">
+                                    <span className="sr-only">One-time setup link</span>
+                                    <input readOnly value={setupUrl} className="w-full rounded-lg border-border bg-surface-muted text-xs text-foreground" />
+                                </label>
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                                    <button type="button" onClick={copySetupLink} className="min-h-11 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground">
+                                        {copied ? 'Copied' : 'Copy setup link'}
+                                    </button>
+                                    <button type="button" onClick={() => window.print()} disabled={!qrDataUrl} className="min-h-11 rounded-lg border border-border px-4 text-sm font-bold disabled:opacity-50">
+                                        Print setup card
+                                    </button>
+                                </div>
+                                <p className="mt-4 rounded-lg bg-danger-surface p-3 text-xs leading-5 text-danger">
+                                    The link and QR are bearer credentials until used or expired. Do not post, photograph, or leave the card unattended.
+                                </p>
                             </div>
-                            <InputError message={form.errors.role} className="mt-2" />
-                        </fieldset>
-                        <label className="block">
-                            <span className="text-sm font-medium text-slate-700">Assignment coverage</span>
-                            <select name="scope_type" value={form.data.scope_type} onChange={(input) => selectScope(input.target.value)} className="mt-2 w-full rounded-xl border-slate-300 focus:border-[#d5a21f] focus:ring-[#d5a21f]">
-                                {scopes.map((scope) => <option key={scope.value} value={scope.value}>{scope.label}</option>)}
-                            </select>
-                            <InputError message={form.errors.scope_type} className="mt-2" />
-                        </label>
-                        <label className="block">
-                            <span className="text-sm font-medium text-slate-700">Exact assignment</span>
-                            <select name="target_id" value={form.data.target_id} onChange={(input) => form.setData('target_id', input.target.value)} className="mt-2 w-full rounded-xl border-slate-300 focus:border-[#d5a21f] focus:ring-[#d5a21f]" required>
-                                <option value="" disabled>Select a configured target</option>
-                                {targets[form.data.scope_type].map((target) => <option key={target.id} value={target.id}>{target.label}</option>)}
-                            </select>
-                            {targets[form.data.scope_type].length === 0 ? <p className="mt-2 text-sm text-amber-700">Configure this work area before provisioning the account.</p> : null}
-                            <InputError message={form.errors.target_id} className="mt-2" />
-                        </label>
-                    </div>
-                    <button disabled={form.processing || !form.data.target_id} className="mt-8 rounded-full bg-[#0b2e4f] px-6 py-3 text-sm font-semibold text-white disabled:opacity-50">{form.processing ? 'Creating Invitation…' : 'Create Scoped Invitation'}</button>
-                </form>
+                        ) : (
+                            <div className="mt-4 rounded-xl border border-dashed border-border bg-surface-muted p-5">
+                                <h2 className="font-serif text-lg font-bold">No active setup link</h2>
+                                <p className="mt-2 text-sm leading-6 text-muted">Create an invitation to reveal its one-time link and printable handoff card.</p>
+                            </div>
+                        )}
+                    </aside>
+                </div>
+
+                {setupUrl ? (
+                    <section id="setup-card" className="mx-auto mt-8 max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface shadow-xl">
+                        <header className="flex items-center justify-between bg-sidebar px-6 py-5 text-white">
+                            <strong className="font-serif text-xl tracking-[0.12em]">SYNTIX</strong>
+                            <span className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Staff setup</span>
+                        </header>
+                        <div className="grid items-center gap-6 p-6 sm:grid-cols-[1fr_12rem] sm:p-8">
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p>
+                                <h2 className="mt-2 font-serif text-3xl font-bold">{setupInvitation.name ?? form.data.name}</h2>
+                                <p className="mt-2 text-sm font-bold capitalize text-muted">{setupInvitation.role ?? form.data.role}</p>
+                                <p className="mt-6 text-sm leading-6 text-muted">Scan privately to create your password. This card sets up the account only; scoring assignments are managed separately.</p>
+                                <p className="mt-4 text-xs font-semibold text-danger">Expires {expiresAt}. One use only.</p>
+                            </div>
+                            <div className="grid aspect-square place-items-center rounded-xl border border-border bg-white p-3">
+                                {qrDataUrl ? <img src={qrDataUrl} alt="One-time staff setup QR code" className="size-full" /> : <span className="text-xs text-muted">Preparing QR…</span>}
+                            </div>
+                        </div>
+                        <footer className="border-t border-border px-6 py-4 text-xs text-muted">Hand directly to the named staff member. Destroy after use or expiry.</footer>
+                    </section>
+                ) : null}
             </main>
         </AuthenticatedLayout>
     );

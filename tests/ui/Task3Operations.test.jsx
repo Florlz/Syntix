@@ -34,7 +34,7 @@ beforeEach(() => {
 test('role-aware sidebar exposes only the current worker role destinations', () => {
     render(<AuthenticatedLayout header={<h1>Overview</h1>}><p>Content</p></AuthenticatedLayout>);
 
-    expect(screen.getByRole('link', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'My Judging' })).toHaveAttribute('href', '/judge');
     expect(screen.queryByRole('link', { name: 'My Tabulation' })).not.toBeInTheDocument();
 });
@@ -117,25 +117,21 @@ test('judge and tabulator landing pages present operational work modes', () => {
     />);
     expect(screen.getByRole('heading', { name: 'My Judging' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Pop Solo' })).toBeInTheDocument();
-    expect(screen.getByText('What')).toBeInTheDocument();
-    expect(screen.getByText('When')).toBeInTheDocument();
-    expect(screen.getByText('Where')).toBeInTheDocument();
-    expect(screen.getByText('Next')).toBeInTheDocument();
-    expect(screen.getByText('Remain')).toBeInTheDocument();
-    expect(screen.getByText('Pop Solo / Individual')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: "Today's judging schedule" })).toBeInTheDocument();
+    expect(screen.getByText('Pop Solo · Individual')).toBeInTheDocument();
     expect(screen.getByText('CSPC Auditorium · Main campus')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Start' })).toHaveAttribute('href', '/judge/scorecards/1');
+    expect(screen.getByRole('link', { name: 'Start scorecard' })).toHaveAttribute('href', '/judge/scorecards/1');
 
     rerender(<TabulatorIndex
         event={{ id: '1', name: 'SIKLAB 2026' }}
         summary={{ judged: 1, objective: 1 }}
-        judged={[{ name: 'Story Telling', completion: { submitted: 18, expected: 21, waiting: 3 }, readiness: { ready: false, next_blocker: 'Waiting for 3 Judge scorecards.' }, href: '/tabulator/contests/1' }]}
-        objective={[{ name: 'Basketball Men', state_label: 'Ready', href: '/tabulator/contests/2' }]}
+        judged={[{ name: 'Story Telling', mode: 'judged', completion: { submitted: 18, expected: 21, waiting: 3 }, readiness: { ready: false, next_blocker: 'Waiting for 3 Judge scorecards.' }, href: '/tabulator/contests/1' }]}
+        objective={[{ name: 'Basketball Men', mode: 'objective', state: 'scheduled', state_label: 'Ready', href: '/tabulator/contests/2' }]}
     />);
     expect(screen.getByRole('heading', { name: 'My Tabulation' })).toBeInTheDocument();
     expect(screen.getByText('Judged')).toBeInTheDocument();
     expect(screen.getByText('Objective')).toBeInTheDocument();
-    expect(screen.getByText('Waiting for 3 Judge scorecards.')).toBeInTheDocument();
+    expect(screen.getAllByText('Waiting for 3 Judge scorecards.')).not.toHaveLength(0);
 });
 
 test('blocked judge scorecards remain visible without a link', () => {
@@ -154,8 +150,8 @@ test('blocked judge scorecards remain visible without a link', () => {
         }]}
     />);
 
-    const blockedRow = screen.getByText('CCS Essayist').closest('li');
-    expect(within(blockedRow).getByText('Blocked')).toBeInTheDocument();
-    expect(within(blockedRow).getByText('Unavailable until ready')).toBeInTheDocument();
+    const blockedCard = screen.getByText('CCS Essayist').closest('article');
+    expect(within(blockedCard).getByText('Blocked')).toBeInTheDocument();
+    expect(within(blockedCard).getByText('Waiting for readiness')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /open|start/i })).not.toBeInTheDocument();
 });

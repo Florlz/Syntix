@@ -79,9 +79,68 @@ function ReadinessActions({ item }) {
 }
 
 export default function Index({ event, section = 'people', staff = [], targets = {}, readiness = [] }) {
-    const [query, setQuery] = useState(''); const [roleFilter, setRoleFilter] = useState(''); const [selected, setSelected] = useState(null); const { flash, errors } = usePage().props;
-    const visible = useMemo(() => staff.filter((p) => (!query || `${p.name} ${p.email}`.toLowerCase().includes(query.toLowerCase())) && (!roleFilter || p.roles.some((r) => r.role === roleFilter))), [staff, query, roleFilter]);
-    if (section === 'readiness') return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Judges &amp; Tabulators</h1></div>}><Head title="Scoring Readiness"/><main className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground sm:p-7 lg:p-8"><div className="mx-auto max-w-[96rem] space-y-6"><SectionNav event={event} section={section}/><header><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Control room</p><h2 className="mt-1 font-serif text-3xl font-bold">Scoring Readiness</h2><p className="mt-2 text-sm text-muted">Resolve the next named blocker for every judged competition.</p></header><div className="overflow-hidden rounded-xl border border-border bg-surface"><ul className="divide-y divide-border">{readiness.map((item) => <li key={item.id ?? item.name} className="grid gap-4 p-5 lg:grid-cols-[minmax(14rem,1fr)_auto_minmax(18rem,1.2fr)] lg:items-center"><div><h3 className="font-serif text-xl font-bold">{item.name}</h3><p className="mt-1 text-sm text-muted">{item.counts.entries} entries · {item.counts.judges} Judges · {item.counts.tabulators} Tabulators</p></div><span className={`w-fit rounded-full px-3 py-1 text-xs font-bold uppercase ${item.state === 'blocked' ? 'bg-danger-surface text-danger' : item.state === 'ready' ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-foreground'}`}>{item.state === 'needs_attention' ? 'Needs attention' : item.state.charAt(0).toUpperCase() + item.state.slice(1)}</span><p className={`text-sm font-semibold ${item.state === 'blocked' ? 'text-danger' : 'text-muted'}`}>{item.next_blocker ?? 'Ready for scoring operations.'}</p><ReadinessActions item={item}/>{item.tie ? <TieResolutionForm tie={item.tie}/> : null}</li>)}</ul></div></div></main></AuthenticatedLayout>;
+    const [query, setQuery] = useState('');
+    const [roleFilter, setRoleFilter] = useState('');
+    const [readinessQuery, setReadinessQuery] = useState('');
+    const [readinessStatus, setReadinessStatus] = useState('');
+    const [selected, setSelected] = useState(null);
+    const { flash, errors } = usePage().props;
+    const visible = useMemo(() => staff.filter((person) => (
+        (!query || `${person.name} ${person.email}`.toLowerCase().includes(query.toLowerCase()))
+        && (!roleFilter || person.roles.some((role) => role.role === roleFilter))
+    )), [staff, query, roleFilter]);
+    const readinessStates = useMemo(() => [...new Set(readiness.map((item) => item.state))].sort(), [readiness]);
+    const visibleReadiness = useMemo(() => readiness.filter((item) => {
+        const haystack = `${item.name} ${item.competition ?? ''} ${item.division ?? ''} ${item.next_blocker ?? ''}`.toLowerCase();
+        return (!readinessQuery || haystack.includes(readinessQuery.toLowerCase()))
+            && (!readinessStatus || item.state === readinessStatus);
+    }), [readiness, readinessQuery, readinessStatus]);
+    if (section === 'readiness') return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Judges &amp; Tabulators</h1></div>}>
+        <Head title="Scoring Readiness"/>
+        <main className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground sm:p-7 lg:p-8">
+            <div className="mx-auto max-w-6xl space-y-6">
+                <SectionNav event={event} section={section}/>
+                <header>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Control room</p>
+                    <h2 className="mt-1 font-serif text-3xl font-bold">Scoring Readiness</h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">Find a sport or status, then open only the activity you are preparing. Each activity exposes the next allowed setup action.</p>
+                </header>
+                <section aria-label="Scoring readiness filters" className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-[1fr_14rem]">
+                    <label>
+                        <span className="sr-only">Search scoring readiness</span>
+                        <input type="search" value={readinessQuery} onChange={(event) => setReadinessQuery(event.target.value)} placeholder="Search sport, activity, or blocker" className="w-full rounded-lg border-border bg-surface text-sm text-foreground"/>
+                    </label>
+                    <label>
+                        <span className="sr-only">Filter readiness status</span>
+                        <select value={readinessStatus} onChange={(event) => setReadinessStatus(event.target.value)} className="w-full rounded-lg border-border bg-surface text-sm text-foreground">
+                            <option value="">All statuses</option>
+                            {readinessStates.map((state) => <option key={state} value={state}>{state === 'needs_attention' ? 'Needs attention' : state.replaceAll('_', ' ')}</option>)}
+                        </select>
+                    </label>
+                </section>
+                <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted">Showing {visibleReadiness.length} of {readiness.length} activities</p><p className="text-xs font-semibold text-muted">Select an activity to inspect its setup sequence.</p></div>
+                {visibleReadiness.length ? <div className="space-y-3">{visibleReadiness.map((item) => {
+                    const rawStatus = item.state === 'needs_attention' ? 'Needs attention' : item.state.replaceAll('_', ' ');
+                    const statusLabel = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1);
+                    return <details key={item.id ?? item.name} className="group overflow-hidden rounded-xl border border-border bg-surface">
+                        <summary className="grid cursor-pointer list-none gap-3 p-5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2"><h3 className="font-serif text-xl font-bold">{item.name}</h3><span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${item.state === 'blocked' ? 'bg-danger-surface text-danger' : item.state === 'ready' ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-foreground'}`}>{statusLabel}</span></div>
+                                <p className="mt-1 text-sm text-muted">{item.counts.entries} entries · {item.counts.judges} Judges · {item.counts.tabulators} Tabulators</p>
+                                <p className={`mt-2 text-sm font-semibold ${item.state === 'blocked' ? 'text-danger' : 'text-muted'}`}>{item.next_blocker ?? 'Ready for scoring operations.'}</p>
+                            </div>
+                            <span className="text-sm font-bold text-primary group-open:hidden">Open setup</span>
+                            <span className="hidden text-sm font-bold text-primary group-open:inline">Close setup</span>
+                        </summary>
+                        <div className="grid gap-4 border-t border-border bg-surface-muted p-5 lg:grid-cols-3">
+                            <ReadinessActions item={item}/>
+                            {item.tie ? <TieResolutionForm tie={item.tie}/> : null}
+                        </div>
+                    </details>;
+                })}</div> : <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center"><h3 className="font-serif text-xl font-bold">No activities match</h3><p className="mt-2 text-sm text-muted">Clear the search or status filter to see the full readiness list.</p></div>}
+            </div>
+        </main>
+    </AuthenticatedLayout>;
     return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Judges &amp; Tabulators</h1></div>}><Head title="Judges & Tabulators"/><main className="bg-background p-4 sm:p-7 lg:p-8"><div className="mx-auto max-w-[96rem] space-y-6"><SectionNav event={event} section={section}/>{flash?.status ? <div role="status" className="border-l-4 border-primary bg-primary/10 p-4 text-sm">{flash.status}</div> : null}{flash?.setup_url ? <div className="rounded-xl border border-accent bg-accent/15 p-4"><strong className="text-sm">One-time setup link</strong><div className="mt-2 flex gap-2"><input readOnly value={flash.setup_url} className="min-w-0 flex-1 rounded-lg border-border bg-surface text-sm text-foreground"/><button onClick={() => navigator.clipboard.writeText(flash.setup_url)} className={action}>Copy link</button></div></div> : null}{Object.keys(errors ?? {}).length ? <div role="alert" className="border-l-4 border-danger bg-danger-surface p-4 text-sm text-danger">{Object.values(errors).join(' ')}</div> : null}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="font-serif text-2xl font-bold">Judges and Tabulators</h2><p className="mt-1 text-sm text-muted">One workspace for invitations, roles, assignments, and platform account state.</p></div><Link href={route('admin.accounts.create', event.id)} className={action}><AppIcon name="user-plus"/>Invite staff</Link></div>
         <div className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-[1fr_14rem]"><label className="relative"><span className="sr-only">Search staff</span><AppIcon name="search" className="absolute left-3 top-3 size-5 text-muted"/><input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name or institutional email" className="w-full rounded-lg border-border bg-surface text-foreground pl-10 text-sm"/></label><select aria-label="Filter by role" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="rounded-lg border-border bg-surface text-foreground text-sm"><option value="">All roles</option><option value="judge">Judges</option><option value="tabulator">Tabulators</option></select></div>
