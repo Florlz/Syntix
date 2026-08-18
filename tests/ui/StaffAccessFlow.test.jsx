@@ -47,6 +47,10 @@ test('staff invitation creates identity and role without a scoring target and of
     expect(screen.getByRole('button', { name: 'Copy setup link' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Print setup card' })).toBeInTheDocument();
     await waitFor(() => expect(qrToDataUrl).toHaveBeenCalledWith('https://syntix.test/account-setup/secret-token', expect.any(Object)));
+    const card = screen.getByTestId('setup-card');
+    expect(card).toHaveAttribute('data-print-size', '3.5in × 2in');
+    expect(document.querySelector('style')).toHaveTextContent('@page');
+    expect(document.querySelector('style')).toHaveTextContent('size: 3.5in 2in');
 });
 
 test('setup link opened by another signed-in account explains the conflict instead of showing password fields', () => {

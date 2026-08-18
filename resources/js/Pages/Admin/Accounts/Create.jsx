@@ -61,7 +61,67 @@ export default function Create({ event }) {
     return (
         <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Invite event staff</h1></div>}>
             <Head title="Invite event staff" />
-            <style>{`@media print { body * { visibility: hidden !important; } #setup-card, #setup-card * { visibility: visible !important; } #setup-card { position: absolute; inset: 0 auto auto 0; width: 100%; box-shadow: none !important; border: 0 !important; } }`}</style>
+            <style>{`@page { size: 3.5in 2in; margin: 0; }
+                @media print {
+                    html, body, #app { width: 3.5in; height: 2in; min-height: 2in !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+                    #app > div { width: 3.5in !important; height: 2in !important; min-height: 2in !important; overflow: hidden !important; }
+                    body * { visibility: hidden !important; }
+                    #setup-card, #setup-card * { visibility: visible !important; }
+                    #app > div > a,
+                    #app > div > aside,
+                    #app > div > header,
+                    #app > div > [role="dialog"] { display: none !important; }
+                    #main-content { display: block !important; width: 3.5in !important; height: 2in !important; margin: 0 !important; overflow: hidden !important; }
+                    #main-content > main { display: block !important; width: 3.5in !important; height: 2in !important; min-height: 2in !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
+                    #main-content > main > div:first-child { display: none !important; }
+                    #main-content > main > #setup-card { display: flex !important; }
+                    #setup-card {
+                        position: fixed !important;
+                        inset: 0 auto auto 0 !important;
+                        width: 3.5in !important;
+                        height: 2in !important;
+                        min-height: 2in !important;
+                        max-width: none !important;
+                        margin: 0 !important;
+                        box-sizing: border-box !important;
+                        overflow: hidden !important;
+                        border: 0.5pt solid #d8dedc !important;
+                        border-radius: 0 !important;
+                        box-shadow: none !important;
+                        background: #ffffff !important;
+                        color: #17212b !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        print-color-adjust: exact !important;
+                        -webkit-print-color-adjust: exact !important;
+                    }
+                    #setup-card > header {
+                        flex: 0 0 0.31in !important;
+                        box-sizing: border-box !important;
+                        padding: 0.08in 0.13in !important;
+                        background: #082944 !important;
+                    }
+                    #setup-card > header strong { font-size: 10pt !important; line-height: 1 !important; }
+                    #setup-card > header span { font-size: 5pt !important; line-height: 1 !important; }
+                    #setup-card > div {
+                        flex: 1 1 auto !important;
+                        min-height: 0 !important;
+                        box-sizing: border-box !important;
+                        display: grid !important;
+                        grid-template-columns: minmax(0, 1fr) 0.72in !important;
+                        gap: 0.1in !important;
+                        padding: 0.1in 0.13in !important;
+                    }
+                    #setup-card > div > div:first-child { min-width: 0 !important; }
+                    #setup-card > div > div:first-child > p:first-child { margin: 0 !important; font-size: 5pt !important; line-height: 1 !important; }
+                    #setup-card h2 { margin: 0.04in 0 0 !important; font-size: 13pt !important; line-height: 1 !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; }
+                    #setup-card > div > div:first-child > p:nth-of-type(2) { margin: 0.03in 0 0 !important; font-size: 6pt !important; line-height: 1 !important; }
+                    #setup-card > div > div:first-child > p:nth-of-type(3) { margin: 0.08in 0 0 !important; font-size: 5.5pt !important; line-height: 1.25 !important; }
+                    #setup-card > div > div:first-child > p:nth-of-type(4) { margin: auto 0 0 !important; font-size: 5pt !important; line-height: 1 !important; }
+                    #setup-card > div > div:last-child { width: 0.72in !important; height: 0.72in !important; padding: 0.04in !important; border-radius: 0.05in !important; align-self: center !important; }
+                    #setup-card > div > div:last-child img { width: 100% !important; height: 100% !important; }
+                    #setup-card > footer { flex: 0 0 0.2in !important; box-sizing: border-box !important; padding: 0.04in 0.13in !important; font-size: 4.5pt !important; line-height: 1 !important; }
+                }`}</style>
             <main className="min-h-[calc(100vh-4rem)] bg-background px-4 py-8 text-foreground sm:px-6 lg:px-10">
                 <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
                     <form onSubmit={submit} className="rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
@@ -162,7 +222,7 @@ export default function Create({ event }) {
                 </div>
 
                 {setupUrl ? (
-                    <section id="setup-card" className="mx-auto mt-8 max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface shadow-xl">
+                    <section id="setup-card" data-testid="setup-card" data-print-size="3.5in × 2in" className="mx-auto mt-8 max-w-2xl overflow-hidden rounded-2xl border border-border bg-surface shadow-xl">
                         <header className="flex items-center justify-between bg-sidebar px-6 py-5 text-white">
                             <strong className="font-serif text-xl tracking-[0.12em]">SYNTIX</strong>
                             <span className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Staff setup</span>

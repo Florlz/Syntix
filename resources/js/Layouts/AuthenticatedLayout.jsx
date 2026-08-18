@@ -2,7 +2,7 @@ import React from 'react';
 import AppIcon from '@/Components/AppIcon';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import Link from '@/Components/PrefetchLink';
-import { applyTheme, clearTheme } from '@/lib/theme';
+import { applyTheme } from '@/lib/theme';
 import { Popover, PopoverButton, PopoverPanel } from '@headlessui/react';
 import { router, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
@@ -193,7 +193,6 @@ export default function AuthenticatedLayout({ header, children, activeSection = 
         return () => {
             if (media?.removeEventListener) media.removeEventListener('change', applyCurrentTheme);
             else media?.removeListener?.(applyCurrentTheme);
-            clearTheme();
             delete root.dataset.textSize;
             delete root.dataset.contrast;
             delete root.dataset.reduceMotion;

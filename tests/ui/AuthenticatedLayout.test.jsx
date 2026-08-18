@@ -34,14 +34,14 @@ test('applies the persisted dark theme to the document root', () => {
     expect(document.documentElement).toHaveClass('dark');
 });
 
-test('cleans the admin theme from the document root when the layout unmounts', () => {
+test('preserves the admin theme when the layout unmounts between Inertia pages', () => {
     const { unmount } = render(<AuthenticatedLayout header={<h1>Settings</h1>}><p>Content</p></AuthenticatedLayout>);
 
     expect(document.documentElement).toHaveClass('dark');
     unmount();
 
-    expect(document.documentElement).not.toHaveClass('dark');
-    expect(document.documentElement.style.colorScheme).toBe('');
+    expect(document.documentElement).toHaveClass('dark');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
 });
 
 test('activeSection override marks Departments instead of route-derived Sports Directory', () => {

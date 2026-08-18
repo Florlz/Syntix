@@ -1,12 +1,11 @@
 import '../css/app.css';
 
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
-
+import { clearTheme } from './lib/theme';
 const appName = import.meta.env.VITE_APP_NAME || 'Syntix';
-
 if (import.meta.env.PROD) {
     registerSW({ immediate: true });
 } else if ('serviceWorker' in navigator) {
@@ -27,7 +26,11 @@ if (import.meta.env.PROD) {
         ),
     );
 }
-
+router.on('navigate', ({ detail }) => {
+    if (detail.page.props.ui?.theme_scope !== 'admin') {
+        clearTheme();
+    }
+});
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
     resolve: (name) =>
