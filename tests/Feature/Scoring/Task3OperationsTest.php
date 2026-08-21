@@ -152,6 +152,94 @@ class Task3OperationsTest extends TestCase
             );
     }
 
+    public function test_admin_staff_coverage_groups_judge_scorecards_and_marks_missing_role_coverage(): void
+    {
+        [$admin, $event] = $this->programme();
+        $division = Competition::query()->whereBelongsTo($event)->where('slug', 'pop-solo')
+            ->firstOrFail()->divisions()->firstOrFail();
+        $contest = (new PrepareJudgedContest)->handle($admin, $division);
+        $judge = User::factory()->create(['name' => 'Panel Judge', 'email' => 'panel-judge-'.uniqid().'@example.com']);
+        $tabulator = User::factory()->create(['name' => 'Unassigned Tabulator', 'email' => 'unassigned-tabulator-'.uniqid().'@example.com']);
+        (new GrantEventRole)->handle($admin, $event, $judge, EventRole::Judge);
+        (new GrantEventRole)->handle($admin, $event, $tabulator, EventRole::Tabulator);
+        (new ConfigureJudgingPanel)->handle($admin, $contest, [$judge]);
+
+        $this->actingAs($admin)->get(route('admin.staff.index', [$event, 'section' => 'people']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('staff', function ($staff) use ($judge, $tabulator): bool {
+                    $panelJudge = collect($staff)->firstWhere('id', (string) $judge->getKey());
+                    $unassignedTabulator = collect($staff)->firstWhere('id', (string) $tabulator->getKey());
+                    $panel = $panelJudge['coverage']['judging_panels'][0] ?? null;
+
+                    return is_array($panel)
+                        && count($panelJudge['coverage']['judging_panels']) === 1
+                        && $panel['contest_id'] === (string) $panelJudge['judging_assignments'][0]['id']
+                        && $panel['entry_count'] === 7
+                        && $panel['scorecard_count'] === 7
+                        && ! in_array('judge', $panelJudge['coverage']['missing_roles'], true)
+                        && in_array('tabulator', $unassignedTabulator['coverage']['missing_roles'], true);
+                })
+            );
+    }
+
+    public function test_admin_staff_readiness_exposes_ordered_workflow_and_current_panel_members(): void
+    {
+        [$admin, $event] = $this->programme();
+        $division = Competition::query()->whereBelongsTo($event)->where('slug', 'pop-solo')
+            ->firstOrFail()->divisions()->firstOrFail();
+        $judge = User::factory()->create(['email' => 'workflow-judge-'.uniqid().'@example.com']);
+        $tabulator = User::factory()->create(['email' => 'workflow-tabulator-'.uniqid().'@example.com']);
+        (new GrantEventRole)->handle($admin, $event, $judge, EventRole::Judge);
+        (new GrantEventRole)->handle($admin, $event, $tabulator, EventRole::Tabulator);
+
+        $this->assertReadinessAction($admin, $event, 'Pop Solo', 'prepare');
+
+        $this->assertAdminRedirect($this->actingAs($admin)->post(route('admin.staff.scoring.prepare', [$event, $division])));
+        $this->assertReadinessAction($admin, $event, 'Pop Solo', 'panel');
+
+        $contest = Contest::query()->whereBelongsTo($division, 'division')->sole();
+        $this->assertReadinessAction($admin, $event, 'Pop Solo', 'panel', []);
+        $this->assertAdminRedirect($this->actingAs($admin)->post(
+            route('admin.staff.scoring.panel.store', [$event, $contest]),
+            ['judge_ids' => [$judge->getKey()]],
+        ));
+        $this->assertReadinessAction($admin, $event, 'Pop Solo', 'aggregation', [(string) $judge->getKey()]);
+
+        $this->assertAdminRedirect($this->actingAs($admin)->post(
+            route('admin.staff.scoring.aggregation.confirm', [$event, $contest]),
+            ['method' => 'average', 'reference' => 'Minute 18', 'reason' => 'The committee approved the method.'],
+        ));
+        $this->assertReadinessAction($admin, $event, 'Pop Solo', 'tabulator');
+
+        $this->assertAdminRedirect($this->actingAs($admin)->post(route('admin.staff.scoring.tabulator.store', [$event, $contest, $tabulator])));
+        $this->assertReadinessAction($admin, $event, 'Pop Solo', 'lock');
+
+        $this->assertAdminRedirect($this->actingAs($admin)->post(route('admin.staff.scoring.panel.lock', [$event, $contest])));
+        $this->actingAs($admin)->get(route('admin.staff.index', [$event, 'section' => 'readiness']))
+            ->assertInertia(fn (Assert $page) => $page->where('readiness', function ($readiness): bool {
+                $popSolo = collect($readiness)->firstWhere('name', 'Pop Solo');
+
+                return ($popSolo['next_action_key'] ?? null) !== 'lock';
+            }));
+    }
+
+    public function test_admin_staff_invitation_reissue_exposes_print_card_metadata_without_persisting_token(): void
+    {
+        [$admin, $event] = $this->programme();
+        $judge = User::factory()->create(['name' => 'Reissued Judge', 'email' => 'reissued-judge-'.uniqid().'@example.com']);
+        (new GrantEventRole)->handle($admin, $event, $judge, EventRole::Judge);
+
+        $response = $this->actingAs($admin)->post(route('admin.staff.invitations.reissue', [$event, $judge]));
+
+        $response->assertRedirect();
+        $this->assertNotNull(session('setup_url'));
+        $this->assertSame('Reissued Judge', session('setup_invitation.name'));
+        $this->assertSame('Judge', session('setup_invitation.role_label'));
+        $this->assertNotNull(session('setup_invitation.expires_at'));
+        $this->assertDatabaseMissing('user_invitations', ['token_hash' => session('setup_url')]);
+    }
+
     public function test_admin_can_prepare_configure_assign_confirm_and_lock_a_judged_contest(): void
     {
         [$admin, $event] = $this->programme();
@@ -221,5 +309,18 @@ class Task3OperationsTest extends TestCase
     private function assertAdminRedirect(TestResponse $response): void
     {
         $response->assertRedirect();
+    }
+
+    /** @param list<string> $judgeIds */
+    private function assertReadinessAction(User $admin, Event $event, string $name, ?string $expected, ?array $judgeIds = null): void
+    {
+        $this->actingAs($admin)->get(route('admin.staff.index', [$event, 'section' => 'readiness']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('readiness', function ($readiness) use ($name, $expected, $judgeIds): bool {
+                $item = collect($readiness)->firstWhere('name', $name);
+
+                return ($item['next_action_key'] ?? null) === $expected
+                    && ($judgeIds === null || $item['current_judge_ids'] === $judgeIds);
+            }));
     }
 }

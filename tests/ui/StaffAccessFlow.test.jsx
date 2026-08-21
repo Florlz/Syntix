@@ -35,7 +35,10 @@ beforeEach(() => {
 });
 
 test('staff invitation creates identity and role without a scoring target and offers a printable setup card', async () => {
-    usePage.mockReturnValue({ props: { flash: { setup_url: 'https://syntix.test/account-setup/secret-token' } } });
+    usePage.mockReturnValue({ props: { flash: {
+        setup_url: 'https://syntix.test/account-setup/secret-token',
+        setup_invitation: { name: 'Juan Dela Cruz', role_label: 'Judge', expires_at: '2026-08-23T02:15:00+08:00' },
+    } } });
 
     render(<CreateAccount event={{ id: '1', name: 'SIKLAB 2026' }} />);
 
@@ -46,6 +49,8 @@ test('staff invitation creates identity and role without a scoring target and of
     expect(screen.queryByRole('link', { name: /account-setup\/secret-token/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy setup link' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Print setup card' })).toBeInTheDocument();
+    expect(screen.getByText('Juan Dela Cruz')).toBeInTheDocument();
+    expect(screen.getByText('PRIVATE ONE-TIME CREDENTIAL')).toBeInTheDocument();
     await waitFor(() => expect(qrToDataUrl).toHaveBeenCalledWith('https://syntix.test/account-setup/secret-token', expect.any(Object)));
 });
 

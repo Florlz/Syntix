@@ -11,7 +11,7 @@ const usePage = vi.hoisted(() => vi.fn());
 vi.mock('@inertiajs/react', () => ({
     Head: () => null,
     Link: ({ href, children, ...props }) => <a href={href} {...props}>{children}</a>,
-    useForm: () => ({ data: { role: 'judge', scope_type: 'contest', target_id: '', judge_ids: [] }, setData: vi.fn(), post: vi.fn(), patch: vi.fn(), transform: vi.fn(function () { return this; }), processing: false, reset: vi.fn() }),
+    useForm: (initial = {}) => ({ data: { role: 'judge', scope_type: 'contest', target_id: '', judge_ids: [], ...initial }, setData: vi.fn(), post: vi.fn(), patch: vi.fn(), transform: vi.fn(function () { return this; }), processing: false, reset: vi.fn() }),
     usePage,
     router: { visit: vi.fn(), post: vi.fn() },
 }));
@@ -68,6 +68,95 @@ test('admin staff workspace uses normal URL sections and names the readiness blo
     expect(screen.getByText('Judge panel')).toBeInTheDocument();
 });
 
+test('assignments section is a separate operational workspace', () => {
+    render(<AdminStaff
+        event={{ id: '1', name: 'SIKLAB 2026', archived: false }}
+        section="assignments"
+        staff={[{
+            id: '5',
+            name: 'Maria Santos',
+            email: 'maria@example.com',
+            account_state: 'active',
+            roles: [{ id: 'r1', role: 'judge' }],
+            assignments: [],
+            coverage: {
+                judging_panels: [{ contest_id: '81', label: 'Pop Solo / Individual / Final', entry_count: 7, locked: false }],
+                tabulator_targets: [],
+                missing_roles: [],
+                total: 1,
+            },
+            judging_assignments: [{ id: '81', scope: 'judging_panel', label: 'Pop Solo / Individual / Final', scorecard_count: 7 }],
+            tabulator_assignments: [],
+            invitation: null,
+            event_memberships: [],
+            audit: [],
+        }]}
+        targets={{ competition_division: [], contest: [] }}
+        readiness={[]}
+    />);
+
+    expect(screen.getByRole('heading', { name: 'Assignment coverage' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Judges and Tabulators' })).not.toBeInTheDocument();
+    expect(screen.getByText('Pop Solo / Individual / Final')).toBeInTheDocument();
+    expect(screen.getByText('7 scorecards')).toBeInTheDocument();
+});
+
+test('readiness uses the server-provided next workflow action', () => {
+    render(<AdminStaff
+        event={{ id: '1', name: 'SIKLAB 2026', archived: false }}
+        section="readiness"
+        staff={[]}
+        targets={{ competition_division: [], contest: [] }}
+        readiness={[{
+            id: '30',
+            name: 'Pop Solo',
+            state: 'needs_attention',
+            next_action_key: 'aggregation',
+            counts: { entries: 7, judges: 3, tabulators: 0 },
+            next_blocker: 'Confirm aggregation authority.',
+            readiness_steps: [],
+            actions: {
+                panel: '/panel',
+                aggregation: '/aggregation',
+                judge_options: [],
+                tabulator_options: [],
+            },
+        }]}
+    />);
+
+    screen.getByText('Open setup').click();
+    expect(screen.getByRole('heading', { name: 'Judge score aggregation' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Judging panel' })).not.toBeInTheDocument();
+});
+
+test('panel editing starts with the current Judge membership selected', () => {
+    render(<AdminStaff
+        event={{ id: '1', name: 'SIKLAB 2026', archived: false }}
+        section="readiness"
+        staff={[]}
+        targets={{ competition_division: [], contest: [] }}
+        readiness={[{
+            id: '30',
+            name: 'Pop Solo',
+            state: 'needs_attention',
+            next_action_key: 'panel',
+            counts: { entries: 7, judges: 2, tabulators: 0 },
+            next_blocker: 'Configure the judging panel.',
+            current_judge_ids: ['10', '11'],
+            readiness_steps: [],
+            actions: {
+                panel: '/panel',
+                judge_options: [{ id: '10', name: 'Judge 10' }, { id: '11', name: 'Judge 11' }],
+                tabulator_options: [],
+            },
+        }]}
+    />);
+
+    screen.getByText('Open setup').click();
+    expect(screen.getByRole('checkbox', { name: 'Judge 10' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Judge 11' })).toBeChecked();
+});
+
 test('staff drawer keeps Judge panel assignments separate from Tabulator scopes', () => {
     render(<AdminStaff
         event={{ id: '1', name: 'SIKLAB 2026', archived: false }}
@@ -97,6 +186,30 @@ test('staff drawer keeps Judge panel assignments separate from Tabulator scopes'
     expect(screen.getByText('Assignments are managed through judging panels.')).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'Scorecard' })).not.toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Tabulator assignment scope' })).toBeInTheDocument();
+});
+
+test('archived readiness keeps panel setup controls disabled', () => {
+    render(<AdminStaff
+        event={{ id: '1', name: 'SIKLAB 2026', archived: true }}
+        section="readiness"
+        staff={[]}
+        targets={{ competition_division: [], contest: [] }}
+        readiness={[{
+            id: '30',
+            name: 'Pop Solo',
+            state: 'needs_attention',
+            next_action_key: 'panel',
+            counts: { entries: 7, judges: 0, tabulators: 0 },
+            readiness_steps: [],
+            current_judge_ids: [],
+            actions: { panel: '/panel', judge_options: [{ id: '10', name: 'Judge 10' }] },
+        }]}
+    />);
+
+    screen.getByText('Open setup').click();
+
+    expect(screen.getByRole('checkbox', { name: 'Judge 10' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save panel' })).toBeDisabled();
 });
 
 test('judge and tabulator landing pages present operational work modes', () => {

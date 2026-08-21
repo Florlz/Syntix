@@ -22,12 +22,16 @@ class AccountController extends Controller
         }
 
         return Inertia::render('Admin/Accounts/Create', [
-            'event' => ['id' => (string) $event->getKey(), 'name' => $event->name],
+            'event' => ['id' => (string) $event->getKey(), 'name' => $event->name, 'archived' => $event->isArchived()],
         ]);
     }
 
     public function store(Request $request, Event $event, ProvisionEventScorer $provision): RedirectResponse
     {
+        if ($event->isArchived()) {
+            throw new AuthorizationException('Archived events are read-only.');
+        }
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'lowercase', 'max:255'],
@@ -45,6 +49,7 @@ class AccountController extends Controller
             ->with('setup_invitation', [
                 'name' => $result['user']->name,
                 'role' => $data['role'],
+                'role_label' => EventRole::from($data['role']) === EventRole::Judge ? 'Judge' : 'Tabulator',
                 'expires_at' => $result['invitation']->expires_at?->toIso8601String(),
             ]);
     }

@@ -43,24 +43,60 @@ class StaffController extends Controller
     public function index(Request $request, Event $event, ContestScheduleReadModel $schedules): Response
     {
         $this->assertAdmin($request, $event);
+        $contests = Contest::query()
+            ->whereHas('division.competition', fn ($query) => $query->where('event_id', $event->getKey()))
+            ->with([
+                'division.competition',
+                'entries',
+                'scorecards.judge',
+                'assignments.user',
+            ])
+            ->get();
         $roles = $event->userRoles()->whereIn('role', [EventRole::Judge->value, EventRole::Tabulator->value])
-            ->with(['user', 'user.eventRoles.event', 'user.scoringAssignments' => fn ($q) => $q->where('event_id', $event->getKey())->with(['division.competition', 'contest.division.competition', 'entryScorecard.contest.division.competition']), 'user.userInvitations' => fn ($q) => $q->where('event_id', $event->getKey())->latest('id')])
+            ->with([
+                'user',
+                'user.eventRoles.event',
+                'user.scoringAssignments' => fn ($q) => $q
+                    ->where('event_id', $event->getKey())
+                    ->with([
+                        'division.competition',
+                        'contest.division.competition',
+                        'entryScorecard.entry',
+                        'entryScorecard.contest.division.competition',
+                    ]),
+                'user.userInvitations' => fn ($q) => $q->where('event_id', $event->getKey())->latest('id'),
+            ])
             ->get()->groupBy('user_id');
 
-        $staff = $roles->map(function ($memberships) use ($event): array {
+        $staff = $roles->map(function ($memberships) use ($event, $contests): array {
             $user = $memberships->first()->user;
             $activeRoles = $memberships->whereNull('revoked_at');
             $assignments = $user->scoringAssignments->whereNull('revoked_at');
-            $judgingAssignments = $assignments->filter(fn (ScoringAssignment $assignment): bool => $assignment->scopeType() === ScoringAssignmentScope::EntryScorecard);
-            $tabulatorAssignments = $assignments->filter(fn (ScoringAssignment $assignment): bool => $assignment->scopeType() !== ScoringAssignmentScope::EntryScorecard);
             $invitation = $user->userInvitations->first();
+            $coverage = $this->staffCoverage($assignments, $contests);
+            $coverage['missing_roles'] = collect([
+                $activeRoles->contains(fn ($role): bool => $role->role === EventRole::Judge) && $coverage['judging_panels'] === []
+                    ? EventRole::Judge->value
+                    : null,
+                $activeRoles->contains(fn ($role): bool => $role->role === EventRole::Tabulator) && $coverage['tabulator_targets'] === []
+                    ? EventRole::Tabulator->value
+                    : null,
+            ])->filter()->values()->all();
+
             return [
                 'id' => (string) $user->getKey(), 'name' => $user->name, 'email' => $user->email,
                 'account_state' => $user->accountState()->value, 'disabled_reason' => $user->disable_reason,
                 'roles' => $activeRoles->map(fn ($r) => ['id' => (string) $r->getKey(), 'role' => $r->role->value])->values(),
                 'assignments' => $assignments->map(fn (ScoringAssignment $a) => ['id' => (string) $a->getKey(), 'scope' => $a->scopeType()->value, 'label' => $this->assignmentLabel($a)])->values(),
-                'judging_assignments' => $judgingAssignments->map(fn (ScoringAssignment $a) => ['id' => (string) $a->getKey(), 'scope' => 'judging_panel', 'label' => $this->assignmentLabel($a)])->values(),
-                'tabulator_assignments' => $tabulatorAssignments->map(fn (ScoringAssignment $a) => ['id' => (string) $a->getKey(), 'scope' => $a->scopeType()->value, 'label' => $this->assignmentLabel($a)])->values(),
+                'judging_assignments' => collect($coverage['judging_panels'])->map(fn (array $panel): array => [
+                    'id' => $panel['contest_id'],
+                    'scope' => 'judging_panel',
+                    'label' => $panel['label'],
+                    'scorecard_count' => $panel['scorecard_count'],
+                    'locked' => $panel['locked'],
+                ])->values(),
+                'tabulator_assignments' => $coverage['tabulator_targets'],
+                'coverage' => $coverage,
                 'invitation' => $invitation ? ['state' => $invitation->invitationState()->value, 'expires_at' => $invitation->expires_at?->toIso8601String()] : null,
                 'event_memberships' => $user->eventRoles->whereNull('revoked_at')->groupBy('event_id')->map(fn ($items) => ['event' => $items->first()->event?->name, 'roles' => $items->pluck('role')->map(fn ($r) => $r->value)->values()])->values(),
                 'audit' => AuditLog::query()->where('event_id', $event->getKey())->where('target_id', (string) $user->getKey())->latest()->limit(10)->get()->map(fn ($log) => ['action' => $log->action, 'reason' => $log->reason, 'at' => $log->created_at?->toIso8601String()]),
@@ -75,6 +111,13 @@ class StaffController extends Controller
             'event' => ['id' => (string) $event->getKey(), 'name' => $event->name, 'archived' => $event->isArchived()],
             'section' => $section,
             'staff' => $staff,
+            'staff_summary' => [
+                'people' => $staff->count(),
+                'active' => $staff->where('account_state', 'active')->count(),
+                'judges' => $staff->filter(fn (array $person): bool => collect($person['roles'])->contains('role', EventRole::Judge->value))->count(),
+                'tabulators' => $staff->filter(fn (array $person): bool => collect($person['roles'])->contains('role', EventRole::Tabulator->value))->count(),
+                'needs_assignment' => $staff->filter(fn (array $person): bool => $person['coverage']['missing_roles'] !== [])->count(),
+            ],
             'targets' => $this->targets($event),
             'readiness' => $this->scoringReadiness($event, $schedules),
         ]);
@@ -161,14 +204,34 @@ class StaffController extends Controller
     public function reissue(Request $request, Event $event, User $user, AuditLogger $audit): RedirectResponse
     {
         $this->assertWritable($request, $event); $this->assertMember($event, $user);
-        $token = DB::transaction(function () use ($request, $event, $user, $audit): string {
+        $roleValues = $event->userRoles()
+            ->where('user_id', $user->getKey())
+            ->whereNull('revoked_at')
+            ->pluck('role')
+            ->map(fn ($role): string => $role instanceof EventRole ? $role->value : (string) $role)
+            ->unique()
+            ->values();
+        $roleLabel = match (true) {
+            $roleValues->contains(EventRole::Judge->value) && $roleValues->contains(EventRole::Tabulator->value) => 'Judge & Tabulator',
+            $roleValues->contains(EventRole::Judge->value) => 'Judge',
+            $roleValues->contains(EventRole::Tabulator->value) => 'Tabulator',
+            default => 'Event staff',
+        };
+        $invitation = DB::transaction(function () use ($request, $event, $user, $audit): array {
             UserInvitation::query()->where('user_id', $user->getKey())->where('event_id', $event->getKey())->whereNull('consumed_at')->update(['expires_at' => now()]);
             $token = Str::random(64);
             $invitation = UserInvitation::create(['user_id' => $user->getKey(), 'event_id' => $event->getKey(), 'token_hash' => hash('sha256', $token), 'invited_by' => $request->user()->getKey(), 'expires_at' => now()->addHours(24)]);
             $audit->record($request->user(), AuditAction::InvitationReissued, $user, $event, after: ['expires_at' => $invitation->expires_at->toIso8601String()]);
-            return $token;
+            return ['token' => $token, 'expires_at' => $invitation->expires_at?->toIso8601String()];
         });
-        return back()->with('setup_url', route('account.setup', ['token' => $token]))->with('status', 'A new one-time setup link was issued; every earlier unused link is invalid.');
+        return back()
+            ->with('setup_url', route('account.setup', ['token' => $invitation['token']]))
+            ->with('setup_invitation', [
+                'name' => $user->name,
+                'role_label' => $roleLabel,
+                'expires_at' => $invitation['expires_at'],
+            ])
+            ->with('status', 'A new one-time setup link was issued; every earlier unused link is invalid.');
     }
 
     public function grantRole(Request $request, Event $event, User $user, GrantEventRole $grant): RedirectResponse
@@ -229,6 +292,73 @@ class StaffController extends Controller
         ];
     }
 
+    /**
+     * Shape assignment records for people rather than exposing scorecard rows
+     * as if they were separate operational assignments.
+     *
+     * @param  iterable<ScoringAssignment>  $assignments
+     * @param  iterable<Contest>  $contests
+     * @return array{judging_panels: list<array<string, mixed>>, tabulator_targets: list<array<string, mixed>>, missing_roles: list<string>, total: int}
+     */
+    private function staffCoverage(iterable $assignments, iterable $contests): array
+    {
+        $assignments = collect($assignments)->values();
+        $contestIndex = collect($contests)->keyBy(fn (Contest $contest): string => (string) $contest->getKey());
+        $judgingPanels = $assignments
+            ->filter(fn (ScoringAssignment $assignment): bool => $assignment->scopeType() === ScoringAssignmentScope::EntryScorecard)
+            ->groupBy(fn (ScoringAssignment $assignment): string => (string) ($assignment->entryScorecard?->contest_id ?? ''))
+            ->reject(fn ($items, string $contestId): bool => $contestId === '')
+            ->map(function ($items, string $contestId) use ($contestIndex): array {
+                $contest = $contestIndex->get($contestId);
+                $division = $contest?->division;
+                $competition = $division?->competition;
+                $label = collect([$competition?->name, $division?->name, $contest?->name])
+                    ->filter(fn ($value): bool => filled($value))
+                    ->implode(' / ');
+
+                return [
+                    'contest_id' => $contestId,
+                    'division_id' => $division === null ? null : (string) $division->getKey(),
+                    'competition' => $competition?->name,
+                    'division' => $division?->name,
+                    'contest' => $contest?->name,
+                    'label' => $label !== '' ? $label : 'Judging panel',
+                    'entry_count' => $contest?->entries->count() ?? $items->count(),
+                    'scorecard_count' => $items->count(),
+                    'locked' => (bool) $contest?->isJudgingPanelLocked(),
+                ];
+            })
+            ->sortBy('label')
+            ->values()
+            ->all();
+        $tabulatorTargets = $assignments
+            ->filter(fn (ScoringAssignment $assignment): bool => $assignment->scopeType() !== ScoringAssignmentScope::EntryScorecard)
+            ->map(fn (ScoringAssignment $assignment): array => [
+                'assignment_id' => (string) $assignment->getKey(),
+                'scope' => $assignment->scopeType() === ScoringAssignmentScope::CompetitionDivision ? 'division' : 'contest',
+                'target_id' => (string) ($assignment->scopeType() === ScoringAssignmentScope::CompetitionDivision
+                    ? $assignment->competition_division_id
+                    : $assignment->contest_id),
+                'competition' => $assignment->scopeType() === ScoringAssignmentScope::CompetitionDivision
+                    ? $assignment->division?->competition?->name
+                    : $assignment->contest?->division?->competition?->name,
+                'division' => $assignment->scopeType() === ScoringAssignmentScope::CompetitionDivision
+                    ? $assignment->division?->name
+                    : $assignment->contest?->division?->name,
+                'contest' => $assignment->scopeType() === ScoringAssignmentScope::Contest ? $assignment->contest?->name : null,
+                'label' => $this->assignmentLabel($assignment),
+            ])
+            ->sortBy('label')
+            ->values()
+            ->all();
+        return [
+            'judging_panels' => $judgingPanels,
+            'tabulator_targets' => $tabulatorTargets,
+            'missing_roles' => [],
+            'total' => count($judgingPanels) + count($tabulatorTargets),
+        ];
+    }
+
     /** @return list<array<string, mixed>> */
     private function scoringReadiness(Event $event, ContestScheduleReadModel $schedules): array
     {
@@ -240,7 +370,7 @@ class StaffController extends Controller
 
         return Division::query()
             ->whereHas('competition', fn ($query) => $query->where('event_id', $event->getKey()))
-            ->with(['competition', 'governingRuleVersion', 'ruleVersions' => fn ($query) => $query->latest('version'), 'entries', 'contests.scorecards', 'contests.assignments'])
+            ->with(['competition', 'governingRuleVersion', 'ruleVersions' => fn ($query) => $query->latest('version'), 'entries', 'contests.entries', 'contests.scorecards', 'contests.assignments'])
             ->get()
             ->filter(fn (Division $division): bool => ($division->governingRuleVersion ?? $division->ruleVersions->first())?->scoringFamily()?->value === 'criteria_based')
             ->map(function (Division $division) use ($judges, $tabulators, $schedules): array {
@@ -249,7 +379,8 @@ class StaffController extends Controller
                 $contest = $division->contests->first();
                 $judgeCount = $contest?->scorecards->pluck('judge_id')->filter()->unique()->count() ?? 0;
                 $tabulatorCount = $contest?->assignments->where('scope_type', ScoringAssignmentScope::Contest)->whereNull('revoked_at')->count() ?? 0;
-                $sourceBlocked = $rule->source_status === 'blocked' || $metadata->sourceBlocker !== null;
+                $sourceBlocker = $metadata->sourceBlocker ?? ($rule->source_status === 'blocked' ? 'The scoring source is blocked.' : null);
+                $sourceBlocked = $sourceBlocker !== null;
                 $deduction = $rule->deduction_configuration ?? [];
                 $deductionAuthorized = ($deduction['code'] ?? null) === null || ($deduction['calculation_status'] ?? null) === 'authorized';
                 $aggregation = $contest?->isJudgingPanelLocked() ? (new JudgeScoreAggregationService)->aggregate($contest) : null;
@@ -265,12 +396,29 @@ class StaffController extends Controller
                     'adjustment_evidence_missing' => 'Waiting for objective adjustment evidence for every entry.',
                     'scorecard_rule_mismatch' => 'A scorecard uses a different rule version and requires correction.',
                 ];
-                $next = $metadata->sourceBlocker
-                    ?? ($contest === null ? 'Prepare the official judged Contest.'
-                        : ($judgeCount === 0 ? 'Configure the judging panel.'
-                            : (! $contest->isJudgingPanelLocked() ? 'Confirm aggregation and lock the judging panel.' : ($blockerLabels[$aggregationBlocker] ?? null))));
                 $tie = collect($aggregation['ties'] ?? [])->first();
                 $entryNames = collect($aggregation['entries'] ?? [])->keyBy('entry_id');
+                $nextActionKey = match (true) {
+                    $sourceBlocked => null,
+                    $contest === null => 'prepare',
+                    $judgeCount === 0 => 'panel',
+                    ! $rule->hasConfirmedAggregation() => 'aggregation',
+                    ! $deductionAuthorized => 'deduction',
+                    $tabulatorCount === 0 && $tabulators->isNotEmpty() => 'tabulator',
+                    ! $contest->isJudgingPanelLocked() => 'lock',
+                    $tie !== null => 'tie',
+                    default => null,
+                };
+                $next = match ($nextActionKey) {
+                    'prepare' => 'Prepare the official judged Contest.',
+                    'panel' => 'Configure the judging panel.',
+                    'aggregation' => 'Confirm the Judge aggregation method and authority.',
+                    'deduction' => 'Authorize the source deduction calculation policy.',
+                    'tabulator' => 'Assign an active Tabulator to this activity.',
+                    'lock' => 'Lock the judging panel before scoring begins.',
+                    'tie' => 'Authorized tie resolution required.',
+                    default => $blockerLabels[$aggregationBlocker] ?? null,
+                };
 
                 return [
                     'id' => (string) $division->getKey(),
@@ -279,9 +427,11 @@ class StaffController extends Controller
                     'division' => $division->name,
                     'state' => $sourceBlocked ? 'blocked' : ($next === null ? 'ready' : 'needs_attention'),
                     'next_blocker' => $next,
+                    'next_action_key' => $nextActionKey,
+                    'current_judge_ids' => $contest?->scorecards->pluck('judge_id')->filter()->unique()->map(fn ($id): string => (string) $id)->sort()->values()->all() ?? [],
                     'source' => [
                         'reliability' => $metadata->reliabilityLabel,
-                        'blocker' => $metadata->sourceBlocker,
+                        'blocker' => $sourceBlocker,
                         'pages' => $metadata->sourcePages,
                     ],
                     'counts' => ['entries' => $division->entries->count(), 'judges' => $judgeCount, 'tabulators' => $tabulatorCount],

@@ -168,3 +168,40 @@ html[data-reduce-motion='true'] * {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
 }
+
+@media print {
+    @page {
+        margin: 12mm;
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    #staff-setup-print-sheet,
+    #staff-setup-print-sheet * {
+        visibility: visible !important;
+    }
+
+    #staff-setup-print-sheet {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        width: 100%;
+        justify-content: center;
+        margin: 0 !important;
+    }
+
+    #staff-setup-print-card {
+        width: 105mm;
+        min-height: 148mm;
+        box-sizing: border-box;
+        overflow: hidden;
+        background: #fff !important;
+        color: #17212b !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+}

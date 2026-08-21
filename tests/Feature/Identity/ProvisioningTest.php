@@ -6,6 +6,7 @@ use App\Actions\Events\CreateEvent;
 use App\Actions\Events\GrantEventRole;
 use App\Actions\Identity\BootstrapGlobalAdmin;
 use App\Actions\Identity\ProvisionUser;
+use App\Enums\EventState;
 use App\Enums\EventRole;
 use App\Models\Competition;
 use App\Models\Division;
@@ -110,6 +111,30 @@ class ProvisioningTest extends TestCase
 
         $this->actingAs($judge)
             ->get('/admin/events/'.$event->getKey().'/accounts/create')
+            ->assertForbidden();
+    }
+
+    public function test_archived_event_cannot_accept_new_staff_invitations(): void
+    {
+        $admin = (new BootstrapGlobalAdmin)->handle([
+            'name' => 'Global Admin',
+            'email' => 'creator-'.uniqid().'@example.com',
+            'password' => 'secure-bootstrap-password',
+        ]);
+        $event = (new CreateEvent)->handle($admin, ['name' => 'SIKLAB '.uniqid()]);
+        $event->update(['state' => EventState::Archived]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.accounts.create', $event))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('event.archived', true));
+
+        $this->actingAs($admin)
+            ->post(route('admin.accounts.store', $event), [
+                'name' => 'Archived Judge',
+                'email' => 'archived-'.uniqid().'@example.com',
+                'role' => EventRole::Judge->value,
+            ])
             ->assertForbidden();
     }
 }
