@@ -21,14 +21,14 @@ function Summary({ summary = {} }) {
     </dl>;
 }
 
-function Coverage({ person }) {
+function Coverage({ person, compact = false }) {
     const coverage = person.coverage ?? { judging_panels: [], tabulator_targets: [], missing_roles: [], total: 0 };
     const details = [
         coverage.judging_panels?.length ? `${coverage.judging_panels.length} judging panel${coverage.judging_panels.length === 1 ? '' : 's'}` : null,
         coverage.tabulator_targets?.length ? `${coverage.tabulator_targets.length} tabulator target${coverage.tabulator_targets.length === 1 ? '' : 's'}` : null,
     ].filter(Boolean);
 
-    return <div className="mt-3">
+    return <div className={compact ? '' : 'mt-3'}>
         <p className={`text-sm ${details.length ? 'text-muted' : 'font-semibold text-accent-foreground'}`}>
             {details.length ? details.join(' · ') : 'No scoring coverage'}
         </p>
@@ -64,7 +64,7 @@ function PersonTable({ people, onManage }) {
             <div className="min-w-0"><p className="truncate font-bold">{person.name}</p><p className="truncate text-xs text-muted">{person.email}</p></div>
             <div className="flex flex-wrap gap-1">{person.roles.map((role) => <span key={role.id} className="rounded-full bg-accent/15 px-2 py-1 text-[0.65rem] font-bold uppercase text-accent-foreground">{role.role}</span>)}</div>
             <div><p className="text-sm font-semibold capitalize">{person.account_state}</p><p className="mt-1 text-xs text-muted">{person.invitation?.state ?? 'Account established'}</p></div>
-            <Coverage person={person}/>
+            <Coverage person={person} compact/>
             <button type="button" onClick={() => onManage(person)} className="text-sm font-bold text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent">Manage</button>
         </div>)}
     </div>;

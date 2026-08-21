@@ -378,7 +378,11 @@ class StaffController extends Controller
                 $metadata = $rule->metadata();
                 $contest = $division->contests->first();
                 $judgeCount = $contest?->scorecards->pluck('judge_id')->filter()->unique()->count() ?? 0;
-                $tabulatorCount = $contest?->assignments->where('scope_type', ScoringAssignmentScope::Contest)->whereNull('revoked_at')->count() ?? 0;
+                $tabulatorCount = $contest?->assignments
+                    ->where('scope_type', ScoringAssignmentScope::Contest)
+                    ->whereNull('revoked_at')
+                    ->whereIn('user_id', $tabulators->modelKeys())
+                    ->count() ?? 0;
                 $sourceBlocker = $metadata->sourceBlocker ?? ($rule->source_status === 'blocked' ? 'The scoring source is blocked.' : null);
                 $sourceBlocked = $sourceBlocker !== null;
                 $deduction = $rule->deduction_configuration ?? [];
@@ -404,7 +408,7 @@ class StaffController extends Controller
                     $judgeCount === 0 => 'panel',
                     ! $rule->hasConfirmedAggregation() => 'aggregation',
                     ! $deductionAuthorized => 'deduction',
-                    $tabulatorCount === 0 && $tabulators->isNotEmpty() => 'tabulator',
+                    $tabulatorCount === 0 => 'tabulator',
                     ! $contest->isJudgingPanelLocked() => 'lock',
                     $tie !== null => 'tie',
                     default => null,
@@ -428,6 +432,7 @@ class StaffController extends Controller
                     'state' => $sourceBlocked ? 'blocked' : ($next === null ? 'ready' : 'needs_attention'),
                     'next_blocker' => $next,
                     'next_action_key' => $nextActionKey,
+                    'tabulator_available' => $tabulators->isNotEmpty(),
                     'current_judge_ids' => $contest?->scorecards->pluck('judge_id')->filter()->unique()->map(fn ($id): string => (string) $id)->sort()->values()->all() ?? [],
                     'source' => [
                         'reliability' => $metadata->reliabilityLabel,

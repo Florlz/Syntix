@@ -26,7 +26,7 @@ vi.mock('@/Components/InputError', () => ({ default: () => null }));
 
 beforeEach(() => {
     post.mockReset();
-    qrToDataUrl.mockClear();
+    qrToDataUrl.mockReset().mockResolvedValue('data:image/png;base64,syntix-qr');
     globalThis.route = (name, params) => {
         if (name === 'admin.accounts.store') return `/admin/events/${params}/accounts`;
         if (name === 'account.setup.switch') return `/account-setup/${params}/switch`;
@@ -48,10 +48,33 @@ test('staff invitation creates identity and role without a scoring target and of
     expect(screen.getByDisplayValue('https://syntix.test/account-setup/secret-token')).toHaveAttribute('readonly');
     expect(screen.queryByRole('link', { name: /account-setup\/secret-token/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Copy setup link' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Print setup card' })).toBeInTheDocument();
-    expect(screen.getByText('Juan Dela Cruz')).toBeInTheDocument();
-    expect(screen.getByText('PRIVATE ONE-TIME CREDENTIAL')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Print setup card' })).toBeEnabled());
+    expect(screen.getAllByText('Juan Dela Cruz').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/PRIVATE ONE-TIME CREDENTIAL/).length).toBeGreaterThan(0);
     await waitFor(() => expect(qrToDataUrl).toHaveBeenCalledWith('https://syntix.test/account-setup/secret-token', expect.any(Object)));
+});
+
+test('setup card prints through an isolated portal and disables printing until its QR is ready', async () => {
+    let resolveQr;
+    qrToDataUrl.mockReturnValue(new Promise((resolve) => { resolveQr = resolve; }));
+    usePage.mockReturnValue({ props: { flash: { setup_url: 'https://syntix.test/account-setup/token', setup_invitation: { name: 'A Very Long Staff Name That Must Wrap Safely Across Two Lines', role_label: 'Judge' } } } });
+
+    render(<CreateAccount event={{ id: '1', name: 'SIKLAB 2026' }}/>);
+    expect(screen.getByRole('button', { name: 'Generating QR…' })).toBeDisabled();
+    expect(document.body.querySelector('#syntix-print-root')).toHaveAttribute('aria-hidden', 'true');
+    resolveQr('data:image/png;base64,ready');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Print setup card' })).toBeEnabled());
+    expect(document.querySelector('.staff-setup-handoff-preview .staff-setup-handoff-card--preview')).toBeInTheDocument();
+    expect(document.body.querySelector('#syntix-print-root .staff-setup-handoff-card--print')).toBeInTheDocument();
+});
+
+test('setup card reports QR failure and keeps printing unavailable', async () => {
+    qrToDataUrl.mockRejectedValue(new Error('QR failed'));
+    usePage.mockReturnValue({ props: { flash: { setup_url: 'https://syntix.test/account-setup/token', setup_invitation: { name: 'Juan Dela Cruz', role_label: 'Judge' } } } });
+
+    render(<CreateAccount event={{ id: '1', name: 'SIKLAB 2026' }}/>);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'QR unavailable' })).toBeDisabled());
+    expect(screen.getAllByText(/QR generation failed/i).length).toBeGreaterThan(0);
 });
 
 test('setup link opened by another signed-in account explains the conflict instead of showing password fields', () => {

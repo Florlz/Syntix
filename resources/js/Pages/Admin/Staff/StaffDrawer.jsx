@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import { DialogTitle } from '@headlessui/react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
+import Modal from '@/Components/Modal';
 import SlideOver from '@/Components/SlideOver';
 
 const control = 'mt-1 w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-primary focus:ring-primary';
@@ -9,9 +11,9 @@ const action = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-l
 function ReasonDialog({ request, form, onClose, onSubmit }) {
     if (!request) return null;
 
-    return <div className="fixed inset-0 z-[70] grid place-items-center bg-foreground/45 p-4" role="dialog" aria-modal="true" aria-labelledby="audit-reason-title">
-        <form onSubmit={onSubmit} className="w-full max-w-lg rounded-xl border border-border bg-surface p-5 shadow-2xl">
-            <h2 id="audit-reason-title" className="font-serif text-xl font-bold">{request.title}</h2>
+    return <Modal show maxWidth="lg" onClose={onClose}>
+        <form onSubmit={onSubmit} className="border border-border bg-surface p-5 text-foreground">
+            <DialogTitle as="h2" className="font-serif text-xl font-bold">{request.title}</DialogTitle>
             <p className="mt-2 text-sm leading-6 text-muted">{request.description}</p>
             <label className="mt-5 block text-sm font-semibold">Reason<textarea autoFocus required rows="4" value={form.data.reason} onChange={(event) => form.setData('reason', event.target.value)} className={control} placeholder="Record the administrative reason"/></label>
             <InputError message={form.errors?.reason} className="mt-2" />
@@ -21,7 +23,7 @@ function ReasonDialog({ request, form, onClose, onSubmit }) {
                 <button type="submit" disabled={form.processing} className="min-h-10 rounded-lg bg-danger px-4 text-sm font-bold text-white disabled:opacity-50">{form.processing ? 'Processing…' : request.submitLabel}</button>
             </div>
         </form>
-    </div>;
+    </Modal>;
 }
 
 function Feedback({ message, errors }) {
@@ -31,14 +33,20 @@ function Feedback({ message, errors }) {
 export default function StaffDrawer({ event, person, targets = {}, onClose }) {
     const isJudge = person.roles.some((role) => role.role === 'judge');
     const isTabulator = person.roles.some((role) => role.role === 'tabulator');
+    const availableRoles = ['judge', 'tabulator'].filter((candidate) => !person.roles.some((role) => role.role === candidate));
     const [reasonRequest, setReasonRequest] = useState(null);
     const [message, setMessage] = useState('');
     const role = useForm({ role: isJudge ? 'tabulator' : 'judge' });
+    const roleToGrant = availableRoles.includes(role.data.role) ? role.data.role : availableRoles[0] ?? '';
     const assignment = useForm({ scope_type: 'competition_division', target_id: '' });
     const account = useForm({ reason: '' });
     const assignmentOptions = targets[assignment.data.scope_type] ?? [];
     const panels = person.coverage?.judging_panels ?? person.judging_assignments ?? [];
     const tabulatorTargets = person.coverage?.tabulator_targets ?? person.tabulator_assignments ?? [];
+
+    useEffect(() => {
+        if (roleToGrant && role.data.role !== roleToGrant) role.setData('role', roleToGrant);
+    }, [roleToGrant, role.data.role]);
 
     function openReason(request) {
         if (!event.archived) {
@@ -81,7 +89,7 @@ export default function StaffDrawer({ event, person, targets = {}, onClose }) {
                 <section className="rounded-xl border border-border bg-surface p-5">
                     <h3 className="font-serif text-lg font-bold">Event roles</h3>
                     {person.roles.length ? <div className="mt-3 space-y-2">{person.roles.map((item) => <div key={item.id} className="flex items-center justify-between rounded-lg border border-border p-3"><span className="text-sm font-bold capitalize">{item.role}</span><button type="button" disabled={event.archived} onClick={() => openReason({ title: `Revoke ${item.role} role`, description: `Remove ${item.role} access for ${person.name}. Matching incompatible scoring assignments will also be revoked.`, submitLabel: 'Revoke role', url: route('admin.staff.roles.revoke', [event.id, item.id]), successMessage: 'Role revoked.' })} className="text-xs font-bold text-danger disabled:opacity-50">Revoke</button></div>)}</div> : <p className="mt-2 text-sm text-muted">No active event roles.</p>}
-                    <form onSubmit={(eventObject) => { eventObject.preventDefault(); role.post(route('admin.staff.roles.store', [event.id, person.id]), { preserveScroll: true, onSuccess: () => setMessage('Event role granted.') }); }} className="mt-4 flex gap-2"><label className="sr-only" htmlFor="grant-role">Role to grant</label><select id="grant-role" value={role.data.role} onChange={(eventObject) => role.setData('role', eventObject.target.value)} className={control}><option value="judge">Judge</option><option value="tabulator">Tabulator</option></select><button type="submit" disabled={event.archived || role.processing} className={action}>Grant role</button></form>
+                    {availableRoles.length ? <form onSubmit={(eventObject) => { eventObject.preventDefault(); role.post(route('admin.staff.roles.store', [event.id, person.id]), { preserveScroll: true, onSuccess: () => setMessage('Event role granted.') }); }} className="mt-4 flex gap-2"><label className="sr-only" htmlFor="grant-role">Role to grant</label><select id="grant-role" aria-label="Role to grant" value={roleToGrant} onChange={(eventObject) => role.setData('role', eventObject.target.value)} className={control}>{availableRoles.map((candidate) => <option key={candidate} value={candidate}>{candidate === 'judge' ? 'Judge' : 'Tabulator'}</option>)}</select><button type="submit" disabled={event.archived || role.processing} className={action}>Grant role</button></form> : <p className="mt-4 rounded-lg bg-surface-muted p-3 text-sm text-muted">All supported scoring roles are already granted.</p>}
                     <Feedback errors={role.errors}/>
                 </section>
 

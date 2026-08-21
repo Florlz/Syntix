@@ -169,39 +169,217 @@ html[data-reduce-motion='true'] * {
     transition-duration: 0.01ms !important;
 }
 
+#syntix-print-root {
+    display: none;
+}
+
+.staff-setup-handoff-preview {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+.staff-setup-print-sheet {
+    width: min(100%, 48rem);
+}
+
+.staff-setup-handoff-card {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid #17212b;
+    background: #fff;
+    color: #17212b;
+    box-shadow: 0 1.5rem 3rem rgb(23 33 43 / 18%);
+}
+
+.staff-setup-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 4px solid #d5a21f;
+}
+
+.staff-setup-card-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 56mm;
+    min-height: 0;
+}
+
+.staff-setup-card-details {
+    min-width: 0;
+    padding: 1.5rem;
+}
+
+.staff-setup-staff-name {
+    display: -webkit-box;
+    margin-top: 0.75rem;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    font-family: var(--font-serif, ui-serif, Georgia, serif);
+    font-size: clamp(1.5rem, 4vw, 2.25rem);
+    font-weight: 700;
+    line-height: 1.2;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.staff-setup-qr-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 56mm;
+    padding: 0.75rem;
+    border-left: 1px solid #cfd6d3;
+    background: #f8faf9;
+}
+
+.staff-setup-qr-code {
+    width: 48mm;
+    height: 48mm;
+    padding: 0.4rem;
+    border: 2px solid #17212b;
+    background: #fff;
+}
+
+.staff-setup-card-footer {
+    overflow: hidden;
+    padding: 0.75rem 1.25rem;
+    border-top: 1px solid #cfd6d3;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.staff-setup-qr-status {
+    display: grid;
+    min-height: 16rem;
+    place-items: center;
+    padding: 2rem;
+    border: 1px dashed #68767e;
+    background: #fff;
+    color: #68767e;
+    text-align: center;
+}
+
+@media (max-width: 40rem) {
+    .staff-setup-handoff-card--preview .staff-setup-card-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .staff-setup-handoff-card--preview .staff-setup-card-details {
+        padding: 1.25rem;
+    }
+
+    .staff-setup-handoff-card--preview .staff-setup-staff-name {
+        font-size: 1.75rem;
+    }
+
+    .staff-setup-handoff-card--preview .staff-setup-qr-panel {
+        width: 100%;
+        padding: 1.25rem;
+        border-top: 1px solid #cfd6d3;
+        border-left: 0;
+    }
+
+    .staff-setup-handoff-card--preview .staff-setup-qr-code {
+        width: min(48mm, 100%);
+        height: auto;
+        aspect-ratio: 1;
+    }
+
+    .staff-setup-handoff-card--preview .staff-setup-card-footer {
+        white-space: normal;
+    }
+}
+
 @media print {
     @page {
-        margin: 12mm;
+        size: 148mm 105mm;
+        margin: 0;
     }
 
-    body * {
-        visibility: hidden !important;
+    body > :not(#syntix-print-root) {
+        display: none !important;
     }
 
-    #staff-setup-print-sheet,
-    #staff-setup-print-sheet * {
-        visibility: visible !important;
-    }
-
-    #staff-setup-print-sheet {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        width: 100%;
-        justify-content: center;
+    #syntix-print-root,
+    #syntix-print-root .staff-setup-print-sheet,
+    #syntix-print-root .staff-setup-handoff-card {
+        box-sizing: border-box;
+        width: 148mm;
+        height: 105mm;
+        min-height: 105mm;
         margin: 0 !important;
     }
 
-    #staff-setup-print-card {
-        width: 105mm;
-        min-height: 148mm;
-        box-sizing: border-box;
-        overflow: hidden;
-        background: #fff !important;
-        color: #17212b !important;
-        box-shadow: none !important;
+    #syntix-print-root {
+        display: block !important;
+    }
+
+    #syntix-print-root .staff-setup-handoff-card {
+        box-shadow: none;
         break-inside: avoid;
         print-color-adjust: exact;
         -webkit-print-color-adjust: exact;
+    }
+
+    #syntix-print-root .staff-setup-card-header {
+        padding: 3mm 6mm;
+    }
+
+    #syntix-print-root .staff-setup-card-details {
+        padding: 4mm 6mm;
+    }
+
+    #syntix-print-root .staff-setup-event-name {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    #syntix-print-root .staff-setup-staff-name {
+        margin-top: 2mm;
+        font-size: 6mm;
+        line-height: 1.1;
+    }
+
+    #syntix-print-root .staff-setup-role {
+        margin-top: 1mm;
+    }
+
+    #syntix-print-root .staff-setup-intro {
+        margin-top: 3mm;
+        line-height: 1.35;
+    }
+
+    #syntix-print-root .staff-setup-steps {
+        margin-top: 2mm;
+        line-height: 1.35;
+    }
+
+    #syntix-print-root .staff-setup-expiry {
+        margin-top: 3mm;
+    }
+
+    #syntix-print-root .staff-setup-qr-panel {
+        padding: 3mm;
+    }
+
+    #syntix-print-root .staff-setup-qr-copy {
+        margin-top: 2mm;
+        line-height: 1.35;
+    }
+
+    #syntix-print-root .staff-setup-card-footer {
+        padding: 2.5mm 6mm;
+        line-height: 1.25;
     }
 }

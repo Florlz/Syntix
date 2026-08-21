@@ -6,6 +6,7 @@ use App\Actions\Assignments\GrantScoringAssignment;
 use App\Actions\Events\ApplySiklab2025Programme;
 use App\Actions\Events\GrantEventRole;
 use App\Actions\Identity\BootstrapGlobalAdmin;
+use App\Actions\Identity\DisableUser;
 use App\Actions\Scoring\ConfigureJudgingPanel;
 use App\Actions\Scoring\LockJudgingPanel;
 use App\Actions\Scoring\PrepareJudgedContest;
@@ -221,6 +222,39 @@ class Task3OperationsTest extends TestCase
                 $popSolo = collect($readiness)->firstWhere('name', 'Pop Solo');
 
                 return ($popSolo['next_action_key'] ?? null) !== 'lock';
+            }));
+    }
+
+    public function test_admin_staff_readiness_requires_a_tabulator_before_locking_when_none_are_active(): void
+    {
+        [$admin, $event] = $this->programme();
+        $division = Competition::query()->whereBelongsTo($event)->where('slug', 'pop-solo')
+            ->firstOrFail()->divisions()->firstOrFail();
+        $judge = User::factory()->create(['email' => 'no-tabulator-judge-'.uniqid().'@example.com']);
+        $tabulator = User::factory()->create(['email' => 'disabled-tabulator-'.uniqid().'@example.com']);
+        (new GrantEventRole)->handle($admin, $event, $judge, EventRole::Judge);
+        (new GrantEventRole)->handle($admin, $event, $tabulator, EventRole::Tabulator);
+
+        $contest = (new PrepareJudgedContest)->handle($admin, $division);
+        (new ConfigureJudgingPanel)->handle($admin, $contest, [$judge]);
+        (new GrantScoringAssignment)->handle($admin, $event, $tabulator, ScoringAssignmentScope::Contest, $contest);
+        $contest->ruleVersion->confirmAggregation(
+            $admin,
+            'average',
+            'Minute 18',
+            'The committee approved the method.',
+        );
+        (new DisableUser)->handle($admin, $tabulator, 'Unavailable for scoring operations.', $event);
+
+        $this->actingAs($admin)->get(route('admin.staff.index', [$event, 'section' => 'readiness']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('readiness', function ($readiness): bool {
+                $popSolo = collect($readiness)->firstWhere('name', 'Pop Solo');
+
+                return $popSolo['next_action_key'] === 'tabulator'
+                    && $popSolo['tabulator_available'] === false
+                    && $popSolo['counts']['tabulators'] === 0
+                    && $popSolo['next_action_key'] !== 'lock';
             }));
     }
 
