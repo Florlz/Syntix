@@ -118,8 +118,15 @@ test('Judge queue is ordered by schedule with urgent work kept above the timelin
     />);
 
     expect(screen.getByRole('heading', { name: 'Needs attention' })).toBeInTheDocument();
+    const progress = screen.getByRole('progressbar', { name: 'Judging progress' });
+    expect(progress).toHaveAttribute('aria-valuenow', '0');
+    expect(progress).toHaveAttribute('aria-valuemax', '3');
+    expect(screen.getByText('0 of 3 complete')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Judging summary' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Needs attention' })).toHaveTextContent('Correction event');
     const timeline = screen.getByRole('region', { name: "Today's judging schedule" });
     const timelineText = timeline.textContent;
+    expect(timeline).not.toHaveTextContent('Correction event');
     expect(timelineText.indexOf('Morning event')).toBeLessThan(timelineText.indexOf('Afternoon event'));
 });
 
