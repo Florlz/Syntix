@@ -23,7 +23,7 @@
 - Use Figtree for interface copy and Barlow Condensed for operational numerals. Add no font dependency.
 - Use semantic HTML, 44-pixel touch targets, visible focus, status text alongside color, and no horizontal scorecard scroll at 360 pixels.
 - Do not add a signature, official seal, invented scale labels, Head Judge visibility claims, or client-authoritative totals.
-- Follow TDD. Each task starts with a focused failing test and ends with a focused passing suite and commit.
+- Follow TDD for behavior and component contracts. Pure presentation migrations establish a passing behavior baseline, use the current render as the visual failure, and end with the same behavior tests plus browser comparison against the approved design.
 
 ## Execution skill routing
 
@@ -139,21 +139,9 @@ git commit -m "feat: remove theme preference contract"
 - Consumes: existing `auth`, `active_event`, role, badge, notification, accessibility-preference, and navigation props.
 - Produces: one light semantic token contract and the same responsive shell behavior with bulletin styling.
 
-- [ ] **Step 1: Write failing shell and CSS contract tests**
+- [ ] **Step 1: Write failing shell behavior tests**
 
-Replace dark-root tests with assertions that the layout applies only accessibility data attributes and never mutates a dark class or local storage. Add raw CSS assertions:
-
-```jsx
-test('ships one permanent light token set', () => {
-    expect(appCss).toContain('--background: #fefefe');
-    expect(appCss).toContain('--foreground: #001a3f');
-    expect(appCss).toContain('--primary: #1d86a6');
-    expect(appCss).not.toContain('@custom-variant dark');
-    expect(appCss).not.toMatch(/html\.dark|dark:/);
-});
-```
-
-Render `AuthenticatedLayout` with a legacy `preferences.theme = 'dark'` fixture and assert the light navigation remains present, `document.documentElement` has no `dark` class, and `localStorage` receives no `syntix-theme` write.
+Replace dark-root tests with assertions that the layout applies only accessibility data attributes and never mutates a dark class or local storage. Render `AuthenticatedLayout` with a legacy `preferences.theme = 'dark'` fixture and a dark operating-system preference. Assert the navigation remains present, `document.documentElement` has no `dark` class, and `localStorage` receives no `syntix-theme` write.
 
 - [ ] **Step 2: Run the focused UI tests and confirm failure**
 
@@ -252,7 +240,7 @@ test('admin masthead and section expose bulletin landmarks without business logi
 });
 ```
 
-Add assertions that exported class strings contain semantic token utilities and omit `rounded-2xl`, `rounded-3xl`, shadows, hard-coded hex utilities, and hover translation.
+Assert heading hierarchy, region labelling, action rendering, optional description behavior, custom class forwarding, and the empty-state action. Visual class details belong to browser review rather than a source-text change detector.
 
 - [ ] **Step 2: Run the new test and confirm module-not-found failure**
 
@@ -305,7 +293,6 @@ git commit -m "feat: add bulletin admin visual primitives"
 - Modify: `resources/js/Pages/Admin/Registrations/Index.jsx`
 - Modify: `resources/js/Pages/Admin/Registrations/ParticipantDirectory.jsx`
 - Modify: `resources/js/Pages/Admin/Registrations/ParticipantProfileForm.jsx`
-- Modify: `tests/ui/AdminVisualSystem.test.jsx`
 - Test: `tests/ui/Dashboard.test.jsx`
 - Test: `tests/ui/PublicProgramme.test.jsx`
 - Test: `tests/ui/DepartmentDirectory.test.jsx`
@@ -317,26 +304,15 @@ git commit -m "feat: add bulletin admin visual primitives"
 - Consumes: `AdminMasthead`, `AdminSection`, `AdminEmptyState`, and `adminStyles` from Task 3.
 - Produces: visually migrated foundational admin routes with unchanged actions and route behavior.
 
-- [ ] **Step 1: Add a failing source contract for this route group**
-
-In `AdminVisualSystem.test.jsx`, load these files as raw source with `import.meta.glob` and assert each migrated file omits the old visual language:
-
-```jsx
-const foundationalPages = import.meta.glob('../../resources/js/Pages/{Dashboard.jsx,Admin/Events/*.jsx,Admin/Departments/*.jsx,Admin/Registrations/*.jsx}', { eager: true, query: '?raw', import: 'default' });
-
-test.each(Object.entries(foundationalPages))('%s uses the bulletin visual contract', (_path, source) => {
-    expect(source).not.toMatch(/rounded-(2xl|3xl)|shadow-(sm|md|lg|xl|2xl)|hover:-translate-y/);
-    expect(source).not.toMatch(/(?:bg|text|border)-\[#[0-9a-fA-F]{6}\]/);
-});
-```
-
-- [ ] **Step 2: Run route-group tests and confirm the visual contract fails**
+- [ ] **Step 1: Run the route-group behavior baseline**
 
 ```powershell
-npm.cmd run test:ui -- --run tests/ui/AdminVisualSystem.test.jsx tests/ui/Dashboard.test.jsx tests/ui/PublicProgramme.test.jsx tests/ui/DepartmentDirectory.test.jsx tests/ui/DepartmentRosters.test.jsx tests/ui/ParticipantDirectory.test.jsx
+npm.cmd run test:ui -- --run tests/ui/Dashboard.test.jsx tests/ui/PublicProgramme.test.jsx tests/ui/DepartmentDirectory.test.jsx tests/ui/DepartmentRosters.test.jsx tests/ui/ParticipantDirectory.test.jsx
 ```
 
-- [ ] **Step 3: Migrate the overview and event pages without moving content**
+Expected: pass before styling. Capture representative desktop screenshots as the visual baseline that fails the approved bulletin direction.
+
+- [ ] **Step 2: Migrate the overview and event pages without moving content**
 
 Replace dark `EventHero` and sports/programme hero styling with `AdminMasthead`. Convert panels and empty states to `AdminSection` or `AdminEmptyState`. Replace local button and field strings with `adminStyles`. Keep existing component order, event switcher behavior, summary copy, schedule workspace, scoped navigation, and form submissions.
 
@@ -351,20 +327,20 @@ Example conversion:
 />
 ```
 
-- [ ] **Step 4: Migrate department and registration presentation**
+- [ ] **Step 3: Migrate department and registration presentation**
 
 Keep grids, explorer hierarchy, filters, drawers, profile forms, department color data, roster capacity, and selection URL state. Change only classes and repeated presentation wrappers. Department color remains an inline CSS custom property or style object because it is configured identity, not a hard-coded app palette.
 
 Use `adminStyles.toolbar` for filters, `adminStyles.field` for inputs, small-radius ruled sections for cards and drawers, and text/rule state changes instead of hover lift.
 
-- [ ] **Step 5: Run the route-group tests**
+- [ ] **Step 4: Run the route-group tests and compare the migrated routes visually**
 
-Run the command from Step 2. Expected: all listed tests pass.
+Run the command from Step 1. Expected: all listed tests pass. Capture the same routes and confirm the old dark hero, large soft cards, hover lift, and one-off palette are gone without content movement.
 
-- [ ] **Step 6: Commit the foundational admin migration**
+- [ ] **Step 5: Commit the foundational admin migration**
 
 ```powershell
-git add resources/js/Pages/Dashboard.jsx resources/js/Pages/Admin/Events resources/js/Pages/Admin/Departments resources/js/Pages/Admin/Registrations tests/ui/AdminVisualSystem.test.jsx tests/ui/Dashboard.test.jsx tests/ui/PublicProgramme.test.jsx tests/ui/DepartmentDirectory.test.jsx tests/ui/DepartmentRosters.test.jsx tests/ui/ParticipantDirectory.test.jsx
+git add resources/js/Pages/Dashboard.jsx resources/js/Pages/Admin/Events resources/js/Pages/Admin/Departments resources/js/Pages/Admin/Registrations tests/ui/Dashboard.test.jsx tests/ui/PublicProgramme.test.jsx tests/ui/DepartmentDirectory.test.jsx tests/ui/DepartmentRosters.test.jsx tests/ui/ParticipantDirectory.test.jsx
 git commit -m "style: apply bulletin system to admin foundations"
 ```
 
@@ -382,7 +358,6 @@ git commit -m "style: apply bulletin system to admin foundations"
 - Modify: `resources/js/Pages/Admin/Staff/StaffDrawer.jsx`
 - Modify: `resources/js/Components/StaffSetupHandoffCard.jsx`
 - Modify: `resources/js/Pages/Settings/Index.jsx`
-- Modify: `tests/ui/AdminVisualSystem.test.jsx`
 - Modify: `tests/ui/Settings.test.jsx`
 - Test: `tests/ui/StaffAccessFlow.test.jsx`
 - Test: `tests/ui/Task3Operations.test.jsx`
@@ -406,12 +381,10 @@ test('does not expose theme controls or an Appearance section', async () => {
 });
 ```
 
-Extend the raw-source contract to Accounts, Staff, Settings, and `StaffSetupHandoffCard`.
-
 - [ ] **Step 2: Run focused tests and confirm failure**
 
 ```powershell
-npm.cmd run test:ui -- --run tests/ui/AdminVisualSystem.test.jsx tests/ui/Settings.test.jsx tests/ui/StaffAccessFlow.test.jsx tests/ui/Task3Operations.test.jsx
+npm.cmd run test:ui -- --run tests/ui/Settings.test.jsx tests/ui/StaffAccessFlow.test.jsx tests/ui/Task3Operations.test.jsx
 ```
 
 - [ ] **Step 3: Remove theme UI and preserve accessibility settings**
@@ -439,7 +412,7 @@ Run the command from Step 2. Expected: pass.
 - [ ] **Step 6: Commit the staff and settings migration**
 
 ```powershell
-git add resources/js/Pages/Admin/Accounts/Create.jsx resources/js/Pages/Admin/Staff resources/js/Components/StaffSetupHandoffCard.jsx resources/js/Pages/Settings/Index.jsx tests/ui/AdminVisualSystem.test.jsx tests/ui/Settings.test.jsx tests/ui/StaffAccessFlow.test.jsx tests/ui/Task3Operations.test.jsx
+git add resources/js/Pages/Admin/Accounts/Create.jsx resources/js/Pages/Admin/Staff resources/js/Components/StaffSetupHandoffCard.jsx resources/js/Pages/Settings/Index.jsx tests/ui/Settings.test.jsx tests/ui/StaffAccessFlow.test.jsx tests/ui/Task3Operations.test.jsx
 git commit -m "style: migrate staff and settings to light bulletin system"
 ```
 
@@ -462,7 +435,6 @@ git commit -m "style: migrate staff and settings to light bulletin system"
 - Modify: `resources/js/Pages/Admin/Sports/RosterAddPlayers.jsx`
 - Modify: `resources/js/Pages/Admin/Sports/RosterPlayerList.jsx`
 - Modify: `resources/js/Pages/Admin/Sports/Tournament.jsx`
-- Modify: `tests/ui/AdminVisualSystem.test.jsx`
 - Test: `tests/ui/SportWorkspaceShell.test.jsx`
 - Test: `tests/ui/SportWorkspace.test.jsx`
 - Test: `tests/ui/Rosters.test.jsx`
@@ -474,34 +446,32 @@ git commit -m "style: migrate staff and settings to light bulletin system"
 - Consumes: Task 2 semantic tokens and Task 3 visual classes.
 - Produces: the same sports workflow shell, roster editor, tournament controls, cover-image behavior, and department identity in bulletin styling.
 
-- [ ] **Step 1: Extend the failing visual contract to every sports file**
-
-Add all files under `Components/Sports` and `Pages/Admin/Sports` to the raw-source test. Keep one explicit exception: image overlays may use transparent foreground overlays, but surrounding containers and controls cannot use hard-coded app-palette hex utilities.
-
-- [ ] **Step 2: Run the focused sports suite and confirm the visual contract fails**
+- [ ] **Step 1: Run the focused sports behavior baseline**
 
 ```powershell
-npm.cmd run test:ui -- --run tests/ui/AdminVisualSystem.test.jsx tests/ui/SportWorkspaceShell.test.jsx tests/ui/SportWorkspace.test.jsx tests/ui/Rosters.test.jsx tests/ui/RosterPlayerList.test.jsx tests/ui/Tournament.test.jsx
+npm.cmd run test:ui -- --run tests/ui/SportWorkspaceShell.test.jsx tests/ui/SportWorkspace.test.jsx tests/ui/Rosters.test.jsx tests/ui/RosterPlayerList.test.jsx tests/ui/Tournament.test.jsx
 ```
 
-- [ ] **Step 3: Migrate the shared sports shell**
+Expected: pass before styling. Capture the sports directory and one focused roster or tournament route as the visual baseline.
+
+- [ ] **Step 2: Migrate the shared sports shell**
 
 Convert breadcrumbs, identity, division switcher, workflow navigation, statuses, and notices to light ruled regions. Preserve every route generated by `sportWorkspaceRoutes.js`, active-section semantics, all-divisions behavior, and accessible labels. Replace pill-heavy navigation with small-radius ruled controls while keeping the same links and breakpoints.
 
-- [ ] **Step 4: Migrate sports directory, drawers, rosters, and tournament controls**
+- [ ] **Step 3: Migrate sports directory, drawers, rosters, and tournament controls**
 
 Keep sport cover images. Replace the dark promotional directory hero with `AdminMasthead`; keep each cover as content inside a ruled sport record. Convert drawers and dialogs to light ruled panels, form fields to `adminStyles.field`, and action groups to shared actions.
 
 Preserve roster readiness, approval, reopen, player-state, discipline, draw, publish, archive, and blocker behavior. Department color coding stays intact through existing `departmentColors` data.
 
-- [ ] **Step 5: Run the focused sports suite**
+- [ ] **Step 4: Run the focused sports suite and compare the migrated routes visually**
 
-Run the command from Step 2. Expected: pass.
+Run the command from Step 1. Expected: pass. Capture the same routes and confirm the approved palette, ruled fields, small radii, and non-lifting interactions without workflow movement.
 
-- [ ] **Step 6: Commit the sports migration**
+- [ ] **Step 5: Commit the sports migration**
 
 ```powershell
-git add resources/js/Components/Sports resources/js/Pages/Admin/Sports tests/ui/AdminVisualSystem.test.jsx tests/ui/SportWorkspaceShell.test.jsx tests/ui/SportWorkspace.test.jsx tests/ui/Rosters.test.jsx tests/ui/RosterPlayerList.test.jsx tests/ui/Tournament.test.jsx
+git add resources/js/Components/Sports resources/js/Pages/Admin/Sports tests/ui/SportWorkspaceShell.test.jsx tests/ui/SportWorkspace.test.jsx tests/ui/Rosters.test.jsx tests/ui/RosterPlayerList.test.jsx tests/ui/Tournament.test.jsx
 git commit -m "style: migrate sports admin workspace to bulletin system"
 ```
 
@@ -513,7 +483,6 @@ git commit -m "style: migrate sports admin workspace to bulletin system"
 
 - Modify: `resources/js/Pages/Admin/Approvals/Index.jsx`
 - Modify: `resources/js/Components/Sports/DivisionStatus.jsx` if approval states expose a remaining mismatch
-- Modify: `tests/ui/AdminVisualSystem.test.jsx`
 - Test: `tests/ui/ResultsWorkspace.test.jsx`
 
 **Interfaces:**
@@ -521,32 +490,30 @@ git commit -m "style: migrate sports admin workspace to bulletin system"
 - Consumes: existing result submission and division placement props, selection state, review notes, and approve/reject routes.
 - Produces: unchanged evidence and approval behavior in the bulletin table and action grammar.
 
-- [ ] **Step 1: Add approvals to the failing visual contract**
-
-Assert that `Approvals/Index.jsx` has no dark hero, large-radius card, shadow, hover lift, or hard-coded app palette utility. Keep semantic table, checkbox, form, and alert assertions in `ResultsWorkspace.test.jsx`.
-
-- [ ] **Step 2: Run the focused result tests and confirm failure**
+- [ ] **Step 1: Run the focused result behavior baseline**
 
 ```powershell
-npm.cmd run test:ui -- --run tests/ui/AdminVisualSystem.test.jsx tests/ui/ResultsWorkspace.test.jsx
+npm.cmd run test:ui -- --run tests/ui/ResultsWorkspace.test.jsx
 ```
 
-- [ ] **Step 3: Restyle evidence, submission, and placement regions without changing review flow**
+Expected: pass before styling. Capture scoped and unscoped result views as the visual baseline.
+
+- [ ] **Step 2: Restyle evidence, submission, and placement regions without changing review flow**
 
 Replace the dark Results hero with `AdminMasthead`. Convert evidence tables, submission panels, placement panels, note inputs, and action groups to ruled bulletin sections. Preserve selected-scorecard behavior, approve and reject methods, validation, state copy, and read-only outcomes.
 
-- [ ] **Step 4: Run the focused result tests and the complete admin visual contract**
+- [ ] **Step 3: Run the focused result tests and compare the route visually**
 
 ```powershell
-npm.cmd run test:ui -- --run tests/ui/AdminVisualSystem.test.jsx tests/ui/ResultsWorkspace.test.jsx
+npm.cmd run test:ui -- --run tests/ui/ResultsWorkspace.test.jsx
 ```
 
-Expected: every admin source group passes the no-old-theme contract.
+Expected: behavior passes and the same result views use the bulletin system without changing review order.
 
-- [ ] **Step 5: Commit result approval styling**
+- [ ] **Step 4: Commit result approval styling**
 
 ```powershell
-git add resources/js/Pages/Admin/Approvals/Index.jsx resources/js/Components/Sports/DivisionStatus.jsx tests/ui/AdminVisualSystem.test.jsx tests/ui/ResultsWorkspace.test.jsx
+git add resources/js/Pages/Admin/Approvals/Index.jsx resources/js/Components/Sports/DivisionStatus.jsx tests/ui/ResultsWorkspace.test.jsx
 git commit -m "style: migrate result approvals to bulletin system"
 ```
 
