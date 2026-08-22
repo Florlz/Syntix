@@ -1,13 +1,15 @@
 import React from 'react';
 import { router, useForm } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
+import { AdminMasthead } from '@/Components/Admin/AdminSurface';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import SlideOver from '@/Components/SlideOver';
+import { adminStyles } from '@/Support/adminStyles';
 
-const surface = 'border border-[#CFD6D3] bg-white';
-const primary = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-[#0B536D] px-4 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50';
-const quiet = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-[#B8C3C0] bg-white px-4 text-sm font-bold text-[#0B536D] disabled:cursor-not-allowed disabled:opacity-50';
-const input = 'mt-1 block w-full rounded-md border border-[#B8C3C0] bg-white px-3 py-2.5 text-sm text-[#17212B] focus:border-[#0B536D] focus:ring-[#0B536D]';
+const surface = adminStyles.section;
+const primary = adminStyles.primaryAction;
+const quiet = adminStyles.secondaryAction;
+const input = `mt-1 ${adminStyles.field}`;
 const stateTone = {
     active: 'bg-[#E8F5EE] text-[#167044]',
     draft: 'bg-[#FFF5D8] text-[#8B6300]',
@@ -26,7 +28,7 @@ const stateLabel = {
 };
 
 function Errors({ errors }) {
-    return Object.values(errors).map((error) => <p key={error} className="text-sm font-semibold text-red-700">{error}</p>);
+    return Object.values(errors).map((error) => <p key={error} className="text-sm font-semibold text-danger">{error}</p>);
 }
 
 function countLabel(value, singular, plural = `${singular}s`) {
@@ -320,23 +322,23 @@ export default function ParticipantDirectory({ event, departments = [], competit
     const unassignedRoster = { id: null, name: 'Not yet rostered', state: 'unassigned', counts: { players: activeDepartment?.counts?.unassigned || 0, coaches: 0 } };
 
     return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0B536D]">{event.name}</p><h1 className="font-serif text-2xl font-bold">Players &amp; Coaches</h1></div>}>
-        <main className="mx-auto max-w-[96rem] space-y-5 px-4 py-6 sm:px-6 lg:px-8">
-            <div className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-sm text-[#68767E]">Event-wide roster directory</p><h2 className="mt-1 font-serif text-3xl font-bold text-[#17212B]">Find the right roster faster</h2><p className="mt-1 max-w-2xl text-sm text-[#68767E]">Choose a department, then move through its sports and event categories before opening a roster or person.</p></div><button type="button" className={primary} onClick={() => setCreateOpen(true)} disabled={event.archived}>Add {view === 'players' ? 'player' : 'coach'}</button></div>
+        <main className={adminStyles.page}><div className="mx-auto max-w-[96rem] space-y-5">
+            <AdminMasthead eyebrow="Event-wide roster directory" title="Find the right roster faster" description="Choose a department, then move through its sports and event categories before opening a roster or person." actions={<button type="button" className={primary} onClick={() => setCreateOpen(true)} disabled={event.archived}>Add {view === 'players' ? 'player' : 'coach'}</button>} />
             <nav className="flex flex-wrap gap-2" aria-label="Directory views"><button type="button" onClick={() => changeView('players')} className={view === 'players' ? primary : quiet}>Players</button><button type="button" onClick={() => changeView('coaches')} className={view === 'coaches' ? primary : quiet}>Coaches &amp; support</button></nav>
             <DirectoryFilters view={view} values={values} setValues={setValues} onSubmit={applyFilters} onClear={clearFilters} />
             <div className="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
                 <DepartmentRail departments={directorySummary.departments || []} selectedId={activeDepartment?.id} view={view} onSelect={selectDepartment} />
                 <section className="min-w-0 space-y-5">
                     {activeDepartment ? <>
-                        <header className="overflow-hidden rounded-md bg-[#0B536D] text-white"><div className="border-l-4 border-[#E4B84A] px-5 py-5 sm:px-6"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#B5D8D4]">Selected department</p><div className="mt-1 flex flex-wrap items-end justify-between gap-3"><h3 className="font-serif text-3xl font-bold">{activeDepartment.name}</h3><span className="text-sm font-bold text-[#D7ECE8]">{activeDepartment.abbreviation || 'Event delegation'}</span></div><div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-[#D7ECE8]"><span>{countLabel(selectedCount, view === 'players' ? 'player' : 'coach')}</span><span>{countLabel(activeDepartment.counts?.rosters || 0, 'roster')}</span><span>{countLabel(activeDepartment.sports?.length || 0, 'sport')}</span>{view === 'players' && activeDepartment.counts?.unassigned ? <span>{countLabel(activeDepartment.counts.unassigned, 'player')} not rostered</span> : null}</div></div></header>
+                        <header className="border border-border border-l-4 border-l-accent bg-surface px-5 py-5 sm:px-6"><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Selected department</p><div className="mt-1 flex flex-wrap items-end justify-between gap-3"><h3 className="text-3xl font-bold text-foreground">{activeDepartment.name}</h3><span className="text-sm font-bold text-primary">{activeDepartment.abbreviation || 'Event delegation'}</span></div><div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted"><span>{countLabel(selectedCount, view === 'players' ? 'player' : 'coach')}</span><span>{countLabel(activeDepartment.counts?.rosters || 0, 'roster')}</span><span>{countLabel(activeDepartment.sports?.length || 0, 'sport')}</span>{view === 'players' && activeDepartment.counts?.unassigned ? <span>{countLabel(activeDepartment.counts.unassigned, 'player')} not rostered</span> : null}</div></header>
                         {showingUnassigned ? <section className="space-y-3"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#0B536D]">Roster state</p><h3 className="mt-1 font-serif text-2xl font-bold">Players not yet rostered</h3></div><RosterRow event={event} department={activeDepartment} sport={{ id: '', name: 'Unassigned' }} division={{ id: '', name: 'Event-wide' }} roster={unassignedRoster} view={view} previewState={previews[previewKey(unassignedRoster)]} onPreview={loadPreview} onSelectPerson={setProfile} /></section> : <>
                             <section className="space-y-3"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#0B536D]">Sports</p><p className="mt-1 text-sm text-[#68767E]">Choose a sport to see its event categories and department rosters.</p></div><SportTabs sports={activeDepartment.sports || []} selectedId={activeSport?.id} view={view} onSelect={selectSport} /></section>
-                            {activeSport ? <section className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#0B536D]">Event categories</p><h3 className="mt-1 font-serif text-2xl font-bold">{activeSport.name}</h3></div><span className="text-xs text-[#68767E]">{countLabel(activeSport.divisions?.length || 0, 'event category', 'event categories')}</span></div><div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label={`${activeSport.name} event categories`}>{activeSport.divisions?.map((division) => <button key={division.id} type="button" role="tab" aria-selected={String(division.id) === String(activeDivision?.id)} onClick={() => selectDivision(division.id)} className={`rounded-full border px-4 py-2 text-xs font-bold transition ${String(division.id) === String(activeDivision?.id) ? 'border-[#0B536D] bg-[#EAF2F1] text-[#0B536D]' : 'border-[#CFD6D3] bg-white text-[#68767E] hover:border-[#0B536D]'}`}>{division.name}</button>)}</div>{activeDivision ? <DivisionPanel event={event} department={activeDepartment} sport={activeSport} division={activeDivision} view={view} previews={previews} onPreview={loadPreview} onSelectPerson={setProfile} /> : <p className="rounded-md border border-dashed border-[#CFD6D3] px-5 py-6 text-sm text-[#68767E]">No event categories match these filters.</p>}</section> : <section className={`${surface} p-8 text-center`}><h3 className="font-serif text-xl font-bold">No sports match these filters</h3><p className="mt-2 text-sm text-[#68767E]">Clear one or more filters to see this department’s sports.</p></section>}
+                            {activeSport ? <section className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Event categories</p><h3 className="mt-1 text-2xl font-bold">{activeSport.name}</h3></div><span className="text-xs text-muted">{countLabel(activeSport.divisions?.length || 0, 'event category', 'event categories')}</span></div><div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label={`${activeSport.name} event categories`}>{activeSport.divisions?.map((division) => <button key={division.id} type="button" role="tab" aria-selected={String(division.id) === String(activeDivision?.id)} onClick={() => selectDivision(division.id)} className={`rounded-sm border px-4 py-2 text-xs font-bold transition-colors ${String(division.id) === String(activeDivision?.id) ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-surface text-muted hover:border-primary'}`}>{division.name}</button>)}</div>{activeDivision ? <DivisionPanel event={event} department={activeDepartment} sport={activeSport} division={activeDivision} view={view} previews={previews} onPreview={loadPreview} onSelectPerson={setProfile} /> : <p className="border border-dashed border-border px-5 py-6 text-sm text-muted">No event categories match these filters.</p>}</section> : <section className={`${surface} p-8 text-center`}><h3 className="text-xl font-bold">No sports match these filters</h3><p className="mt-2 text-sm text-muted">Clear one or more filters to see this department’s sports.</p></section>}
                         </>}
-                    </> : <section className={`${surface} p-8 text-center`}><h3 className="font-serif text-xl font-bold">No departments match these filters</h3><p className="mt-2 text-sm text-[#68767E]">Clear one or more filters or add a department participant.</p></section>}
+                    </> : <section className={`${surface} p-8 text-center`}><h3 className="text-xl font-bold">No departments match these filters</h3><p className="mt-2 text-sm text-muted">Clear one or more filters or add a department participant.</p></section>}
                 </section>
             </div>
-        </main>
+        </div></main>
         <SlideOver show={Boolean(profile)} title={view === 'players' ? 'Shared player profile' : 'Coach profile and assignments'} onClose={() => setProfile(null)}>{profile ? (view === 'players' ? <ProfileForm event={event} departments={departments} participant={profile} onClose={() => setProfile(null)} /> : <CoachPanel event={event} coach={profile} departments={departments} competitions={competitions} onClose={() => setProfile(null)} />) : null}</SlideOver>
         <SlideOver show={createOpen} title={`Add ${view === 'players' ? 'player' : 'coach'}`} onClose={() => setCreateOpen(false)}><ProfileForm event={event} departments={departments} coach={view === 'coaches'} onClose={() => setCreateOpen(false)} /></SlideOver>
     </AuthenticatedLayout>;

@@ -1,14 +1,16 @@
+import { AdminEmptyState, AdminMasthead } from '@/Components/Admin/AdminSurface';
 import AppIcon from '@/Components/AppIcon';
 import InputError from '@/Components/InputError';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import SportWorkspaceShell from '@/Components/Sports/SportWorkspaceShell';
+import { adminStyles } from '@/Support/adminStyles';
 import React from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 
-const input = 'mt-1 min-h-11 w-full rounded-lg border-[#C6D0CC] bg-white text-sm text-[#17333F] shadow-xs focus:border-[#0B536D] focus:ring-[#0B536D]';
-const primary = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#0B536D] px-4 text-sm font-bold text-white transition hover:bg-[#083E52] disabled:cursor-not-allowed disabled:opacity-50';
-const quiet = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#B8C3C0] bg-white px-4 text-sm font-bold text-[#0B536D] transition hover:border-[#0B536D] disabled:cursor-not-allowed disabled:opacity-50';
+const input = `mt-1 ${adminStyles.field}`;
+const primary = adminStyles.primaryAction;
+const quiet = adminStyles.secondaryAction;
 
 function formatDay(value) {
     if (!value) return 'Needs a time';
@@ -39,11 +41,11 @@ function Pill({ children, tone = 'neutral' }) {
 
 function Drawer({ titleId, label, title, onClose, children }) {
     return <div className="fixed inset-0 z-50">
-        <button type="button" aria-label="Close drawer" onClick={onClose} className="absolute inset-0 bg-[#17212B]/45" />
-        <aside role="dialog" aria-modal="true" aria-labelledby={titleId} className="absolute inset-y-0 right-0 w-full max-w-xl overflow-y-auto bg-[#F4F5F2] shadow-2xl">
-            <header className="sticky top-0 z-10 flex items-start justify-between border-b border-[#DDE2E0] bg-white p-5">
-                <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#B07E00]">{label}</p><h2 id={titleId} className="mt-1 font-serif text-2xl font-bold text-[#17212B]">{title}</h2></div>
-                <button type="button" autoFocus onClick={onClose} aria-label="Close drawer" className="grid size-10 place-items-center rounded-lg focus-visible:ring-2 focus-visible:ring-[#D5A21F]"><AppIcon name="close" /></button>
+        <button type="button" aria-label="Close drawer" onClick={onClose} className="absolute inset-0 bg-foreground/45" />
+        <aside role="dialog" aria-modal="true" aria-labelledby={titleId} className="absolute inset-y-0 right-0 w-full max-w-xl overflow-y-auto border-l border-border bg-background shadow-[0_0_24px_rgb(0_26_63/0.12)]">
+            <header className="sticky top-0 z-10 flex items-start justify-between border-b border-border bg-surface p-5">
+                <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{label}</p><h2 id={titleId} className="mt-1 text-2xl font-bold text-foreground">{title}</h2></div>
+                <button type="button" autoFocus onClick={onClose} aria-label="Close drawer" className="grid size-10 place-items-center rounded-sm focus-visible:ring-2 focus-visible:ring-ring"><AppIcon name="close" /></button>
             </header>
             {children}
         </aside>
@@ -201,10 +203,10 @@ export default function PublicProgramme({ event, competitions = [], venues = [],
 
     return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0B536D]">{isScoped ? `${scope.competition}${scope.division ? ` / ${scope.division}` : ''}` : event.name}</p><h1 className="font-serif text-2xl font-bold text-[#17212B]">Schedule &amp; Publishing</h1></div>}>
         <Head title={`Schedule & Publishing / ${event.name}`} />
-        <main className="min-h-[calc(100vh-9rem)] bg-background px-4 py-6 sm:px-6 lg:px-10"><ScheduleWorkspace event={event} competitions={competitions} scope={scope}><div className="mx-auto flex max-w-[90rem] flex-col gap-6">
-            {flash?.status ? <div role="status" className="border-l-4 border-[#16845B] bg-white px-5 py-4 text-sm font-medium text-[#12623F]">{flash.status}</div> : null}
-            <section className="rounded-2xl bg-[#0B2E4F] px-5 py-6 text-white shadow-xs sm:px-8"><div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#E7C865]">{isScoped ? 'Schedule' : 'All sports'}</p><h2 className="mt-2 font-serif text-3xl font-bold sm:text-4xl">Match-day schedule</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-white/75">Schedule the matches already in your bracket, then publish the times your students will see.</p></div><div className="flex flex-wrap gap-2"><span className="rounded-lg bg-white/10 px-3 py-2 text-sm font-bold">{visibleMatches.length} matches</span><span className="rounded-lg bg-[#D5A21F] px-3 py-2 text-sm font-bold text-[#17212B]">{needsTime.length} need a time</span></div></div></section>
-            <section className="rounded-xl border border-[#DDE2E0] bg-white p-4 shadow-xs"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <main className={adminStyles.page}><ScheduleWorkspace event={event} competitions={competitions} scope={scope}><div className="mx-auto flex max-w-[90rem] flex-col gap-6">
+            {flash?.status ? <div role="status" className="border-l-4 border-primary bg-surface px-5 py-4 text-sm font-medium text-primary">{flash.status}</div> : null}
+            <AdminMasthead eyebrow={isScoped ? 'Schedule' : 'All sports'} title="Match-day schedule" description="Schedule the matches already in your bracket, then publish the times your students will see."><div className="flex flex-wrap gap-5 text-sm"><span><strong className="font-condensed text-3xl text-primary">{visibleMatches.length}</strong> matches</span><span><strong className="font-condensed text-3xl text-accent-foreground">{needsTime.length}</strong> need a time</span></div></AdminMasthead>
+            <section className="border border-border bg-surface p-4"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {!isScoped ? <label className="text-xs font-bold uppercase">Sport<select value={sport} onChange={(eventObject) => { setSport(eventObject.target.value); setDivision('all'); }} className={input}><option value="all">All sports</option>{competitions.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label> : null}
                 <label className="text-xs font-bold uppercase">Division<select value={division} onChange={(eventObject) => setDivision(eventObject.target.value)} className={input}><option value="all">All divisions</option>{visibleDivisions.map((item) => <option key={item.id} value={item.id}>{item.competition ? `${item.competition} / ` : ''}{item.name}</option>)}</select></label>
                 <label className="text-xs font-bold uppercase">Status<select value={status} onChange={(eventObject) => setStatus(eventObject.target.value)} className={input}><option value="all">All statuses</option>{statuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
@@ -214,8 +216,8 @@ export default function PublicProgramme({ event, competitions = [], venues = [],
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#B07E00]">Operations agenda</p><h2 className="mt-1 font-serif text-2xl font-bold text-[#17212B]">{isScoped ? scope.competition : (activeCompetition?.name || 'Event programme')}</h2></div><div className="flex flex-wrap gap-2">{!readOnly ? <button type="button" onClick={() => setVenuesOpen(true)} className={quiet}><AppIcon name="map-pin" className="size-4" />Manage venues</button> : null}{!readOnly && activeCompetition ? <button type="button" disabled={bulkForm.processing || publishableMatches.length === 0} onClick={publishAll} className={`${primary} !bg-[#16845B]`}>{bulkForm.processing ? 'Publishing...' : `Publish ${activeCompetition.name}`}</button> : null}</div></div>
             {needsTime.length ? <section className="overflow-hidden rounded-xl border border-[#E9D58A] bg-[#FFFDF4]"><header className="flex items-center justify-between gap-3 border-b border-[#E9D58A] px-4 py-4 sm:px-5"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#B07E00]">Needs a time</p><h2 className="mt-1 font-serif text-xl font-bold text-[#17212B]">Bracket matches waiting for a slot</h2></div><span className="text-sm font-bold text-[#806000]">{needsTime.length}</span></header>{needsTime.map((match) => <MatchRow key={match.id} event={event} match={match} readOnly={readOnly} onEdit={setEditor} />)}</section> : null}
             {Object.keys(dayGroups).length ? <div className="space-y-5">{Object.entries(dayGroups).map(([day, dayMatches]) => <section key={day} className="overflow-hidden rounded-xl border border-[#DDE2E0] border-l-4 border-l-[#D5A21F] bg-white shadow-xs"><header className="flex items-center justify-between border-b border-[#DDE2E0] bg-[#F8FAF9] px-4 py-4 sm:px-5"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#B07E00]">Match day</p><h2 className="mt-1 font-serif text-2xl font-bold text-[#17212B]">{formatDay(`${day}T12:00:00`)}</h2></div><span className="text-sm font-bold text-[#68767E]">{dayMatches.length} match{dayMatches.length === 1 ? '' : 'es'}</span></header>{dayMatches.map((match) => <MatchRow key={match.id} event={event} match={match} readOnly={readOnly} onEdit={setEditor} />)}</section>)}</div> : null}
-            {!needsTime.length && !Object.keys(dayGroups).length ? <div className="rounded-xl border border-dashed border-[#B8C3C0] bg-white p-12 text-center"><h2 className="font-serif text-2xl font-bold text-[#17212B]">{visibleMatches.length ? 'No matches match these filters' : 'Publish a bracket first'}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[#68767E]">{visibleMatches.length ? 'Try clearing a filter or choose another day.' : 'Once a bracket is ready, its contests will appear here for scheduling.'}</p></div> : null}
-            <p className="text-sm text-[#68767E]">Saved times stay private until you publish them. Bracket matches are the source of truth, so there is no separate add-game action.</p>
+            {!needsTime.length && !Object.keys(dayGroups).length ? <AdminEmptyState title={visibleMatches.length ? 'No matches match these filters' : 'Publish a bracket first'} description={visibleMatches.length ? 'Try clearing a filter or choose another day.' : 'Once a bracket is ready, its contests will appear here for scheduling.'} /> : null}
+            <p className="text-sm text-muted">Saved times stay private until you publish them. Bracket matches are the source of truth, so there is no separate add-game action.</p>
         </div></ScheduleWorkspace></main>
         {editor ? <ScheduleSheet key={editor.id} event={event} match={editor} venues={venues} statuses={statuses} readOnly={readOnly} onClose={() => setEditor(null)} /> : null}
         {venuesOpen ? <VenueSheet event={event} venues={venues} readOnly={readOnly} onClose={() => setVenuesOpen(false)} /> : null}

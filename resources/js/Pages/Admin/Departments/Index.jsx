@@ -1,18 +1,20 @@
 import React from 'react';
+import { AdminEmptyState, AdminMasthead } from '@/Components/Admin/AdminSurface';
 import AppIcon from '@/Components/AppIcon';
 import Link from '@/Components/PrefetchLink';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { adminStyles } from '@/Support/adminStyles';
 import { Head } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
-const primary = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2';
+const primary = adminStyles.primaryAction;
 
 function DepartmentCard({ event, department }) {
     const divisionCount = department.sports.reduce((total, sport) => total + sport.divisions.length, 0);
     const startedCount = department.counts.rosters || 0;
     const accent = department.color || '#0B536D';
 
-    return <article className="group relative overflow-hidden rounded-2xl border border-border bg-surface shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-md motion-reduce:transform-none">
+    return <article className="group relative overflow-hidden border border-border bg-surface transition-colors hover:border-primary">
         <div className="h-1.5" style={{ backgroundColor: accent }} aria-hidden="true" />
         <div className="relative overflow-hidden p-5 sm:p-6">
             <span className="pointer-events-none absolute -right-3 -top-7 font-serif text-[7rem] font-black leading-none text-sidebar/[0.045]" aria-hidden="true">{department.abbreviation || 'D'}</span>
@@ -21,16 +23,16 @@ function DepartmentCard({ event, department }) {
                     <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-primary">Event department</p>
                     <h2 className="mt-2 font-serif text-2xl font-bold leading-tight text-foreground">{department.name}</h2>
                 </div>
-                <span className="grid size-12 shrink-0 place-items-center rounded-xl text-sm font-black text-white shadow-xs" style={{ backgroundColor: accent }}>{department.abbreviation || '—'}</span>
+                <span className="grid size-12 shrink-0 place-items-center rounded-sm text-sm font-black text-white" style={{ backgroundColor: accent }}>{department.abbreviation || '—'}</span>
             </div>
 
-            <dl className="relative mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">
+            <dl className="relative mt-6 grid grid-cols-2 gap-px overflow-hidden border border-border bg-border sm:grid-cols-4">
                 {[
                     ['Players', department.counts.players],
                     ['Coaches', department.counts.coaches],
                     ['Team sheets', `${startedCount}/${divisionCount}`],
                     ['Sports', department.sports.length],
-                ].map(([label, value]) => <div key={label} className="bg-surface-muted px-3 py-3"><dt className="text-[0.62rem] font-bold uppercase tracking-[0.1em] text-muted">{label}</dt><dd className="mt-1 font-mono text-lg font-bold tabular-nums text-primary">{value}</dd></div>)}
+                ].map(([label, value]) => <div key={label} className="bg-surface-muted px-3 py-3"><dt className="text-[0.62rem] font-bold uppercase tracking-[0.1em] text-muted">{label}</dt><dd className="mt-1 font-condensed text-2xl font-bold tabular-nums text-primary">{value}</dd></div>)}
             </dl>
 
             <div className="relative mt-5 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
@@ -57,22 +59,18 @@ export default function DepartmentDirectory({ event, directory_summary: summary 
 
     return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Departments</h1></div>}>
         <Head title="Departments" />
-        <main className="p-4 sm:p-7 lg:p-8">
+        <main className={adminStyles.page}>
             <div className="mx-auto max-w-[96rem] space-y-6">
-                <section className="relative overflow-hidden rounded-2xl bg-sidebar px-5 py-7 text-white sm:px-8 sm:py-9">
-                    <div className="absolute inset-y-0 right-0 w-1/3 bg-[radial-gradient(circle_at_center,rgba(213,162,31,0.18),transparent_68%)]" aria-hidden="true" />
-                    <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Roster operations</p><h2 className="mt-2 font-serif text-3xl font-bold sm:text-4xl">Choose a department first</h2><p className="mt-3 max-w-2xl text-sm leading-6 text-white/70">Each department has one clear home for its players, coaches, and team sheets across every event sport.</p></div>
-                        <dl className="flex flex-wrap gap-x-8 gap-y-3 text-sm"><div><dt className="text-white/55">Departments</dt><dd className="mt-1 font-mono text-2xl font-bold">{summary.departments.length}</dd></div><div><dt className="text-white/55">Players</dt><dd className="mt-1 font-mono text-2xl font-bold">{summary.totals.players || 0}</dd></div><div><dt className="text-white/55">Team sheets</dt><dd className="mt-1 font-mono text-2xl font-bold">{summary.totals.rosters || 0}/{teamSheetSlots}</dd></div></dl>
-                    </div>
-                </section>
+                <AdminMasthead eyebrow="Roster operations" title="Choose a department first" description="Each department has one clear home for its players, coaches, and team sheets across every event sport.">
+                    <dl className="grid grid-cols-3 divide-x divide-border text-sm"><div className="px-3 first:pl-0"><dt className="text-muted">Departments</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{summary.departments.length}</dd></div><div className="px-3"><dt className="text-muted">Players</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{summary.totals.players || 0}</dd></div><div className="px-3"><dt className="text-muted">Team sheets</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{summary.totals.rosters || 0}/{teamSheetSlots}</dd></div></dl>
+                </AdminMasthead>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div><h2 className="font-serif text-2xl font-bold text-foreground">Department directory</h2><p className="mt-1 text-sm text-muted">Open a department to work through its sports and rosters.</p></div>
-                    <label className="relative w-full sm:max-w-sm"><span className="sr-only">Search departments</span><AppIcon name="search" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" /><input type="search" value={query} onChange={(eventObject) => setQuery(eventObject.target.value)} placeholder="Find a department" className="min-h-11 w-full rounded-lg border-border bg-surface pl-10 text-sm text-foreground focus:border-primary focus:ring-primary" /></label>
+                    <label className="relative w-full sm:max-w-sm"><span className="sr-only">Search departments</span><AppIcon name="search" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" /><input type="search" value={query} onChange={(eventObject) => setQuery(eventObject.target.value)} placeholder="Find a department" className={`${adminStyles.field} pl-10`} /></label>
                 </div>
 
-                {departments.length ? <section className="grid gap-5 xl:grid-cols-2" aria-label="Event departments">{departments.map((department) => <DepartmentCard key={department.id} event={event} department={department} />)}</section> : <section className="rounded-2xl border border-dashed border-border bg-surface p-10 text-center"><h2 className="font-serif text-xl font-bold text-foreground">No departments match that search</h2><p className="mt-2 text-sm text-muted">Try the department name or abbreviation.</p></section>}
+                {departments.length ? <section className="grid gap-5 xl:grid-cols-2" aria-label="Event departments">{departments.map((department) => <DepartmentCard key={department.id} event={event} department={department} />)}</section> : <AdminEmptyState title="No departments match that search" description="Try the department name or abbreviation." />}
             </div>
         </main>
     </AuthenticatedLayout>;
