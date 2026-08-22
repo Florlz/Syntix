@@ -59,6 +59,8 @@ test('shows the Global Admin notification bell and recent activity popover', () 
     render(<AuthenticatedLayout header={<h1>Dashboard</h1>}><p>Content</p></AuthenticatedLayout>);
 
     expect(screen.getByRole('button', { name: 'Open notifications' })).toHaveTextContent('3');
+    expect(screen.getByRole('button', { name: 'Open notifications' })).toHaveClass('size-11');
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toHaveClass('size-11');
     expect(screen.queryByText('Result ready for review')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Open notifications' }));

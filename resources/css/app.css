@@ -18,6 +18,7 @@
     --color-surface-muted: var(--surface-muted);
     --color-muted: var(--muted);
     --color-border: var(--border);
+    --color-control-border: var(--control-border);
     --color-primary: var(--primary);
     --color-primary-hover: var(--primary-hover);
     --color-primary-foreground: var(--primary-foreground);
@@ -37,7 +38,8 @@
     --surface-muted: #fafcfc;
     --muted: #52677f;
     --border: #bec6db;
-    --primary: #1d86a6;
+    --control-border: #76869b;
+    --primary: #197f9d;
     --primary-hover: #166d88;
     --primary-foreground: #ffffff;
     --accent: #e8aa32;
@@ -45,13 +47,14 @@
     --danger: #c83f3f;
     --danger-surface: #fff2f1;
     --sidebar: #fefefe;
-    --ring: #1d86a6;
+    --ring: #197f9d;
 }
 
 html[data-contrast='high'] {
     --foreground: #000e28;
     --muted: #31465d;
     --border: #56677f;
+    --control-border: #56677f;
     --primary: #00627b;
     --primary-hover: #004d61;
     --ring: #001a3f;
@@ -122,10 +125,10 @@ html[data-reduce-motion='true'] * {
     grid-template-rows: auto minmax(0, 1fr) auto;
     width: 100%;
     overflow: hidden;
-    border: 1px solid #17212b;
-    background: #fff;
-    color: #17212b;
-    box-shadow: 0 1.5rem 3rem rgb(23 33 43 / 18%);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--foreground);
+    box-shadow: 0 20px 50px rgb(0 26 63 / 18%);
 }
 
 .staff-setup-card-header {
@@ -134,7 +137,7 @@ html[data-reduce-motion='true'] * {
     justify-content: space-between;
     gap: 1rem;
     padding: 1rem 1.25rem;
-    border-bottom: 4px solid #d5a21f;
+    border-bottom: 4px solid var(--accent);
 }
 
 .staff-setup-card-body {
@@ -168,22 +171,22 @@ html[data-reduce-motion='true'] * {
     justify-content: center;
     width: 56mm;
     padding: 0.75rem;
-    border-left: 1px solid #cfd6d3;
-    background: #f8faf9;
+    border-left: 1px solid var(--border);
+    background: var(--surface-muted);
 }
 
 .staff-setup-qr-code {
     width: 48mm;
     height: 48mm;
     padding: 0.4rem;
-    border: 2px solid #17212b;
-    background: #fff;
+    border: 2px solid var(--foreground);
+    background: var(--surface);
 }
 
 .staff-setup-card-footer {
     overflow: hidden;
     padding: 0.75rem 1.25rem;
-    border-top: 1px solid #cfd6d3;
+    border-top: 1px solid var(--border);
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -196,9 +199,9 @@ html[data-reduce-motion='true'] * {
     min-height: 16rem;
     place-items: center;
     padding: 2rem;
-    border: 1px dashed #68767e;
-    background: #fff;
-    color: #68767e;
+    border: 1px dashed var(--control-border);
+    background: var(--surface);
+    color: var(--muted);
     text-align: center;
 }
 
@@ -218,7 +221,7 @@ html[data-reduce-motion='true'] * {
     .staff-setup-handoff-card--preview .staff-setup-qr-panel {
         width: 100%;
         padding: 1.25rem;
-        border-top: 1px solid #cfd6d3;
+        border-top: 1px solid var(--border);
         border-left: 0;
     }
 

@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-22T12:00:00+08:00",
+  "title": "Design System: Syntix Official Results Bulletin",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Paper", "canonical": "oklch(99.7% 0 0)", "tonalRamp": ["#071221", "#172536", "#344254", "#566577", "#7d8b9c", "#a8b3bf", "#d3dbe2", "#fefefe"] },
+      "ink-navy": { "role": "neutral", "displayName": "Ink Navy", "canonical": "oklch(20.5% 0.075 252)", "tonalRamp": ["#001229", "#001a3f", "#173657", "#365472", "#5b748e", "#8398ac", "#b5c1cc", "#edf1f4"] },
+      "quiet-paper": { "role": "neutral", "displayName": "Quiet Paper", "canonical": "oklch(99.1% 0.003 210)", "tonalRamp": ["#10191a", "#243031", "#445152", "#687576", "#909b9c", "#b8c1c1", "#dde3e3", "#fafcfc"] },
+      "slate-copy": { "role": "neutral", "displayName": "Slate Copy", "canonical": "oklch(49.9% 0.043 250)", "tonalRamp": ["#101a26", "#243447", "#3c5067", "#52677f", "#73879b", "#9babb9", "#c4ced6", "#eef1f4"] },
+      "rule": { "role": "neutral", "displayName": "Hairline Rule", "canonical": "oklch(80.7% 0.027 271)", "tonalRamp": ["#171923", "#2f3240", "#505463", "#747886", "#999da9", "#bec6db", "#dce1ed", "#f4f5fa"] },
+      "control-rule": { "role": "neutral", "displayName": "Control Rule", "canonical": "oklch(61.9% 0.045 253)", "tonalRamp": ["#111924", "#273444", "#46576a", "#65768a", "#76869b", "#9daaba", "#c7d0da", "#eff2f5"] },
+      "action-cyan": { "role": "primary", "displayName": "Action Cyan", "canonical": "oklch(54.9% 0.098 222)", "tonalRamp": ["#082329", "#0c3a46", "#12566a", "#197f9d", "#45a4bd", "#7bc3d4", "#b7dfe7", "#e8f7f9"] },
+      "action-cyan-hover": { "role": "primary", "displayName": "Deep Action Cyan", "canonical": "oklch(48.8% 0.09 222)", "tonalRamp": ["#061e24", "#0a303a", "#104a59", "#166d88", "#3f92aa", "#78bacb", "#b2dce4", "#e7f6f8"] },
+      "bulletin-gold": { "role": "secondary", "displayName": "Bulletin Gold", "canonical": "oklch(76.1% 0.145 81)", "tonalRamp": ["#2b1b00", "#503400", "#805600", "#b87e13", "#e8aa32", "#f1c96f", "#f7dfaa", "#fff4dd"] },
+      "danger-red": { "role": "danger", "displayName": "Danger Red", "canonical": "oklch(55.8% 0.184 26)", "tonalRamp": ["#2b0908", "#531311", "#852321", "#c83f3f", "#df7270", "#eca6a3", "#f5cfcd", "#fff1f0"] }
+    },
+    "typographyMeta": {
+      "display-mark": { "displayName": "Display Mark", "purpose": "Oversized editorial numerals or initials used as quiet section artwork." },
+      "headline": { "displayName": "Headline", "purpose": "Page titles and primary workflow headings." },
+      "title": { "displayName": "Title", "purpose": "Section and component headings." },
+      "body": { "displayName": "Body", "purpose": "Operational instructions and supporting content." },
+      "label": { "displayName": "Label", "purpose": "Statuses, table headers, and metadata." },
+      "micro-label": { "displayName": "Micro Label", "purpose": "Dense overlines and diagram annotations at 10px." },
+      "compact-label": { "displayName": "Compact Label", "purpose": "Compact status metadata at 0.65rem." },
+      "overline": { "displayName": "Overline", "purpose": "Small editorial overlines at 0.68rem." },
+      "operational-number": { "displayName": "Operational Number", "purpose": "Scores, rankings, totals, and high-scan values." }
+    },
+    "shadows": [
+      { "name": "temporary-layer", "value": "0 20px 50px rgb(0 26 63 / 0.18)", "purpose": "Structural separation for dialogs and drawers only." }
+    ],
+    "motion": [
+      { "name": "state-change", "value": "150ms ease-out", "purpose": "Short color and border transitions on controls." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single clearest next action in an operational region.",
+      "html": "<button class=\"ds-btn-primary\">Review and submit</button>",
+      "css": ".ds-btn-primary{min-height:44px;padding:0 16px;border:1px solid #197f9d;border-radius:2px;background:#197f9d;color:#fff;font:700 14px/1.25 Figtree,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms ease-out,border-color 150ms ease-out}.ds-btn-primary:hover{border-color:#166d88;background:#166d88}.ds-btn-primary:focus-visible{outline:2px solid #197f9d;outline-offset:2px}.ds-btn-primary:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A reversible or supporting action beside the primary choice.",
+      "html": "<button class=\"ds-btn-secondary\">Save draft</button>",
+      "css": ".ds-btn-secondary{min-height:44px;padding:0 16px;border:1px solid #76869b;border-radius:2px;background:#fff;color:#197f9d;font:700 14px/1.25 Figtree,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms ease-out,border-color 150ms ease-out}.ds-btn-secondary:hover{border-color:#197f9d;background:#fafcfc}.ds-btn-secondary:focus-visible{outline:2px solid #197f9d;outline-offset:2px}.ds-btn-secondary:active{background:#f2f7f8}"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "A destructive or irreversible action that requires deliberate contrast.",
+      "html": "<button class=\"ds-btn-danger\">Remove record</button>",
+      "css": ".ds-btn-danger{min-height:44px;padding:0 16px;border:1px solid #c83f3f;border-radius:2px;background:#fff2f1;color:#c83f3f;font:700 14px/1.25 Figtree,system-ui,sans-serif;cursor:pointer;transition:background-color 150ms ease-out}.ds-btn-danger:hover{background:#fbe1df}.ds-btn-danger:focus-visible{outline:2px solid #c83f3f;outline-offset:2px}.ds-btn-danger:active{background:#f7d4d1}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A compact field with an explicit label and visible focus state.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Judge notes</span><input class=\"ds-field-input\" placeholder=\"Optional context\"></label>",
+      "css": ".ds-field{display:grid;gap:6px;color:#001a3f;font-family:Figtree,system-ui,sans-serif}.ds-field-label{font-size:12px;font-weight:700;line-height:1.25}.ds-field-input{min-height:44px;padding:10px 12px;border:1px solid #76869b;border-radius:2px;background:#fff;color:#001a3f;font:400 14px/1.5 Figtree,system-ui,sans-serif}.ds-field-input::placeholder{color:#52677f}.ds-field-input:hover{border-color:#65768a}.ds-field-input:focus{border-color:#197f9d;outline:2px solid #197f9d;outline-offset:1px}"
+    },
+    {
+      "name": "Status Tag",
+      "kind": "chip",
+      "refersTo": "status-tag",
+      "description": "A compact textual state marker that never relies on color alone.",
+      "html": "<span class=\"ds-status\"><span class=\"ds-status-dot\" aria-hidden=\"true\"></span>Draft saved</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border:1px solid #bec6db;border-radius:2px;background:#fafcfc;color:#001a3f;font:700 12px/1.25 Figtree,system-ui,sans-serif;letter-spacing:.04em}.ds-status-dot{width:7px;height:7px;border-radius:50%;background:#197f9d}.ds-status:hover{border-color:#197f9d}"
+    },
+    {
+      "name": "Ruled Bulletin Section",
+      "kind": "card",
+      "refersTo": "ruled-section",
+      "description": "The standard flat container for one administrative topic.",
+      "html": "<section class=\"ds-bulletin\"><header class=\"ds-bulletin-head\"><span class=\"ds-bulletin-kicker\">Official record</span><h3>Result approval</h3></header><p>Review scoring evidence before publishing the placement.</p></section>",
+      "css": ".ds-bulletin{border:1px solid #bec6db;background:#fff;color:#001a3f;font-family:Figtree,system-ui,sans-serif}.ds-bulletin-head{padding:16px;border-bottom:1px solid #bec6db;background:#fafcfc}.ds-bulletin-kicker{display:block;margin-bottom:4px;color:#52677f;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.ds-bulletin h3{margin:0;font-size:18px;line-height:1.25}.ds-bulletin p{max-width:65ch;margin:0;padding:16px;color:#52677f;font-size:14px;line-height:1.5}.ds-bulletin:focus-within{border-color:#197f9d}"
+    },
+    {
+      "name": "Criterion Step",
+      "kind": "custom",
+      "refersTo": "criterion-step",
+      "description": "A scorecard index row that communicates order, weight, activity, and completion.",
+      "html": "<button class=\"ds-criterion\" aria-current=\"step\"><span class=\"ds-criterion-index\">02</span><span class=\"ds-criterion-copy\"><strong>Musicianship</strong><small>40% of total</small></span><span class=\"ds-criterion-state\">Current</span></button>",
+      "css": ".ds-criterion{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;width:100%;padding:12px;border:1px solid #197f9d;border-left:3px solid #197f9d;border-radius:2px;background:#fafcfc;color:#001a3f;text-align:left;font-family:Figtree,system-ui,sans-serif;cursor:pointer}.ds-criterion-index{font:700 20px/1 Barlow Condensed,Figtree,sans-serif;color:#197f9d}.ds-criterion-copy{display:grid;gap:2px}.ds-criterion-copy strong{font-size:14px}.ds-criterion-copy small{color:#52677f;font-size:12px}.ds-criterion-state{color:#197f9d;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}.ds-criterion:hover{background:#f2f7f8}.ds-criterion:focus-visible{outline:2px solid #197f9d;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Official Results Bulletin",
+    "overview": "Syntix is the official event record in motion. Its interface borrows the authority and legibility of a posted results bulletin: bright paper, dark ink, crisp rules, compact operational labels, and a restrained cyan action color. It should feel trustworthy under event-day pressure, not decorative or theatrical.\n\nThe system is information-dense without becoming cramped. Hierarchy comes from typography, alignment, rules, and quiet tonal changes rather than stacks of floating cards. Global Admin and organizer screens use the same visual language as Judge and Tabulator work, while preserving each workflow's established structure.",
+    "keyCharacteristics": [
+      "Paper-bright, permanent light presentation",
+      "Ink-navy hierarchy with cyan actions and restrained gold signals",
+      "Flat surfaces separated by hairline rules",
+      "Compact labels and condensed operational numerals",
+      "Clear next actions and explicit record states"
+    ],
+    "rules": [
+      { "name": "The Cyan Is Action Rule", "body": "Action Cyan identifies interaction, progress, or focus. Do not use it as broad decoration.", "section": "colors" },
+      { "name": "The Gold Is Rare Rule", "body": "Bulletin Gold marks exceptional event context. It must not compete with primary actions.", "section": "colors" },
+      { "name": "The Numbers Carry State Rule", "body": "Use condensed numerals for important operational values, not for paragraphs or ordinary control labels.", "section": "typography" },
+      { "name": "The Ruled Paper Rule", "body": "Prefer a hairline border or quiet surface shift before introducing a shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Ink Navy and typographic weight to establish authority before adding color.",
+      "Do separate dense content with Hairline Rule borders and Quiet Paper bands.",
+      "Do keep score, approval, and result states explicit in text.",
+      "Do preserve 44px touch targets and visible keyboard focus.",
+      "Do use Barlow Condensed for scores, totals, rankings, and other compact operational numbers."
+    ],
+    "donts": [
+      "Don't add dark mode or dark event-control styling. Syntix is permanently light.",
+      "Don't build generic white-and-blue SaaS screens from rounded cards and soft shadows.",
+      "Don't use cyan or gold as broad decoration.",
+      "Don't hide official status behind color, icons, or hover-only content.",
+      "Don't change an established admin workflow merely to make it resemble the Judge scorecard."
+    ]
+  }
+}

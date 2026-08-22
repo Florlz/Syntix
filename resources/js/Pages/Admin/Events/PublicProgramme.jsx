@@ -45,7 +45,7 @@ function Drawer({ titleId, label, title, onClose, children }) {
         <aside role="dialog" aria-modal="true" aria-labelledby={titleId} className="absolute inset-y-0 right-0 w-full max-w-xl overflow-y-auto border-l border-border bg-background shadow-[0_0_24px_rgb(0_26_63/0.12)]">
             <header className="sticky top-0 z-10 flex items-start justify-between border-b border-border bg-surface p-5">
                 <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{label}</p><h2 id={titleId} className="mt-1 text-2xl font-bold text-foreground">{title}</h2></div>
-                <button type="button" autoFocus onClick={onClose} aria-label="Close drawer" className="grid size-10 place-items-center rounded-sm focus-visible:ring-2 focus-visible:ring-ring"><AppIcon name="close" /></button>
+                <button type="button" autoFocus onClick={onClose} aria-label="Close drawer" className="grid size-11 place-items-center rounded-sm focus-visible:ring-2 focus-visible:ring-ring"><AppIcon name="close" /></button>
             </header>
             {children}
         </aside>

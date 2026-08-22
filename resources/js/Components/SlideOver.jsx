@@ -16,7 +16,7 @@ export default function SlideOver({ show, title, onClose, children, initialFocus
                             <DialogPanel className="pointer-events-auto w-screen max-w-2xl overflow-y-auto border-l border-border bg-background text-foreground shadow-[0_0_24px_rgb(0_26_63/0.12)]">
                                 <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-surface px-5 py-4 sm:px-7">
                                     <DialogTitle className="text-xl font-bold text-foreground">{title}</DialogTitle>
-                                    <button type="button" onClick={onClose} className="grid size-10 place-items-center rounded-sm text-muted hover:bg-surface-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label="Close panel"><AppIcon name="close" /></button>
+                                    <button type="button" onClick={onClose} className="grid size-11 place-items-center rounded-sm text-muted hover:bg-surface-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label="Close panel"><AppIcon name="close" /></button>
                                 </div>
                                 <div className="p-5 sm:p-7">{children}</div>
                             </DialogPanel>

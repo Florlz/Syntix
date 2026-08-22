@@ -16,4 +16,10 @@ describe('Tailwind v4 configuration', () => {
         expect(appCss).not.toContain('@tailwind base;');
         expect(existsSync(resolve(projectRoot, 'tailwind.config.js'))).toBe(false);
     });
+
+    it('keeps action text and interactive boundaries at accessible contrast', () => {
+        expect(appCss).toContain('--primary: #197f9d;');
+        expect(appCss).toContain('--control-border: #76869b;');
+        expect(appCss).toContain('--color-control-border: var(--control-border);');
+    });
 });

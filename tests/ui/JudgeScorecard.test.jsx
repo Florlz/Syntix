@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, expect, test, vi } from 'vitest';
 
 const patch = vi.fn();
@@ -80,7 +80,7 @@ test('renders proposal authority, scheduled venue, exact rubric, and own-entry n
     const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
     render(<Scorecard scorecard={fixture()} />);
 
-    expect(screen.getByRole('heading', { name: 'Approved proposal pp. 21–22' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { name: 'Approved proposal pp. 21–22' }).length).toBeGreaterThan(0);
     expect(screen.getByText('CSPC Auditorium')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Tone Quality Score' })).toHaveAttribute('inputmode', 'decimal');
     expect(screen.getByRole('link', { name: '← Previous entry' })).toHaveAttribute('href', '/judge.scorecards.show/10');
@@ -95,7 +95,7 @@ test('builds sparse draft payloads from nonblank rubric values only', async () =
         values: { 1: { raw_value: '90', deduction: '0', notes: 'Strong tone' }, 2: { raw_value: '', deduction: '0', notes: 'Ignore without a score' } },
     })} />);
 
-    expect(screen.getByText('Performance time penalty')).toBeInTheDocument();
+    expect(screen.getAllByText('Performance time penalty').length).toBeGreaterThan(0);
     expect(screen.queryByRole('spinbutton', { name: /Deduction/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
     expect(patch).toHaveBeenCalledWith('/judge.scorecards.update/11', {
@@ -141,6 +141,46 @@ test('opens the first required incomplete criterion in a guided scoring lane', a
     expect(screen.getByRole('button', { name: /Score Musicianship/ })).toHaveAttribute('aria-current', 'step');
     expect(screen.getByRole('group', { name: 'Musicianship' })).toBeInTheDocument();
     expect(screen.queryByRole('group', { name: 'Tone Quality' })).not.toBeInTheDocument();
+});
+
+test('keeps initial focus in reading order and focuses scoring after an explicit criterion choice', async () => {
+    const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
+    render(<Scorecard scorecard={fixture()} />);
+
+    expect(screen.getByRole('spinbutton', { name: 'Tone Quality Score' })).not.toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: /Score Musicianship/ }));
+
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Musicianship Score' })).toHaveFocus());
+});
+
+test('returns focus to the invalid score after a failed save even when its criterion is already active', async () => {
+    const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
+    render(<Scorecard scorecard={fixture()} />);
+
+    const save = screen.getByRole('button', { name: 'Save draft' });
+    save.focus();
+    fireEvent.click(save);
+    const saveOptions = patch.mock.calls[0][2];
+    act(() => saveOptions.onError({ 'values.0.raw_value': 'Enter a valid Tone Quality score.' }));
+
+    await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Tone Quality Score' })).toHaveFocus());
+});
+
+test('wraps long criterion names and provides compact mobile disclosures for official context', async () => {
+    const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
+    render(<Scorecard scorecard={fixture({
+        criteria: [
+            { id: '1', name: 'Interpretation, tonal consistency, and sustained breath control', source_label: 'Interpretation', weight: '40.0000', maximum: '100.0000', minimum: '0.0000', input_scale: 2, required: true },
+            { id: '2', name: 'Musicianship', source_label: 'Musicianship', weight: '40.0000', maximum: '100.0000', minimum: '0.0000', input_scale: 2, required: true },
+        ],
+    })} />);
+
+    const criterionName = screen.getAllByText('Interpretation, tonal consistency, and sustained breath control')[0];
+    expect(criterionName).toHaveClass('break-words');
+    expect(criterionName).not.toHaveClass('truncate');
+    expect(screen.getByText('Scoring authority', { selector: 'summary' })).toBeInTheDocument();
+    expect(screen.getByText('Contest instructions', { selector: 'summary' })).toBeInTheDocument();
+    expect(screen.getByText((_, element) => element.tagName === 'SUMMARY' && element.textContent.includes('Official adjustments'))).toBeInTheDocument();
 });
 
 test('switches criteria without losing unsaved scores or notes', async () => {

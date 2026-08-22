@@ -76,6 +76,7 @@ export default function Scorecard({ scorecard }) {
     const draftForm = useForm(draftData(scorecard));
     const submitForm = useForm({});
     const [activeCriterionId, setActiveCriterionId] = useState(() => initialCriterionId(scorecard, draftForm.data.values, draftForm.errors));
+    const [focusRequest, setFocusRequest] = useState(0);
     const [openNotes, setOpenNotes] = useState(() => new Set(
         draftForm.data.values.filter((value) => String(value.notes ?? '').trim() !== '').map((value) => String(value.criterion_id)),
     ));
@@ -103,6 +104,21 @@ export default function Scorecard({ scorecard }) {
     const invalidIndex = fieldErrorIndex(scorecard.criteria, draftForm.errors);
     const invalidCriterionId = invalidIndex >= 0 ? scorecard.criteria[invalidIndex].id : null;
 
+    const focusCriterion = (criterionId) => {
+        setActiveCriterionId(criterionId);
+        setFocusRequest((request) => request + 1);
+    };
+
+    const focusFirstFieldError = (errors) => {
+        const errorIndex = fieldErrorIndex(scorecard.criteria, errors);
+        if (errorIndex < 0) return;
+        const criterionId = scorecard.criteria[errorIndex].id;
+        if (errors[`values.${errorIndex}.notes`]) {
+            setOpenNotes((current) => new Set([...current, String(criterionId)]));
+        }
+        focusCriterion(criterionId);
+    };
+
     useEffect(() => {
         if (invalidCriterionId === null) return;
         setActiveCriterionId(invalidCriterionId);
@@ -112,8 +128,9 @@ export default function Scorecard({ scorecard }) {
     }, [invalidCriterionId]);
 
     useEffect(() => {
+        if (focusRequest === 0) return;
         scoreInputRef.current?.focus({ preventScroll: true });
-    }, [activeCriterionId]);
+    }, [activeCriterionId, focusRequest]);
 
     useEffect(() => {
         const warnBeforeLeaving = (event) => {
@@ -144,6 +161,7 @@ export default function Scorecard({ scorecard }) {
         draftForm.transform(draftPayload).patch(route('judge.scorecards.update', scorecard.id), {
             preserveScroll: true,
             onSuccess: (page) => synchronizeFromServer(page.props.scorecard),
+            onError: focusFirstFieldError,
             onFinish: () => { allowNavigation.current = false; },
         });
     };
@@ -160,7 +178,10 @@ export default function Scorecard({ scorecard }) {
                     onFinish: () => { allowNavigation.current = false; },
                 });
             },
-            onError: () => { allowNavigation.current = false; },
+            onError: (errors) => {
+                allowNavigation.current = false;
+                focusFirstFieldError(errors);
+            },
         });
     };
 
@@ -197,7 +218,7 @@ export default function Scorecard({ scorecard }) {
                     {pageErrors.length ? <div role="alert" className="border border-danger/35 bg-danger-surface px-4 py-3 text-sm text-danger"><ul className="space-y-1">{pageErrors.map(([key, message]) => <li key={key}>{message}</li>)}</ul></div> : null}
 
                     {activeCriterion ? <div className="grid items-start gap-4 xl:grid-cols-[12rem_minmax(0,1fr)_18rem]">
-                        <CriteriaIndex criteria={scorecard.criteria} values={draftForm.data.values} errors={draftForm.errors} activeCriterionId={activeCriterionId} onSelect={setActiveCriterionId} completedRequired={completedRequired} requiredCount={requiredCriteria.length} />
+                        <CriteriaIndex criteria={scorecard.criteria} values={draftForm.data.values} errors={draftForm.errors} activeCriterionId={activeCriterionId} onSelect={focusCriterion} completedRequired={completedRequired} requiredCount={requiredCriteria.length} />
 
                         <section aria-labelledby="active-criterion-heading" className="border border-border bg-surface">
                             <div className="grid gap-4 border-b border-border px-4 py-4 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-end sm:px-5">
@@ -227,13 +248,13 @@ export default function Scorecard({ scorecard }) {
                                 <div className="border-t border-border pt-4">
                                     {!notesAreOpen ? <button type="button" onClick={() => setOpenNotes((current) => new Set([...current, String(activeCriterion.id)]))} className="min-h-11 text-sm font-bold text-primary hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent">Add notes</button> : <div>
                                         <div className="flex items-center justify-between gap-3"><label htmlFor={`notes-${activeCriterion.id}`} className="text-xs font-bold uppercase tracking-[0.12em] text-muted">{activeCriterion.name} notes</label>{!activeValue.notes && !activeNotesError ? <button type="button" onClick={() => setOpenNotes((current) => { const next = new Set(current); next.delete(String(activeCriterion.id)); return next; })} className="min-h-11 px-2 text-xs font-bold text-primary hover:underline">Hide notes</button> : null}</div>
-                                        <textarea id={`notes-${activeCriterion.id}`} aria-label={`${activeCriterion.name} notes`} rows={3} value={activeValue.notes} onChange={(event) => updateValue(activeIndex, 'notes', event.target.value)} className="mt-2 w-full resize-y border border-border bg-surface-muted text-sm text-foreground focus:border-primary focus:ring-primary" />
+                                        <textarea id={`notes-${activeCriterion.id}`} aria-label={`${activeCriterion.name} notes`} rows={3} value={activeValue.notes} onChange={(event) => updateValue(activeIndex, 'notes', event.target.value)} className="mt-2 w-full resize-y border border-control-border bg-surface-muted text-sm text-foreground focus:border-primary focus:ring-primary" />
                                         {activeNotesError ? <p className="mt-2 text-sm font-semibold text-danger">{activeNotesError}</p> : null}
                                     </div>}
                                 </div>
                             </fieldset>
 
-                            <RemainingCriteria criteria={scorecard.criteria} values={draftForm.data.values} errors={draftForm.errors} activeCriterionId={activeCriterionId} onSelect={setActiveCriterionId} />
+                            <RemainingCriteria criteria={scorecard.criteria} values={draftForm.data.values} errors={draftForm.errors} activeCriterionId={activeCriterionId} onSelect={focusCriterion} />
                         </section>
 
                         <OfficialSummary scorecard={scorecard} />
@@ -277,7 +298,7 @@ function CriteriaIndex({ criteria, values, errors, activeCriterionId, onSelect, 
                 const invalid = Boolean(errors[`values.${index}.raw_value`] || errors[`values.${index}.notes`]);
                 const active = String(criterion.id) === String(activeCriterionId);
                 const state = invalid ? 'needs correction' : complete ? `scored ${value.raw_value}` : 'not scored';
-                return <li key={criterion.id}><button type="button" aria-current={active ? 'step' : undefined} aria-label={`Score ${criterion.name}, ${state}`} onClick={() => onSelect(criterion.id)} className={`flex min-h-16 w-full items-center gap-3 px-3 py-3 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${active ? 'bg-primary text-primary-foreground' : 'bg-surface text-foreground hover:bg-surface-muted'} ${invalid ? 'outline outline-2 -outline-offset-2 outline-danger' : ''}`}><span className={`grid size-7 shrink-0 place-items-center border font-condensed text-sm font-bold ${active ? 'border-primary-foreground/50' : 'border-border text-primary'}`}>{index + 1}</span><span className="min-w-0"><span className="block truncate text-xs font-bold">{criterion.name}</span><span className={`mt-0.5 block font-condensed text-xs ${active ? 'text-primary-foreground/80' : invalid ? 'text-danger' : 'text-muted'}`}>{criterion.weight ? `${formatNumber(criterion.weight)}%` : 'Points'} · {state}</span></span></button></li>;
+                return <li key={criterion.id}><button type="button" aria-current={active ? 'step' : undefined} aria-label={`Score ${criterion.name}, ${state}`} onClick={() => onSelect(criterion.id)} className={`flex min-h-16 w-full items-center gap-3 px-3 py-3 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${active ? 'bg-primary text-primary-foreground' : 'bg-surface text-foreground hover:bg-surface-muted'} ${invalid ? 'outline outline-2 -outline-offset-2 outline-danger' : ''}`}><span className={`grid size-7 shrink-0 place-items-center border font-condensed text-sm font-bold ${active ? 'border-primary-foreground/50' : 'border-border text-primary'}`}>{index + 1}</span><span className="min-w-0"><span className="block break-words text-xs font-bold">{criterion.name}</span><span className={`mt-0.5 block font-condensed text-xs ${active ? 'text-primary-foreground/80' : invalid ? 'text-danger' : 'text-muted'}`}>{criterion.weight ? `${formatNumber(criterion.weight)}%` : 'Points'} · {state}</span></span></button></li>;
             })}
         </ol>
     </nav>;
@@ -302,23 +323,36 @@ function RemainingCriteria({ criteria, values, errors, activeCriterionId, onSele
 function OfficialSummary({ scorecard }) {
     return <aside className="space-y-4 xl:sticky xl:top-4">
         <section aria-labelledby="saved-score-heading" className="border border-border bg-surface p-4"><p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted">Official summary</p><h3 id="saved-score-heading" className="mt-3 text-sm font-bold text-foreground">Saved weighted score</h3><p className="mt-1 font-condensed text-5xl font-bold tabular-nums text-primary">{Number(scorecard.calculated_total).toFixed(2)}</p><p className="mt-1 text-xs text-muted">Server calculated · revision {scorecard.revision}</p></section>
-        <section aria-labelledby="source-heading" className="border border-border bg-surface">
+        <section aria-labelledby="source-heading" className="hidden border border-border bg-surface xl:block">
             <div className="p-4"><p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted">Scoring authority</p><h3 id="source-heading" className="mt-1 text-base font-bold">Approved proposal {scorecard.source.pages.length ? `pp. ${scorecard.source.pages.join('–')}` : ''}</h3><p className="mt-2 text-sm text-muted">{scorecard.source.reference ?? 'Approved event scoring source'}</p></div>
             <div className="border-t border-border px-4 py-3"><span className="text-xs font-bold uppercase tracking-[0.08em] text-primary">{scorecard.source.reliability}</span></div>
-            <details className="border-t border-border px-4 py-3"><summary className="min-h-11 cursor-pointer py-2 font-bold text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent">Contest instructions</summary>{scorecard.instructions.length ? <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-muted">{scorecard.instructions.map((item) => <li key={item}>{item}</li>)}</ul> : <p className="mt-2 text-sm text-muted">No additional proposal controls are recorded for this contest.</p>}</details>
+            <div className="border-t border-border px-4 py-4"><h4 className="text-sm font-bold text-foreground">Contest instructions</h4><Instructions scorecard={scorecard} /></div>
         </section>
-        <section aria-labelledby="adjustments-heading" className="border border-border bg-surface p-4">
+        <section aria-labelledby="adjustments-heading" className="hidden border border-border bg-surface p-4 xl:block">
             <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted">Official adjustments</p><h3 id="adjustments-heading" className="mt-1 text-base font-bold">Tabulator record</h3></div><strong className="font-condensed text-2xl tabular-nums text-danger">−{Number(scorecard.official_deduction_total).toFixed(2)}</strong></div>
-            {scorecard.official_adjustments.length ? <ul className="mt-4 divide-y divide-border border-t border-border">{scorecard.official_adjustments.map((item) => <li key={item.id} className="py-3 text-sm"><div className="flex justify-between gap-2"><strong>{item.label}</strong><span className="font-condensed font-bold tabular-nums text-danger">−{Number(item.points).toFixed(2)}</span></div><p className="mt-1 text-muted">{item.input} · {item.recorded_by}</p></li>)}</ul> : <p className="mt-3 text-sm text-muted">No official deductions recorded. Judges cannot edit shared operational penalties.</p>}
+            <Adjustments scorecard={scorecard} />
         </section>
+        <div className="space-y-3 xl:hidden">
+            <details className="border border-border bg-surface"><summary className="flex min-h-11 cursor-pointer items-center px-4 py-3 text-sm font-bold text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">Scoring authority</summary><div className="border-t border-border p-4"><h3 className="text-base font-bold">Approved proposal {scorecard.source.pages.length ? `pp. ${scorecard.source.pages.join('–')}` : ''}</h3><p className="mt-2 text-sm text-muted">{scorecard.source.reference ?? 'Approved event scoring source'}</p><p className="mt-3 text-xs font-bold uppercase tracking-[0.08em] text-primary">{scorecard.source.reliability}</p></div></details>
+            <details className="border border-border bg-surface"><summary className="flex min-h-11 cursor-pointer items-center px-4 py-3 text-sm font-bold text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent">Contest instructions</summary><div className="border-t border-border p-4"><Instructions scorecard={scorecard} /></div></details>
+            <details className="border border-border bg-surface"><summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"><span>Official adjustments</span><span className="font-condensed text-lg tabular-nums text-danger">−{Number(scorecard.official_deduction_total).toFixed(2)}</span></summary><div className="border-t border-border p-4"><Adjustments scorecard={scorecard} /></div></details>
+        </div>
     </aside>;
+}
+
+function Instructions({ scorecard }) {
+    return scorecard.instructions.length ? <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-muted">{scorecard.instructions.map((item) => <li key={item}>{item}</li>)}</ul> : <p className="mt-2 text-sm text-muted">No additional proposal controls are recorded for this contest.</p>;
+}
+
+function Adjustments({ scorecard }) {
+    return scorecard.official_adjustments.length ? <ul className="mt-4 divide-y divide-border border-t border-border">{scorecard.official_adjustments.map((item) => <li key={item.id} className="py-3 text-sm"><div className="flex justify-between gap-2"><strong>{item.label}</strong><span className="font-condensed font-bold tabular-nums text-danger">−{Number(item.points).toFixed(2)}</span></div><p className="mt-1 text-muted">{item.input} · {item.recorded_by}</p></li>)}</ul> : <p className="mt-3 text-sm text-muted">No official deductions recorded. Judges cannot edit shared operational penalties.</p>;
 }
 
 function ActionStrip({ scorecard, canEdit, busy, isDirty, submit }) {
     return <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface p-3 lg:left-64">
         <div className="mx-auto flex max-w-[90rem] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-end justify-between gap-3 sm:items-center"><div><p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted">Saved weighted score · revision {scorecard.revision}</p><p className="font-condensed text-3xl font-bold tabular-nums text-foreground">{Number(scorecard.calculated_total).toFixed(2)}</p></div>{canEdit ? <p aria-live="polite" className={`shrink-0 whitespace-nowrap text-xs font-semibold ${isDirty ? 'text-danger' : 'text-muted'}`}>{isDirty ? 'Unsaved changes' : 'Draft saved'}</p> : null}</div>
-            {canEdit ? <div className="grid grid-cols-2 gap-2 sm:flex"><button type="submit" disabled={busy} className="min-h-11 border border-border bg-surface px-5 text-sm font-bold text-primary hover:bg-surface-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-45">Save draft</button><button type="button" onClick={submit} disabled={busy} className="min-h-11 bg-primary px-5 text-sm font-bold text-primary-foreground hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-45">{scorecard.state === 'rejected' ? 'Resubmit scorecard' : 'Review and submit'}</button></div> : <p className="text-sm font-semibold text-muted">{scorecard.state === 'approved' ? 'Approved scorecard · read only' : 'Submitted for review · read only'}</p>}
+            {canEdit ? <div className="grid grid-cols-2 gap-2 sm:flex"><button type="submit" disabled={busy} className="min-h-11 whitespace-nowrap border border-control-border bg-surface px-3 text-xs font-bold text-primary hover:bg-surface-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-45 sm:px-5 sm:text-sm">Save draft</button><button type="button" onClick={submit} disabled={busy} className="min-h-11 whitespace-nowrap bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-45 sm:px-5 sm:text-sm">{scorecard.state === 'rejected' ? 'Resubmit scorecard' : 'Review and submit'}</button></div> : <p className="text-sm font-semibold text-muted">{scorecard.state === 'approved' ? 'Approved scorecard · read only' : 'Submitted for review · read only'}</p>}
         </div>
     </div>;
 }

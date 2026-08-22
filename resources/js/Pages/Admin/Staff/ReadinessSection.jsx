@@ -112,7 +112,7 @@ function PanelForm({ item, form, onSubmit, title = 'Judging panel', archived = f
                 <p className="mt-1 text-sm text-muted">Choose the Judges who score every entry in this panel.</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     {judges.map((judge) => (
-                        <label key={judge.id} className="flex min-h-10 items-center gap-2 rounded-sm border border-border px-3 text-sm">
+                        <label key={judge.id} className="flex min-h-11 items-center gap-2 rounded-sm border border-control-border px-3 text-sm">
                             <input type="checkbox" checked={form.data.judge_ids.includes(String(judge.id))} onChange={() => toggleJudge(judge.id)} className="rounded border-border text-primary focus:ring-accent" />
                             {judge.name}
                         </label>
@@ -162,8 +162,8 @@ function LockPanelModal({ item, processing, onClose, onLock }) {
                     {item.counts?.judges ?? 0} Judges &middot; {item.counts?.entries ?? 0} Entries &middot; {(item.counts?.judges ?? 0) * (item.counts?.entries ?? 0)} scorecards expected
                 </p>
                 <div className="mt-5 flex justify-end gap-2">
-                    <button type="button" onClick={onClose} className="min-h-10 rounded-sm border border-border px-4 text-sm font-bold">Cancel</button>
-                    <button type="button" disabled={processing} onClick={onLock} className="min-h-10 rounded-sm bg-danger px-4 text-sm font-bold text-white">Lock judging panel</button>
+                    <button type="button" onClick={onClose} className="min-h-11 rounded-sm border border-control-border px-4 text-sm font-bold">Cancel</button>
+                    <button type="button" disabled={processing} onClick={onLock} className="min-h-11 rounded-sm bg-danger px-4 text-sm font-bold text-white">Lock judging panel</button>
                 </div>
             </div>
         </Modal>

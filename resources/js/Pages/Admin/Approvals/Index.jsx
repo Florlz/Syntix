@@ -84,7 +84,7 @@ function OutcomeReview({ submission }) {
                 <StatusPill>Needs review</StatusPill>
             </div>
 
-            {!isJudged ? <><div className="mt-5 grid gap-3 rounded-2xl bg-surface-muted p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+            {!isJudged ? <><div className="mt-5 grid gap-3 border border-border bg-surface-muted p-4 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
                 <div><p className="text-xs font-bold uppercase tracking-[0.1em] text-muted">{submission.home?.name || 'Home side'}</p><p className="mt-1 font-condensed text-3xl font-bold text-foreground">{homeScore ?? '—'}</p></div>
                 <span className="text-center text-xs font-bold uppercase tracking-[0.14em] text-muted">{hasScore ? 'Final' : 'Result'}</span>
                 <div className="text-left sm:text-right"><p className="text-xs font-bold uppercase tracking-[0.1em] text-muted">{submission.away?.name || 'Away side'}</p><p className="mt-1 font-condensed text-3xl font-bold text-foreground">{awayScore ?? '—'}</p></div>
