@@ -21,7 +21,7 @@ export default function RosterPlayerList({
     emptyAction = null,
     emphasis = false,
 }) {
-    return <section className={`overflow-hidden bg-surface ${emphasis ? 'rounded-xl border-2 border-primary shadow-xs' : 'border border-border'}`} aria-labelledby={`${title.toLowerCase().replaceAll(' ', '-')}-title`}>
+    return <section className={`overflow-hidden bg-surface ${emphasis ? 'border-2 border-primary' : 'border border-border'}`} aria-labelledby={`${title.toLowerCase().replaceAll(' ', '-')}-title`}>
         <div className={`flex flex-wrap items-start justify-between gap-4 px-5 py-4 ${members.length ? 'border-b border-border' : ''}`}>
             <div>
                 <div className="flex flex-wrap items-baseline gap-2"><h3 id={`${title.toLowerCase().replaceAll(' ', '-')}-title`} className="font-serif text-xl font-bold text-foreground">{title}</h3>{countLabel ? <span className="text-sm font-semibold text-muted">{countLabel}</span> : null}</div>

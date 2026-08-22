@@ -9,7 +9,7 @@ export default function DivisionSwitcher({ event, sport, divisions = [], divisio
         <div className="flex min-w-max items-center gap-2">
             <Link
                 href={sportWorkspaceUrl(event.id, sport.id, { section: allDivisionsSection })}
-                className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-sm font-bold transition ${!division ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-surface text-muted hover:border-primary hover:text-primary'}`}
+                className={`inline-flex min-h-10 items-center rounded-sm border px-3.5 text-sm font-bold transition-colors ${!division ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-surface text-muted hover:border-primary hover:text-primary'}`}
                 aria-current={!division ? 'page' : undefined}
             >All divisions</Link>
             {divisions.map((item) => {
@@ -17,7 +17,7 @@ export default function DivisionSwitcher({ event, sport, divisions = [], divisio
                 return <Link
                     key={item.id}
                     href={sportWorkspaceDivisionUrl(event.id, sport.id, item.id, activeSection)}
-                    className={`inline-flex min-h-9 items-center rounded-full border px-3.5 text-sm font-bold transition ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-surface text-muted hover:border-primary hover:text-primary'}`}
+                    className={`inline-flex min-h-10 items-center rounded-sm border px-3.5 text-sm font-bold transition-colors ${selected ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-surface text-muted hover:border-primary hover:text-primary'}`}
                     aria-current={selected ? 'page' : undefined}
                 >{item.name}</Link>;
             })}

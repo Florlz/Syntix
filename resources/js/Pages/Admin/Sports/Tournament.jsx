@@ -4,11 +4,12 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import SportWorkspaceShell from '@/Components/Sports/SportWorkspaceShell';
 import WorkflowNotice from '@/Components/Sports/WorkflowNotice';
 import { sportWorkspaceUrl } from '@/Support/sportWorkspaceRoutes';
+import { adminStyles } from '@/Support/adminStyles';
 import { Head, useForm, usePage } from '@inertiajs/react';
 
-const panel = 'rounded-xl border border-border bg-surface shadow-xs';
-const primary = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
-const quiet = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-bold text-primary transition hover:border-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
+const panel = adminStyles.section;
+const primary = adminStyles.primaryAction;
+const quiet = adminStyles.secondaryAction;
 
 function formatLabel(value, fallback = 'Format not set') {
     return value ? String(value).replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) : fallback;
@@ -179,7 +180,7 @@ export default function Tournament({ event, sport, sports = [], division, discip
 
     return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Bracket</h1></div>}>
         <Head title={`${sport.name} ${heading} · Bracket`} />
-        <main className="bg-background p-4 sm:p-7 lg:p-8"><SportWorkspaceShell event={event} sport={shellSport} division={division} divisions={divisions} activeSection="bracket">
+        <main className={adminStyles.page}><SportWorkspaceShell event={event} sport={shellSport} division={division} divisions={divisions} activeSection="bracket">
             <div className="flex flex-col gap-5">
                 {flash?.status ? <div role="status" className="rounded-xl border border-primary bg-primary/10 p-4 text-sm font-semibold text-primary">{flash.status}</div> : null}
                 {Object.keys(errors).length ? <div role="alert" className="rounded-xl border border-danger bg-danger-surface p-4 text-sm font-semibold text-danger">{Object.values(errors).flat().join(' ')}</div> : null}

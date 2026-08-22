@@ -1,10 +1,11 @@
 import { useForm, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import AppIcon from '@/Components/AppIcon';
+import { adminStyles } from '@/Support/adminStyles';
 
-const primary = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
-const quiet = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-bold text-primary transition hover:border-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
-const input = 'mt-1 block w-full rounded-lg border-border bg-surface px-3 py-2.5 text-sm text-foreground focus:border-primary focus:ring-primary';
+const primary = adminStyles.primaryAction;
+const quiet = adminStyles.secondaryAction;
+const input = `mt-1 ${adminStyles.field}`;
 const playerRoles = new Set(['student_athlete', 'reserve']);
 
 function ErrorText({ value }) { return value ? <p className="mt-1 text-xs font-semibold text-red-700">{value}</p> : null; }

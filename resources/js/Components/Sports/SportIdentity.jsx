@@ -18,13 +18,13 @@ export default function SportIdentity({ sport, division = null }) {
                     <span aria-hidden="true" className="text-border">/</span>
                     <span className="text-muted">{division ? 'Selected division' : 'All divisions'}</span>
                 </div>
-                <h1 id="sport-workspace-title" className="mt-2 font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl">{sport.name}</h1>
+                <h1 id="sport-workspace-title" className="mt-2 text-4xl font-extrabold tracking-tight text-foreground sm:text-5xl">{sport.name}</h1>
                 <p data-workspace-division className="mt-2 text-base font-semibold text-muted">{division?.name || 'All divisions'}</p>
             </div>
-            <div className="grid grid-cols-3 divide-x divide-border rounded-xl border border-border bg-surface-muted px-1 py-3 sm:min-w-[24rem]">
-                <div className="px-3 sm:px-4"><p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted">Teams</p><p className="mt-1 font-condensed text-xl font-bold text-foreground">{entryCount ?? '—'}</p></div>
-                <div className="px-3 sm:px-4"><p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted">Players</p><p className="mt-1 font-condensed text-xl font-bold text-foreground">{playerCount ?? '—'}</p></div>
-                <div className="px-3 sm:px-4"><p className="flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted"><AppIcon name="lock" className="size-3" /> Ready</p><p className="mt-1 font-condensed text-xl font-bold text-foreground">{readiness}</p></div>
+            <div className="grid grid-cols-3 divide-x divide-border border border-border bg-surface-muted px-1 py-3 sm:min-w-[24rem]">
+                <div className="px-3 sm:px-4"><p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted">Teams</p><p className="mt-1 font-condensed text-3xl font-bold text-primary">{entryCount ?? '—'}</p></div>
+                <div className="px-3 sm:px-4"><p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted">Players</p><p className="mt-1 font-condensed text-3xl font-bold text-primary">{playerCount ?? '—'}</p></div>
+                <div className="px-3 sm:px-4"><p className="flex items-center gap-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-muted"><AppIcon name="lock" className="size-3" /> Ready</p><p className="mt-1 font-condensed text-3xl font-bold text-primary">{readiness}</p></div>
             </div>
         </div>
     </section>;

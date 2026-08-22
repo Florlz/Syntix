@@ -7,11 +7,12 @@ import { departmentPalette } from '@/Support/departmentColors';
 import SlideOver from '@/Components/SlideOver';
 import RosterAddPlayers from './RosterAddPlayers';
 import RosterPlayerList from './RosterPlayerList';
+import { adminStyles } from '@/Support/adminStyles';
 
-const surface = 'border border-border bg-surface';
-const primary = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground transition hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
-const quiet = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-bold text-primary transition hover:border-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
-const input = 'mt-1 block w-full rounded-lg border-border bg-surface px-3 py-2.5 text-sm text-foreground focus:border-primary focus:ring-primary';
+const surface = adminStyles.section;
+const primary = adminStyles.primaryAction;
+const quiet = adminStyles.secondaryAction;
+const input = `mt-1 ${adminStyles.field}`;
 
 const playerRoles = ['student_athlete', 'reserve'];
 const emptyParticipants = [];
@@ -51,7 +52,7 @@ function DepartmentIndex({ event, sport, division, departments, selectedId, quer
         return text.includes(query.trim().toLowerCase()) && statusMatches(department, statusFilter);
     });
 
-    return <section className={`${surface} overflow-hidden rounded-xl`} aria-labelledby="team-rosters-title">
+    return <section className={`${surface} overflow-hidden`} aria-labelledby="team-rosters-title">
         <div className="hidden grid-cols-[minmax(14rem,1.4fr)_minmax(8rem,0.7fr)_minmax(9rem,0.8fr)_auto] gap-4 border-b border-border bg-surface-muted px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-muted sm:grid">
             <span id="team-rosters-title">Team</span><span>Players</span><span>Team sheet</span><span className="sr-only">Action</span>
         </div>
