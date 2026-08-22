@@ -81,6 +81,11 @@ function stateTone(state) {
     return 'danger';
 }
 
+function entrySummary(entry) {
+    const hasMissingScore = entry.scorecards?.some((card) => card.raw_total === null || card.raw_total === undefined || card.raw_total === '');
+    return hasMissingScore ? 'Missing' : entry.final_total ?? 'Waiting';
+}
+
 export default function JudgedContest({ contest, tabulation, adjustment_configuration: configuration = {} }) {
     const { flash = {}, errors = {} } = usePage().props;
     const entries = tabulation.entries ?? [];
@@ -111,8 +116,8 @@ export default function JudgedContest({ contest, tabulation, adjustment_configur
                     <section aria-label="Tabulation readiness" className="grid gap-4 border-y border-border py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                         <LiveProgress label="Judge submissions" value={receivedScorecards} max={totalScorecards} detail={`${receivedScorecards} of ${totalScorecards} Judge submissions received`} tone={blockers.length ? 'danger' : 'primary'}/>
                         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 lg:justify-end">
-                            <p className="text-sm text-muted"><span className="font-condensed text-lg font-bold tabular-nums text-foreground">{judges.length}</span> Judges</p>
-                            <p className="text-sm text-muted"><span className="font-condensed text-lg font-bold tabular-nums text-foreground">{entries.length}</span> Entries</p>
+                            <p className="text-sm text-muted"><span className="font-condensed text-lg font-bold tabular-nums text-foreground">{judges.length}</span> {judges.length === 1 ? 'Judge' : 'Judges'}</p>
+                            <p className="text-sm text-muted"><span className="font-condensed text-lg font-bold tabular-nums text-foreground">{entries.length}</span> {entries.length === 1 ? 'Entry' : 'Entries'}</p>
                             <OperationalStatus label={stateLabels[operationalState] ?? operationalState} tone={stateTone(operationalState)}/>
                         </div>
                     </section>
@@ -150,7 +155,7 @@ export default function JudgedContest({ contest, tabulation, adjustment_configur
                             {entries.map((entry) => (
                                 <details key={entry.entry_id} className="p-4">
                                     <summary className="cursor-pointer list-none focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent">
-                                        <span className="flex items-center justify-between gap-3 font-bold"><span>{entry.entry}</span><span className="font-mono tabular-nums">{entry.final_total ?? 'Waiting'}</span></span>
+                                        <span className="flex items-center justify-between gap-3 font-bold"><span>{entry.entry}</span><span className={`font-mono tabular-nums ${entrySummary(entry) === 'Missing' ? 'text-danger' : ''}`}>{entrySummary(entry)}</span></span>
                                         <span className="mt-1 block text-xs font-normal text-muted">{entry.delegation}</span>
                                     </summary>
                                     <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
