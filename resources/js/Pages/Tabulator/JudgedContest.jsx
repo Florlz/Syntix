@@ -105,8 +105,8 @@ export default function JudgedContest({ contest, tabulation, adjustment_configur
             <Head title={`${contest.name} tabulation`}/>
             <main className="min-h-[calc(100vh-4rem)] bg-background p-4 pb-40 text-foreground sm:p-7 sm:pb-32 lg:p-8 lg:pb-32">
                 <div className="mx-auto max-w-[96rem] space-y-6">
-                    {flash.status ? <div role="status" className="border-l-4 border-primary bg-primary/10 p-4 text-sm">{flash.status}</div> : null}
-                    {Object.keys(errors).length ? <div role="alert" className="border-l-4 border-danger bg-danger-surface p-4 text-sm text-danger">{Object.values(errors).join(' ')}</div> : null}
+                    {flash.status ? <div role="status" className="rounded-lg border border-primary/30 bg-primary/10 p-4 text-sm">{flash.status}</div> : null}
+                    {Object.keys(errors).length ? <div role="alert" className="rounded-lg border border-danger/30 bg-danger-surface p-4 text-sm text-danger">{Object.values(errors).join(' ')}</div> : null}
 
                     <section aria-label="Tabulation readiness" className="grid gap-4 border-y border-border py-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                         <LiveProgress label="Judge submissions" value={receivedScorecards} max={totalScorecards} detail={`${receivedScorecards} of ${totalScorecards} Judge submissions received`} tone={blockers.length ? 'danger' : 'primary'}/>

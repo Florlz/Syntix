@@ -167,9 +167,9 @@ export default function Scorecard({ scorecard }) {
                         </nav>
                     </header>
 
-                    {scorecard.state === 'rejected' && scorecard.rejection_reason ? <div role="alert" className="border-l-4 border-danger bg-danger-surface px-4 py-3 text-sm text-danger"><strong>Correction required:</strong> {scorecard.rejection_reason}</div> : null}
-                    {flash?.status ? <div aria-live="polite" className="border-l-4 border-primary bg-primary/10 px-4 py-3 text-sm text-foreground">{flash.status}</div> : null}
-                    {pageErrors.length ? <div role="alert" className="border-l-4 border-danger bg-danger-surface px-4 py-3 text-sm text-danger"><ul className="space-y-1">{pageErrors.map(([key, message]) => <li key={key}>{message}</li>)}</ul></div> : null}
+                    {scorecard.state === 'rejected' && scorecard.rejection_reason ? <div role="alert" className="rounded-lg border border-danger/30 bg-danger-surface px-4 py-3 text-sm text-danger"><strong>Correction required:</strong> {scorecard.rejection_reason}</div> : null}
+                    {flash?.status ? <div aria-live="polite" className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-foreground">{flash.status}</div> : null}
+                    {pageErrors.length ? <div role="alert" className="rounded-lg border border-danger/30 bg-danger-surface px-4 py-3 text-sm text-danger"><ul className="space-y-1">{pageErrors.map(([key, message]) => <li key={key}>{message}</li>)}</ul></div> : null}
 
                     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
                         <section aria-labelledby="rubric-heading" className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
