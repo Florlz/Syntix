@@ -45,9 +45,32 @@ test('renders judge evidence as read-only and blocks finalization while incomple
 
     expect(screen.getByRole('heading', { name: 'Judge score matrix' })).toBeInTheDocument();
     expect(screen.getAllByText('88.5000').length).toBeGreaterThan(0);
+    const progress = screen.getByRole('progressbar', { name: 'Judge submissions' });
+    expect(progress).toHaveAttribute('aria-valuenow', '1');
+    expect(progress).toHaveAttribute('aria-valuemax', '2');
+    expect(screen.getAllByText('Missing').length).toBeGreaterThan(0);
     expect(screen.queryByRole('textbox', { name: /Judge A/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Finalize & submit result' })).toBeDisabled();
-    expect(screen.getByText('Waiting for all Judges to submit their scorecards.')).toBeInTheDocument();
+    const finalize = screen.getByRole('button', { name: 'Finalize and submit result' });
+    expect(finalize).toBeDisabled();
+    expect(finalize).toHaveAttribute('aria-describedby', 'finalization-status');
+    expect(screen.getByText('Waiting for all Judges to submit their scorecards.')).toHaveAttribute('id', 'finalization-status');
+});
+
+test('enables finalization only when every required result is ready', () => {
+    render(<JudgedContest {...props} tabulation={{
+        ...props.tabulation,
+        operational_state: 'ready',
+        readiness: { ready: true, blocker_codes: [], blocker_labels: {} },
+        entries: [{
+            ...props.tabulation.entries[0],
+            scorecards: props.tabulation.entries[0].scorecards.map((card) => ({ ...card, raw_total: card.raw_total ?? '91.0000' })),
+            aggregate_raw_total: '89.7500',
+            final_total: '88.7500',
+        }],
+    }} />);
+
+    expect(screen.getByText('All evidence received. Finalize when the ranking is verified.')).toHaveAttribute('id', 'finalization-status');
+    expect(screen.getByRole('button', { name: 'Finalize and submit result' })).toBeEnabled();
 });
 
 test('voids an active adjustment with PATCH and keeps voided history visible', () => {
