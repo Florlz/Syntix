@@ -41,7 +41,10 @@ class SettingsTest extends TestCase
                 ->where('preferences.text_size', 'large')
                 ->where('preferences.contrast', 'default')
                 ->where('preferences.reduce_motion', true)
+                ->missing('preferences.theme')
+                ->missing('preference_options.themes')
                 ->where('auth.user.preferences.text_size', 'large')
+                ->missing('auth.user.preferences.theme')
                 ->missing('auth.user.preferences.secret')
                 ->missing('auth.user.password')
                 ->missing('auth.user.remember_token'));
@@ -200,7 +203,6 @@ class SettingsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame([
-            'theme' => 'system',
             'text_size' => 'x-large',
             'contrast' => 'high',
             'reduce_motion' => true,
@@ -223,26 +225,21 @@ class SettingsTest extends TestCase
             ->assertSessionHasErrors(['text_size', 'default_event_id']);
     }
 
-    public function test_theme_accepts_supported_values_rejects_invalid_values_and_preserves_other_preferences(): void
+    public function test_theme_is_not_part_of_the_supported_preference_contract(): void
     {
         $user = User::factory()->create([
             'preferences' => [
-                'theme' => 'system',
+                'theme' => 'dark',
                 'text_size' => 'large',
                 'default_landing' => 'sports',
             ],
         ]);
 
+        $this->assertArrayNotHasKey('theme', $user->normalizedPreferences());
+        $this->assertSame('large', $user->normalizedPreferences()['text_size']);
+
         $this->actingAs($user)
             ->patch('/settings/preferences', ['theme' => 'dark'])
-            ->assertSessionHasNoErrors();
-
-        $this->assertSame('dark', $user->refresh()->preferences['theme']);
-        $this->assertSame('large', $user->preferences['text_size']);
-        $this->assertSame('sports', $user->preferences['default_landing']);
-
-        $this->actingAs($user)
-            ->patch('/settings/preferences', ['theme' => 'sepia'])
             ->assertSessionHasErrors('theme');
 
         $this->assertSame('dark', $user->refresh()->preferences['theme']);
@@ -272,7 +269,7 @@ class SettingsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $preferences = $user->refresh()->preferences;
-        $this->assertSame('dark', $preferences['theme']);
+        $this->assertArrayNotHasKey('theme', $preferences);
         $this->assertSame('sports', $preferences['default_landing']);
         $this->assertFalse($preferences['notifications']['approvals']);
         $this->assertTrue($preferences['notifications']['security']);
@@ -289,19 +286,19 @@ class SettingsTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_inertia_theme_scope_is_admin_only_even_for_an_authenticated_public_visit(): void
+    public function test_inertia_does_not_share_a_theme_scope(): void
     {
         $admin = User::factory()->create(['is_global_admin' => true]);
 
         $this->actingAs($admin)
             ->get('/')
             ->assertInertia(fn ($page) => $page
-                ->where('ui.theme_scope', 'public'));
+                ->missing('ui.theme_scope'));
 
         $this->actingAs($admin)
             ->get('/settings')
             ->assertInertia(fn ($page) => $page
-                ->where('ui.theme_scope', 'admin'));
+                ->missing('ui.theme_scope'));
     }
 
     public function test_archived_accessible_workspace_can_remain_the_read_only_default(): void
@@ -455,7 +452,6 @@ class SettingsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame([
-            'theme' => 'system',
             'text_size' => 'x-large',
             'contrast' => 'default',
             'reduce_motion' => false,
@@ -475,7 +471,6 @@ class SettingsTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame([
-            'theme' => 'system',
             'text_size' => 'x-large',
             'contrast' => 'default',
             'reduce_motion' => false,

@@ -35,7 +35,6 @@ class HandleInertiaRequests extends Middleware
     {
         $anonymousPublic = $request->is('events/*/scoreboard', 'events/*/divisions/*/bracket');
         $public = $anonymousPublic || $request->is('/');
-        $themeScope = $this->usesAdminTheme($request) ? 'admin' : 'public';
         $shared = parent::share($request);
 
         if ($public) {
@@ -172,21 +171,6 @@ class HandleInertiaRequests extends Middleware
             ],
             'nav_badges' => $navBadges,
             'notifications' => $notifications,
-            'ui' => [
-                'theme_scope' => $themeScope,
-            ],
         ];
-    }
-
-    private function usesAdminTheme(Request $request): bool
-    {
-        return ! $request->routeIs(
-            'landing',
-            'public.*',
-            'login',
-            'password.*',
-            'verification.*',
-            'account.setup',
-        );
     }
 }

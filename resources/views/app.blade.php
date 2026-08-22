@@ -3,10 +3,10 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="theme-color" content="#111827">
+        <meta name="theme-color" content="#FEFEFE">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-status-bar-style" content="default">
         <meta name="apple-mobile-web-app-title" content="Syntix">
         <meta name="description" content="Syntix progressive web application">
         <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -23,20 +23,6 @@
 
         <!-- Scripts -->
         @routes
-        @if(data_get($page, 'props.ui.theme_scope') === 'admin')
-            <script>
-                (() => {
-                    try {
-                        const theme = localStorage.getItem('syntix-theme') || 'system';
-                        const dark = theme === 'dark'
-                            || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-                        document.documentElement.classList.toggle('dark', dark);
-                        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
-                    } catch (_) {}
-                })();
-            </script>
-        @endif
         @viteReactRefresh
         @vite(['resources/js/app.jsx', "resources/js/Pages/{$page['component']}.jsx"])
         @inertiaHead

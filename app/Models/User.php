@@ -40,7 +40,6 @@ class User extends Authenticatable
      * @var array<string, mixed>
      */
     public const DEFAULT_PREFERENCES = [
-        'theme' => 'system',
         'text_size' => 'default',
         'contrast' => 'default',
         'reduce_motion' => false,
@@ -166,9 +165,6 @@ class User extends Authenticatable
         $stored = $this->getAttribute('preferences');
         $stored = is_array($stored) ? $stored : [];
 
-        $theme = in_array($stored['theme'] ?? null, ['light', 'dark', 'system'], true)
-            ? $stored['theme']
-            : self::DEFAULT_PREFERENCES['theme'];
         $textSize = in_array($stored['text_size'] ?? null, ['default', 'large', 'x-large'], true)
             ? $stored['text_size']
             : self::DEFAULT_PREFERENCES['text_size'];
@@ -221,7 +217,6 @@ class User extends Authenticatable
                 : null);
 
         return [
-            'theme' => $theme,
             'text_size' => $textSize,
             'contrast' => $contrast,
             'reduce_motion' => $reduceMotion ?? self::DEFAULT_PREFERENCES['reduce_motion'],

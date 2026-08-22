@@ -77,7 +77,7 @@ class PostgresContractTest extends TestCase
         ]);
 
         $preferences = $user->fresh()->normalizedPreferences(collect());
-        self::assertSame('dark', $preferences['theme']);
+        self::assertArrayNotHasKey('theme', $preferences);
         self::assertFalse($preferences['notifications']['approvals']);
         self::assertTrue($preferences['notifications']['security']);
 

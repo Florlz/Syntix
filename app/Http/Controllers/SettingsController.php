@@ -39,11 +39,6 @@ class SettingsController extends Controller
                 'state' => $event->eventState()->value,
             ])->values(),
             'preference_options' => [
-                'themes' => [
-                    ['value' => 'light', 'label' => 'Light'],
-                    ['value' => 'dark', 'label' => 'Dark'],
-                    ['value' => 'system', 'label' => 'System'],
-                ],
                 'text_sizes' => [
                     ['value' => 'default', 'label' => 'Default'],
                     ['value' => 'large', 'label' => 'Large'],
@@ -77,7 +72,7 @@ class SettingsController extends Controller
         $events = $this->availableEvents($user);
 
         $validated = $request->validate([
-            'theme' => ['sometimes', 'required', Rule::in(['light', 'dark', 'system'])],
+            'theme' => ['prohibited'],
             'text_size' => ['sometimes', 'required', Rule::in(['default', 'large', 'x-large'])],
             'contrast' => ['sometimes', 'required', Rule::in(['default', 'high'])],
             'reduce_motion' => ['sometimes', 'required', 'boolean'],
@@ -104,7 +99,6 @@ class SettingsController extends Controller
         $current = $user->normalizedPreferences($events->modelKeys());
         $notificationInput = $validated['notifications'] ?? [];
         $user->preferences = [
-            'theme' => $validated['theme'] ?? $current['theme'],
             'text_size' => $validated['text_size'] ?? $current['text_size'],
             'contrast' => $validated['contrast'] ?? $current['contrast'],
             'reduce_motion' => array_key_exists('reduce_motion', $validated)
