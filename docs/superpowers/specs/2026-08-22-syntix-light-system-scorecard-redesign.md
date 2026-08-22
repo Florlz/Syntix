@@ -1,14 +1,14 @@
 # Syntix light system and Judge scorecard redesign
 
-**Date:** August 22, 2026  
-**Status:** Approved visual direction; awaiting specification review  
-**Scope:** Product-wide light-only presentation and the Judge scorecard composition
+**Date:** August 22, 2026
+**Status:** Approved for implementation
+**Scope:** Product-wide light-only presentation, admin visual migration, and the Judge scorecard composition
 
 ## Purpose
 
 Syntix will use one permanent light visual system across public pages, authentication, Global Admin and organizer workspaces, Judge screens, and Tabulator screens. Theme switching and dark-mode behavior will be removed completely. Text-size, high-contrast, and reduced-motion preferences remain supported.
 
-This delivery also replaces the Judge scorecard composition with the user-approved **Guided Criteria Focus** design. The scorecard is the first fully realized surface in the new system. Other routes inherit the light tokens and refreshed application shell without changing their route-specific workflows or being recomposed page by page in this delivery.
+This delivery also replaces the Judge scorecard composition with the user-approved **Guided Criteria Focus** design. The scorecard is the only route receiving a structural recomposition. Admin routes keep their current information architecture, content order, and workflows, but every visible admin element adopts the new light system rather than receiving a shallow token swap.
 
 ## Approved direction
 
@@ -91,6 +91,42 @@ The authenticated shell changes from a dark full-height sidebar to the approved 
 - Mobile navigation remains a drawer with the same light materials.
 
 Public and authentication pages retain their existing content and route-specific composition, but their document chrome and shared tokens are light-only. No route may reactivate a dark theme from stored or operating-system preference.
+
+## Admin workspace visual migration
+
+The complete authenticated admin workspace adopts the Official Results Bulletin design without changing page structure. This includes the event overview, event creation, departments, registrations, participant records, staff, sports, rosters, tournament operations, public programme management, result approvals, account invitations, and settings.
+
+### What changes
+
+- Replace dark promotional hero panels with light ruled mastheads that preserve the same content and actions.
+- Replace large rounded cards and detached shadows with small-radius or square bulletin sections separated by rules, alignment, and quiet fields.
+- Replace hard-coded navy, teal, gold, slate, and white utilities with semantic system tokens.
+- Use the shared ink-navy, teal, cool-rule, quiet-field, danger, and focus roles consistently.
+- Use Figtree for admin headings and body copy. Use Barlow Condensed for metrics, counts, ranks, dates, times, and compact status data.
+- Restyle forms, filters, search, tables, tabs, notices, empty states, modals, slide-overs, drawers, status tags, and sticky action areas in the same component grammar.
+- Keep real sport cover images and department colors where they convey configured event identity. Their surrounding controls and frames adopt the bulletin system.
+- Remove decorative lift, hover translation, oversized corner radii, and shadow changes. Hover and active states use rule, field, text, and focus changes instead.
+- Preserve one filled teal primary action per action group. Secondary actions use ruled light controls. Destructive actions remain red and explicit.
+
+### What does not change
+
+- No admin route changes its information architecture, content order, navigation hierarchy, or responsive topology solely for this visual migration.
+- Existing forms keep their fields, validation, submission methods, and backend contracts.
+- Existing tables, drawers, dialogs, tabs, filters, and disclosures keep their behavior and semantic roles.
+- Admin workflows, permissions, event state rules, roster rules, scoring approval rules, and audit behavior remain unchanged.
+- The migration does not create a broad abstraction that hides route-specific business logic. Shared visual primitives accept ordinary content and classes; each route keeps ownership of its workflow.
+
+### Shared visual primitives
+
+The implementation may introduce a small admin visual layer for repeated presentation:
+
+- a ruled page masthead;
+- a bulletin section with optional header and footer slots;
+- a compact toolbar or filter row;
+- consistent primary, secondary, and danger action classes;
+- consistent field, table, notice, status, empty-state, drawer, and dialog classes.
+
+These primitives own appearance only. They do not fetch data, choose routes, submit forms, interpret event state, or contain role checks.
 
 ## Judge scorecard composition
 
@@ -183,6 +219,7 @@ Implementation follows test-first development.
 - Replace theme UI tests with assertions that no theme controls or dark-mode side effects remain.
 - Replace backend theme persistence tests with assertions that `theme` is rejected or ignored according to the final request contract and omitted from normalized preferences.
 - Verify no source references remain for `.dark`, `dark:`, `syntix-theme`, `prefers-color-scheme: dark`, `theme_scope`, or the removed theme helper.
+- Add source-level coverage for the admin visual primitives and migrate existing route tests only where accessible names or element roles change.
 - Run focused UI tests first, then the full UI suite, relevant Laravel feature tests, the production build, and the Impeccable detector.
 - Inspect the scorecard and representative public, auth, admin, Judge, and Tabulator routes in the in-app browser at desktop and phone widths.
 - Compare the desktop scorecard against the approved comp at matching dimensions, then run the Impeccable finish review.
@@ -193,6 +230,8 @@ Implementation follows test-first development.
 - No theme selector, dark-mode script, dark class, dark token block, or dark backend preference remains active.
 - High contrast, larger text, and reduced motion continue to work.
 - The authenticated shell matches the light Official Results Bulletin system across roles.
+- Every admin route uses the bulletin palette, typography, rules, controls, status language, and restrained corner treatment without changing its workflow structure.
+- Admin pages no longer use dark hero panels, large soft card styling, decorative hover lift, or one-off hard-coded palette values where a semantic token exists.
 - The Judge scorecard matches the Guided Criteria Focus topology and visual hierarchy.
 - Judges can identify the active criterion, its allowed range, scoring progress, saved weighted score, official adjustments, and next action without scanning stacked cards.
 - Judges can switch criteria without losing unsaved values or notes.
