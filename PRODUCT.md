@@ -76,4 +76,3 @@ Product copy is direct and operational. It distinguishes live from official data
 ## Accessibility & inclusion
 
 Syntix must remain usable with keyboard navigation, visible focus, semantic labels, screen-reader status announcements, high-contrast preferences, reduced motion, and larger text settings. Worker screens must support phone-sized touch interaction and laptop-sized dense review without hiding required information.
-

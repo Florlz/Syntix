@@ -1,6 +1,6 @@
 # Syntix Live Desk worker UI design
 
-**Date:** August 22, 2026  
+**Date:** August 22, 2026
 **Status:** Approved for implementation
 **Scope:** Judge and Tabulator worker interfaces
 
