@@ -108,7 +108,7 @@ test('submits through its own form and keeps the server revision for the next dr
     const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
     render(<Scorecard scorecard={fixture()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Submit scorecard' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Review and submit' }));
     const firstSaveOptions = patch.mock.calls[0][2];
     act(() => {
         firstSaveOptions.onSuccess({ props: { scorecard: fixture({ revision: 7, calculated_total: '89.0000' }) } });
@@ -119,6 +119,17 @@ test('submits through its own form and keeps the server revision for the next dr
 
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
     expect(patch.mock.calls[1][1].expected_revision).toBe(7);
+});
+
+test('shows required scoring progress and a review submission action', async () => {
+    const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
+    render(<Scorecard scorecard={fixture({
+        values: { 1: { raw_value: '90', deduction: '0', notes: '' }, 2: { raw_value: '', deduction: '0', notes: '' } },
+    })} />);
+
+    expect(screen.getByRole('progressbar', { name: 'Required criteria' })).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.getByText('1 of 2 required criteria scored')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Review and submit' })).toBeInTheDocument();
 });
 
 test('synchronizes values when fresh scorecard props arrive for a clean form', async () => {
@@ -179,6 +190,6 @@ test.each(['submitted', 'approved'])('hides editing actions for %s scorecards', 
     render(<Scorecard scorecard={fixture({ state })} />);
 
     expect(screen.queryByRole('button', { name: 'Save draft' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Submit scorecard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Review and submit' })).not.toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Tone Quality Score' })).toBeDisabled();
 });
