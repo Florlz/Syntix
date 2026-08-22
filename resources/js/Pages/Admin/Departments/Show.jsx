@@ -13,10 +13,10 @@ const primary = adminStyles.primaryAction;
 const quiet = adminStyles.secondaryAction;
 
 const states = {
-    not_started: 'bg-slate-100 text-slate-600',
-    draft: 'bg-amber-50 text-amber-800',
+    not_started: 'bg-surface-muted text-muted',
+    draft: 'bg-accent/10 text-accent-foreground',
     active: 'bg-primary/10 text-primary',
-    locked: 'bg-emerald-50 text-emerald-800',
+    locked: 'bg-primary/10 text-primary',
     blocked: 'bg-rose-50 text-rose-800',
 };
 
@@ -48,7 +48,7 @@ function DivisionRoster({ event, department, sport, division, view, preview, onP
             <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h4 className="font-bold text-foreground">{division.name}</h4><span className={`rounded-full px-2 py-1 text-[0.62rem] font-bold uppercase tracking-[0.06em] ${states[roster.state] || states.draft}`}>{rosterStateLabel(roster.state)}</span></div><p className="mt-1 text-xs text-muted">{countLabel(roster.counts.players, 'player')} · {countLabel(roster.counts.coaches, 'coach', 'coaches')}</p></div>
             <div className="flex flex-wrap gap-2"><button type="button" className={quiet} aria-label={`${preview?.open ? 'Hide' : 'View'} ${view === 'players' ? 'players' : 'coaches'} for ${sport.name} ${division.name}`} disabled={!previewable || preview?.loading} onClick={() => onPreview(roster, division, sport)}>{preview?.loading ? 'Loading…' : preview?.open ? 'Hide people' : `View ${view === 'players' ? 'players' : 'coaches'}`}</button><Link href={manageHref} className={primary}>{roster.id ? 'Manage roster' : 'Start roster'} <AppIcon name="arrow-right" className="size-4" /></Link></div>
         </div>
-        {preview?.error ? <div className="border-t border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">{preview.error}</div> : null}
+        {preview?.error ? <div className="border-t border-rose-100 bg-rose-50 px-4 py-3 text-sm text-danger">{preview.error}</div> : null}
         {preview?.open ? <PersonPreview preview={preview.data} view={view} onSelect={onSelectPerson} /> : null}
     </div>;
 }
@@ -114,19 +114,19 @@ export default function DepartmentRosters({ event, department, departments = [],
     };
 
     const accent = department.color || '#0B536D';
-    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[#0B536D]">{event.name}</p><h1 className="font-serif text-2xl font-bold">{department.abbreviation || department.name} rosters</h1></div>}>
+    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="text-2xl font-bold">{department.abbreviation || department.name} rosters</h1></div>}>
         <Head title={`${department.name} · Rosters`} />
         <main className={adminStyles.page}><div className="mx-auto max-w-[96rem] space-y-6">
             <nav className="flex flex-wrap items-center gap-2 text-sm text-muted" aria-label="Breadcrumb"><Link href={route('admin.departments.index', event.id)} className="font-bold text-primary">Departments</Link><span aria-hidden="true">/</span><span>{department.name}</span></nav>
 
-            <div style={{ borderLeftColor: accent }} className="border-l-4"><AdminMasthead eyebrow="Department roster desk" title={department.name} description="Manage this department’s team sheets across every sport and event division."><dl className="grid grid-cols-3 divide-x divide-border text-sm"><div className="px-3 first:pl-0"><dt className="text-muted">Players</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{department.counts.players}</dd></div><div className="px-3"><dt className="text-muted">Coaches</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{department.counts.coaches}</dd></div><div className="px-3"><dt className="text-muted">Team sheets</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{department.counts.rosters}/{department.sports.reduce((total, sport) => total + sport.divisions.length, 0)}</dd></div></dl></AdminMasthead></div>
+            <div style={{ borderTopColor: accent }} className="border-t-2"><AdminMasthead eyebrow="Department roster desk" title={department.name} description="Manage this department’s team sheets across every sport and event division."><dl className="grid grid-cols-3 divide-x divide-border text-sm"><div className="px-3 first:pl-0"><dt className="text-muted">Players</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{department.counts.players}</dd></div><div className="px-3"><dt className="text-muted">Coaches</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{department.counts.coaches}</dd></div><div className="px-3"><dt className="text-muted">Team sheets</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{department.counts.rosters}/{department.sports.reduce((total, sport) => total + sport.divisions.length, 0)}</dd></div></dl></AdminMasthead></div>
 
             <section className="flex flex-col gap-4 border border-border bg-surface p-4 sm:flex-row sm:items-end sm:justify-between sm:p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end"><div><p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-muted">People shown in previews</p><div className="inline-flex rounded-sm border border-border bg-surface-muted p-1"><button type="button" onClick={() => changeView('players')} className={`min-h-9 rounded-sm px-4 text-sm font-bold ${view === 'players' ? 'bg-primary text-primary-foreground' : 'text-muted'}`}>Players</button><button type="button" onClick={() => changeView('coaches')} className={`min-h-9 rounded-sm px-4 text-sm font-bold ${view === 'coaches' ? 'bg-primary text-primary-foreground' : 'text-muted'}`}>Coaches &amp; support</button></div></div><label className="relative w-full sm:w-72"><span className="sr-only">Find a sport</span><AppIcon name="search" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" /><input type="search" value={query} onChange={(eventObject) => setQuery(eventObject.target.value)} placeholder="Find a sport" className={`${adminStyles.field} pl-10`} /></label><label className="w-full sm:w-48"><span className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-muted">Show</span><select value={scope} onChange={(eventObject) => setScope(eventObject.target.value)} className={adminStyles.field}><option value="all">All sports</option><option value="with_people">With {view === 'players' ? 'players' : 'coaches'}</option><option value="not_started">Needs a team sheet</option></select></label></div>
                 <button type="button" className={primary} onClick={() => setCreateOpen(true)} disabled={event.archived}><AppIcon name="user-plus" className="size-4" />Add {view === 'players' ? 'player' : 'coach or support'}</button>
             </section>
 
-            {department.counts.unassigned > 0 && view === 'players' ? <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><AppIcon name="warning" className="mt-0.5 size-4 shrink-0" /><p><strong>{department.counts.unassigned} registered player{department.counts.unassigned === 1 ? '' : 's'} still {department.counts.unassigned === 1 ? 'needs' : 'need'} a roster.</strong> Open the correct sport below, then use Add players.</p></div> : null}
+            {department.counts.unassigned > 0 && view === 'players' ? <div className="flex items-start gap-3 rounded-sm border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent-foreground"><AppIcon name="warning" className="mt-0.5 size-4 shrink-0" /><p><strong>{department.counts.unassigned} registered player{department.counts.unassigned === 1 ? '' : 's'} still {department.counts.unassigned === 1 ? 'needs' : 'need'} a roster.</strong> Open the correct sport below, then use Add players.</p></div> : null}
 
             {sports.length ? <section className="grid items-start gap-5 xl:grid-cols-2" aria-label={`${department.name} sport rosters`}>{sports.map((sport) => <SportRosterCard key={sport.id} event={event} department={department} sport={sport} view={view} previews={previews} onPreview={loadPreview} onSelectPerson={setProfile} />)}</section> : <AdminEmptyState title="No sports match these choices" description="Try another sport name or change the Show filter." />}
         </div></main>

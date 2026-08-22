@@ -17,11 +17,11 @@ function DepartmentCard({ event, department }) {
     return <article className="group relative overflow-hidden border border-border bg-surface transition-colors hover:border-primary">
         <div className="h-1.5" style={{ backgroundColor: accent }} aria-hidden="true" />
         <div className="relative overflow-hidden p-5 sm:p-6">
-            <span className="pointer-events-none absolute -right-3 -top-7 font-serif text-[7rem] font-black leading-none text-sidebar/[0.045]" aria-hidden="true">{department.abbreviation || 'D'}</span>
+            <span className="pointer-events-none absolute -right-3 -top-7 text-[7rem] font-black leading-none text-sidebar/[0.045]" aria-hidden="true">{department.abbreviation || 'D'}</span>
             <div className="relative flex items-start justify-between gap-4">
                 <div className="min-w-0">
                     <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-primary">Event department</p>
-                    <h2 className="mt-2 font-serif text-2xl font-bold leading-tight text-foreground">{department.name}</h2>
+                    <h2 className="mt-2 text-2xl font-bold leading-tight text-foreground">{department.name}</h2>
                 </div>
                 <span className="grid size-12 shrink-0 place-items-center rounded-sm text-sm font-black text-white" style={{ backgroundColor: accent }}>{department.abbreviation || '—'}</span>
             </div>
@@ -57,7 +57,7 @@ export default function DepartmentDirectory({ event, directory_summary: summary 
         return summary.departments.filter((department) => `${department.name} ${department.abbreviation || ''}`.toLowerCase().includes(needle));
     }, [query, summary.departments]);
 
-    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Departments</h1></div>}>
+    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="text-2xl font-bold">Departments</h1></div>}>
         <Head title="Departments" />
         <main className={adminStyles.page}>
             <div className="mx-auto max-w-[96rem] space-y-6">
@@ -66,7 +66,7 @@ export default function DepartmentDirectory({ event, directory_summary: summary 
                 </AdminMasthead>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div><h2 className="font-serif text-2xl font-bold text-foreground">Department directory</h2><p className="mt-1 text-sm text-muted">Open a department to work through its sports and rosters.</p></div>
+                    <div><h2 className="text-2xl font-bold text-foreground">Department directory</h2><p className="mt-1 text-sm text-muted">Open a department to work through its sports and rosters.</p></div>
                     <label className="relative w-full sm:max-w-sm"><span className="sr-only">Search departments</span><AppIcon name="search" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" /><input type="search" value={query} onChange={(eventObject) => setQuery(eventObject.target.value)} placeholder="Find a department" className={`${adminStyles.field} pl-10`} /></label>
                 </div>
 

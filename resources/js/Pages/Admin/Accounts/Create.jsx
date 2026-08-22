@@ -33,14 +33,14 @@ export default function Create({ event }) {
         }
     }
 
-    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Invite event staff</h1></div>}>
+    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="text-2xl font-bold">Invite event staff</h1></div>}>
         <Head title="Invite event staff" />
         <main className={adminStyles.page}>
             <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
                 <form onSubmit={submit} className="border border-border bg-surface p-6 sm:p-8">
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Account and event role</p>
-                    <h2 className="mt-2 font-serif text-3xl font-bold">Invite event staff</h2>
-                    {event.archived ? <div className="mt-4 rounded-xl border border-accent bg-accent/10 p-4 text-sm"><strong>Archived event.</strong> This event is read-only and cannot accept new staff invitations.</div> : null}
+                    <h2 className="mt-2 text-3xl font-bold">Invite event staff</h2>
+                    {event.archived ? <div className="mt-4 rounded-sm border border-accent bg-accent/10 p-4 text-sm"><strong>Archived event.</strong> This event is read-only and cannot accept new staff invitations.</div> : null}
                     <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">Create the account first. Judges receive work through judging panels. Tabulators receive Division or Contest assignments from the staff workspace.</p>
                     <fieldset disabled={event.archived} className="contents">
                     <div className="mt-8 space-y-5">

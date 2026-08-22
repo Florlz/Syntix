@@ -49,7 +49,7 @@ function ReadinessSteps({ title, steps, currentKey }) {
     return (
         <section aria-labelledby={`${title.replaceAll(' ', '-').toLowerCase()}-heading`}>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h4 id={`${title.replaceAll(' ', '-').toLowerCase()}-heading`} className="font-serif text-lg font-bold">
+                <h4 id={`${title.replaceAll(' ', '-').toLowerCase()}-heading`} className="text-lg font-bold">
                     {title}
                 </h4>
                 <p className="text-xs text-muted">{steps.filter((step) => completeStates.includes(step.state)).length} of {steps.length} complete</p>
@@ -63,7 +63,7 @@ function ReadinessSteps({ title, steps, currentKey }) {
                         <li
                             key={step.key}
                             aria-current={current ? 'step' : undefined}
-                            className={`flex gap-3 rounded-lg border p-3 ${step.state === 'blocked' ? 'border-danger bg-danger-surface' : current ? 'border-primary bg-primary/10' : 'border-border bg-background/70'}`}
+                            className={`flex gap-3 rounded-sm border p-3 ${step.state === 'blocked' ? 'border-danger bg-danger-surface' : current ? 'border-primary bg-primary/10' : 'border-border bg-background/70'}`}
                         >
                             <span aria-hidden="true" className={`flex size-7 shrink-0 items-center justify-center rounded-full text-[0.65rem] font-bold ${step.state === 'blocked' ? 'bg-danger text-white' : current || completeStates.includes(step.state) ? 'bg-primary text-primary-foreground' : 'bg-accent/20 text-foreground'}`}>
                                 {status.symbol}
@@ -106,13 +106,13 @@ function PanelForm({ item, form, onSubmit, title = 'Judging panel', archived = f
     };
 
     return (
-        <form onSubmit={onSubmit} className="rounded-xl border border-border bg-surface p-4">
+        <form onSubmit={onSubmit} className="rounded-sm border border-border bg-surface p-4">
             <fieldset disabled={archived}>
                 <legend className="font-bold">{title}</legend>
                 <p className="mt-1 text-sm text-muted">Choose the Judges who score every entry in this panel.</p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     {judges.map((judge) => (
-                        <label key={judge.id} className="flex min-h-10 items-center gap-2 rounded-lg border border-border px-3 text-sm">
+                        <label key={judge.id} className="flex min-h-10 items-center gap-2 rounded-sm border border-border px-3 text-sm">
                             <input type="checkbox" checked={form.data.judge_ids.includes(String(judge.id))} onChange={() => toggleJudge(judge.id)} className="rounded border-border text-primary focus:ring-accent" />
                             {judge.name}
                         </label>
@@ -139,11 +139,11 @@ function TieResolutionForm({ tie, archived = false }) {
     };
 
     return (
-        <form onSubmit={(eventObject) => { eventObject.preventDefault(); form.post(tie.action, { preserveScroll: true }); }} className="rounded-xl border border-accent bg-accent/10 p-4">
+        <form onSubmit={(eventObject) => { eventObject.preventDefault(); form.post(tie.action, { preserveScroll: true }); }} className="rounded-sm border border-accent bg-accent/10 p-4">
             <fieldset disabled={archived}>
                 <legend className="font-bold">Resolve tied entries</legend>
                 <ol className="mt-3 space-y-2">
-                    {form.data.authorized_order.map((id, index) => <li key={id} className="flex items-center gap-2 rounded-lg bg-surface p-2"><span className="w-7 font-mono font-bold">{index + 1}</span><span className="flex-1 text-sm font-bold">{name(id)}</span><button type="button" aria-label={`Move ${name(id)} up`} disabled={archived || index === 0} onClick={() => move(index, -1)} className="min-h-9 rounded border border-border px-3 disabled:opacity-30">↑</button><button type="button" aria-label={`Move ${name(id)} down`} disabled={archived || index === form.data.authorized_order.length - 1} onClick={() => move(index, 1)} className="min-h-9 rounded border border-border px-3 disabled:opacity-30">↓</button></li>)}
+                    {form.data.authorized_order.map((id, index) => <li key={id} className="flex items-center gap-2 rounded-sm bg-surface p-2"><span className="w-7 font-condensed font-bold">{index + 1}</span><span className="flex-1 text-sm font-bold">{name(id)}</span><button type="button" aria-label={`Move ${name(id)} up`} disabled={archived || index === 0} onClick={() => move(index, -1)} className="min-h-9 rounded border border-border px-3 disabled:opacity-30">↑</button><button type="button" aria-label={`Move ${name(id)} down`} disabled={archived || index === form.data.authorized_order.length - 1} onClick={() => move(index, 1)} className="min-h-9 rounded border border-border px-3 disabled:opacity-30">↓</button></li>)}
                 </ol>
                 <AuditFields form={form} prefix="Tie resolution" />
                 <button type="submit" disabled={archived || form.processing} className={`${action} mt-3`}>Authorize tie order</button>
@@ -156,14 +156,14 @@ function LockPanelModal({ item, processing, onClose, onLock }) {
     return (
         <Modal show maxWidth="md" onClose={onClose}>
             <div className="p-5">
-                <DialogTitle as="h4" className="font-serif text-xl font-bold">Lock judging panel</DialogTitle>
+                <DialogTitle as="h4" className="text-xl font-bold">Lock judging panel</DialogTitle>
                 <p className="mt-2 text-sm leading-6 text-muted">Locking freezes this panel for scoring.</p>
                 <p className="mt-3 text-sm font-semibold">
                     {item.counts?.judges ?? 0} Judges &middot; {item.counts?.entries ?? 0} Entries &middot; {(item.counts?.judges ?? 0) * (item.counts?.entries ?? 0)} scorecards expected
                 </p>
                 <div className="mt-5 flex justify-end gap-2">
-                    <button type="button" onClick={onClose} className="min-h-10 rounded-lg border border-border px-4 text-sm font-bold">Cancel</button>
-                    <button type="button" disabled={processing} onClick={onLock} className="min-h-10 rounded-lg bg-danger px-4 text-sm font-bold text-white">Lock judging panel</button>
+                    <button type="button" onClick={onClose} className="min-h-10 rounded-sm border border-border px-4 text-sm font-bold">Cancel</button>
+                    <button type="button" disabled={processing} onClick={onLock} className="min-h-10 rounded-sm bg-danger px-4 text-sm font-bold text-white">Lock judging panel</button>
                 </div>
             </div>
         </Modal>
@@ -173,7 +173,7 @@ function LockPanelModal({ item, processing, onClose, onLock }) {
 function ScheduleCard({ schedule }) {
     if (!schedule?.title && !schedule?.venue) return null;
 
-    return <div className="rounded-xl border border-border bg-background/70 p-4">
+    return <div className="rounded-sm border border-border bg-background/70 p-4">
         <p className="text-xs font-bold uppercase tracking-[0.1em] text-primary">Schedule</p>
         <p className="mt-1 font-bold">{schedule.title ?? 'Scheduled scoring window'}</p>
         <p className="mt-1 text-sm text-muted">{schedule.venue?.name ?? 'Venue to be confirmed'}{schedule.venue?.location ? ` · ${schedule.venue.location}` : ''}</p>
@@ -196,7 +196,7 @@ function ReadinessActions({ item, event, archived }) {
 
     if (item.state === 'blocked') {
         return (
-            <div className="rounded-xl border border-danger bg-danger-surface p-4 text-sm text-danger">
+            <div className="rounded-sm border border-danger bg-danger-surface p-4 text-sm text-danger">
                 <p className="font-bold uppercase tracking-[0.1em]">Scoring source blocked</p>
                 <p className="mt-2">{item.source?.blocker ?? item.next_blocker}</p>
                 {item.source?.pages?.length ? <p className="mt-2 text-xs">Source pages: {item.source.pages.join(', ')} &middot; Reliability: {item.source.reliability}</p> : null}
@@ -206,7 +206,7 @@ function ReadinessActions({ item, event, archived }) {
 
     const peopleHref = route('admin.staff.index', { event: event.id, section: 'people' });
     const noTabulatorMessage = (
-        <div className="mt-3 rounded-lg bg-accent/10 p-3 text-sm text-foreground">
+        <div className="mt-3 rounded-sm bg-accent/10 p-3 text-sm text-foreground">
             <p>No active Tabulators are available. Add or reactivate a Tabulator before locking the judging panel.</p>
             <a href={peopleHref} className="mt-2 inline-block font-bold text-primary">Open People</a>
         </div>
@@ -217,17 +217,17 @@ function ReadinessActions({ item, event, archived }) {
             {nextAction === 'prepare' ? <button type="button" disabled={archived || simple.processing} onClick={() => post(simple, item.actions.prepare)} className={action}>Prepare official judged Contest</button> : null}
             {nextAction === 'panel' ? <PanelForm item={item} form={panel} archived={archived} onSubmit={(eventObject) => { eventObject.preventDefault(); post(panel, item.actions.panel); }} /> : null}
             {nextAction === 'aggregation' ? (
-                <form onSubmit={(eventObject) => { eventObject.preventDefault(); post(aggregation, item.actions.aggregation); }} className="rounded-xl border border-border bg-surface p-4">
+                <form onSubmit={(eventObject) => { eventObject.preventDefault(); post(aggregation, item.actions.aggregation); }} className="rounded-sm border border-border bg-surface p-4">
                     <h4 className="font-bold">Judge score aggregation</h4>
                     <p className="mt-1 text-sm text-muted">Record the approved method before the panel is locked.</p>
-                    <p className="mt-3 rounded-lg bg-surface-muted p-3 text-sm font-semibold">Average of Judge totals</p>
+                    <p className="mt-3 rounded-sm bg-surface-muted p-3 text-sm font-semibold">Average of Judge totals</p>
                     <AuditFields form={aggregation} prefix="Aggregation" />
                     <InputError message={aggregation.errors?.method} className="mt-2" />
                     <button type="submit" disabled={archived || aggregation.processing} className={`${action} mt-3`}>Confirm method</button>
                 </form>
             ) : null}
             {nextAction === 'deduction' ? (
-                <form onSubmit={(eventObject) => { eventObject.preventDefault(); post(deduction, item.actions.deduction); }} className="rounded-xl border border-accent bg-accent/10 p-4">
+                <form onSubmit={(eventObject) => { eventObject.preventDefault(); post(deduction, item.actions.deduction); }} className="rounded-sm border border-accent bg-accent/10 p-4">
                     <h4 className="font-bold">Deduction calculation authority</h4>
                     <p className="mt-1 text-sm text-muted">Choose how partial intervals are counted.</p>
                     <label className="mt-3 block text-xs font-bold uppercase tracking-[0.1em] text-muted">Rounding policy
@@ -242,7 +242,7 @@ function ReadinessActions({ item, event, archived }) {
                 </form>
             ) : null}
             {nextAction === 'tabulator' ? (
-                <form onSubmit={(eventObject) => { eventObject.preventDefault(); const selected = tabulatorOptions.find((option) => String(option.id) === String(tabulator.data.user_id)); if (selected) post(tabulator, selected.href); }} className="rounded-xl border border-border bg-surface p-4">
+                <form onSubmit={(eventObject) => { eventObject.preventDefault(); const selected = tabulatorOptions.find((option) => String(option.id) === String(tabulator.data.user_id)); if (selected) post(tabulator, selected.href); }} className="rounded-sm border border-border bg-surface p-4">
                     <label className="text-xs font-bold uppercase tracking-[0.1em] text-muted">Assign Tabulator
                         <select required aria-label="Assign Tabulator" value={tabulator.data.user_id} onChange={(eventObject) => tabulator.setData('user_id', eventObject.target.value)} className={control} disabled={!tabulatorAvailable}>
                             <option value="">Choose Tabulator</option>
@@ -260,7 +260,7 @@ function ReadinessActions({ item, event, archived }) {
             ) : null}
             {!tabulatorAvailable && nextAction !== 'tabulator' ? noTabulatorMessage : null}
             {panelAvailable && nextAction !== 'panel' && !item.readiness_steps?.find((step) => step.key === 'lock' && step.state === 'locked') ? (
-                <div className="rounded-lg border border-border bg-surface p-3">
+                <div className="rounded-sm border border-border bg-surface p-3">
                     <button type="button" disabled={archived} onClick={() => setEditingPanel((value) => !value)} className="text-sm font-bold text-primary disabled:opacity-50">{editingPanel ? 'Close panel editor' : 'Edit judging panel'}</button>
                     {editingPanel ? <div className="mt-3"><PanelForm item={item} form={panel} archived={archived} title="Edit judging panel" onSubmit={(eventObject) => { eventObject.preventDefault(); post(panel, item.actions.panel, { onSuccess: () => setEditingPanel(false) }); }} /></div> : null}
                 </div>
@@ -300,14 +300,14 @@ export default function ReadinessSection({ readiness = [], event }) {
         <section aria-labelledby="readiness-heading" className="space-y-5">
             <header>
                 <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Control room</p>
-                <h2 id="readiness-heading" className="mt-1 font-serif text-3xl font-bold">Scoring readiness</h2>
+                <h2 id="readiness-heading" className="mt-1 text-3xl font-bold">Scoring readiness</h2>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">See what each activity needs before scoring can proceed. The next step comes from the server workflow.</p>
             </header>
-            {event.archived ? <div className="rounded-xl border border-accent bg-accent/10 p-4 text-sm text-foreground"><strong>Archived event.</strong> Readiness history remains available, but this event can no longer be modified.</div> : null}
-            <dl className="grid overflow-hidden rounded-xl border border-border bg-surface sm:grid-cols-3">
-                {summaryCounts.map(([label, value]) => <div key={label} className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 last:border-b-0 sm:border-r sm:border-b-0 sm:last:border-r-0"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">{label}</dt><dd className="font-serif text-xl font-bold">{value}</dd></div>)}
+            {event.archived ? <div className="rounded-sm border border-accent bg-accent/10 p-4 text-sm text-foreground"><strong>Archived event.</strong> Readiness history remains available, but this event can no longer be modified.</div> : null}
+            <dl className="grid overflow-hidden rounded-sm border border-border bg-surface sm:grid-cols-3">
+                {summaryCounts.map(([label, value]) => <div key={label} className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 last:border-b-0 sm:border-r sm:border-b-0 sm:last:border-r-0"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">{label}</dt><dd className="text-xl font-bold">{value}</dd></div>)}
             </dl>
-            <section aria-label="Scoring readiness filters" className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-[minmax(0,1fr)_14rem]">
+            <section aria-label="Scoring readiness filters" className="grid gap-3 rounded-sm border border-border bg-surface p-4 sm:grid-cols-[minmax(0,1fr)_14rem]">
                 <label><span className="sr-only">Search scoring readiness</span><input type="search" value={query} onChange={(eventObject) => setQuery(eventObject.target.value)} placeholder="Search activity or blocker" className={control} /></label>
                 <label><span className="sr-only">Filter readiness status</span><select value={status} onChange={(eventObject) => setStatus(eventObject.target.value)} className={control}><option value="">All statuses</option><option value="Ready">Ready</option><option value="Need Setup">Need Setup</option><option value="Blocked">Blocked</option></select></label>
             </section>
@@ -315,17 +315,17 @@ export default function ReadinessSection({ readiness = [], event }) {
             {visible.length ? <div className="space-y-3">{visible.map((item) => {
                 const summary = readinessSummary(item);
                 const focused = String(item.id) === String(focusId);
-                return <details key={item.id ?? item.name} ref={focused ? focusedDetails : null} open={(focused || summary === 'Blocked') || undefined} className="group overflow-hidden rounded-xl border border-border bg-surface">
+                return <details key={item.id ?? item.name} ref={focused ? focusedDetails : null} open={(focused || summary === 'Blocked') || undefined} className="group overflow-hidden rounded-sm border border-border bg-surface">
                     <summary className="grid cursor-pointer list-none gap-3 p-5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                        <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-serif text-xl font-bold">{item.name}</h3><span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${summary === 'Blocked' ? 'bg-danger-surface text-danger' : summary === 'Ready' ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-foreground'}`}>{summary}</span></div><p className="mt-1 text-sm text-muted">{item.division ? `${item.competition} / ${item.division}` : item.competition} / {item.counts?.entries ?? 0} entries / {item.counts?.judges ?? 0} Judges / {item.counts?.tabulators ?? 0} Tabulators</p><p className={`mt-2 text-sm font-semibold ${summary === 'Blocked' ? 'text-danger' : 'text-muted'}`}>{item.state === 'blocked' ? 'Setup controls are unavailable until the source is resolved.' : item.next_blocker ?? 'Ready for scoring operations.'}</p></div>
+                        <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="text-xl font-bold">{item.name}</h3><span className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${summary === 'Blocked' ? 'bg-danger-surface text-danger' : summary === 'Ready' ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-foreground'}`}>{summary}</span></div><p className="mt-1 text-sm text-muted">{item.division ? `${item.competition} / ${item.division}` : item.competition} / {item.counts?.entries ?? 0} entries / {item.counts?.judges ?? 0} Judges / {item.counts?.tabulators ?? 0} Tabulators</p><p className={`mt-2 text-sm font-semibold ${summary === 'Blocked' ? 'text-danger' : 'text-muted'}`}>{item.state === 'blocked' ? 'Setup controls are unavailable until the source is resolved.' : item.next_blocker ?? 'Ready for scoring operations.'}</p></div>
                         <span className="text-sm font-bold text-primary group-open:hidden">Open setup</span><span className="hidden text-sm font-bold text-primary group-open:inline">Close setup</span>
                     </summary>
                     <div className="grid gap-4 border-t border-border bg-surface-muted p-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
                         <div className="space-y-4"><ScheduleCard schedule={item.schedule}/><ReadinessSteps title="Setup readiness" steps={stepsFor(item, setupKeys)} currentKey={item.next_action_key} /><ReadinessActions item={item} event={event} archived={event.archived} /></div>
-                        <div className="space-y-4"><ReadinessSteps title="Live readiness" steps={stepsFor(item, liveKeys)} currentKey={item.next_action_key} />{item.tie ? <TieResolutionForm tie={item.tie} archived={event.archived} /> : <div className="rounded-xl border border-border bg-surface p-4"><p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Live operations</p><p className="mt-2 text-sm text-muted">Judge score progress and tabulation stay here after the panel is locked.</p></div>}</div>
+                        <div className="space-y-4"><ReadinessSteps title="Live readiness" steps={stepsFor(item, liveKeys)} currentKey={item.next_action_key} />{item.tie ? <TieResolutionForm tie={item.tie} archived={event.archived} /> : <div className="rounded-sm border border-border bg-surface p-4"><p className="text-xs font-bold uppercase tracking-[0.12em] text-primary">Live operations</p><p className="mt-2 text-sm text-muted">Judge score progress and tabulation stay here after the panel is locked.</p></div>}</div>
                     </div>
                 </details>;
-            })}</div> : <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center"><h3 className="font-serif text-xl font-bold">No activities match</h3><p className="mt-2 text-sm text-muted">Clear the search or status filter to see the full readiness list.</p></div>}
+            })}</div> : <div className="rounded-sm border border-dashed border-border bg-surface p-8 text-center"><h3 className="text-xl font-bold">No activities match</h3><p className="mt-2 text-sm text-muted">Clear the search or status filter to see the full readiness list.</p></div>}
         </section>
     );
 }

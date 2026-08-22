@@ -42,15 +42,15 @@ export default function Index({ event, section = 'people', staff = [], staff_sum
     const errorText = Object.values(errors).join(' ');
     const selected = staff.find((person) => String(person.id) === String(selectedId)) ?? null;
 
-    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Judges &amp; Tabulators</h1></div>}>
+    return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="text-2xl font-bold">Judges &amp; Tabulators</h1></div>}>
         <Head title={section === 'readiness' ? 'Scoring Readiness' : 'Judges & Tabulators'}/>
         <main className={adminStyles.page}>
             <div className="mx-auto max-w-[96rem] space-y-6">
                 <SectionNav event={event} section={section}/>
-                {event.archived ? <div className="rounded-xl border border-accent bg-accent/10 p-4 text-sm"><strong>Archived event.</strong> Staff records and scoring history remain available, but this event can no longer be modified.</div> : null}
-                {flash.status ? <div role="status" className="border-l-4 border-primary bg-primary/10 p-4 text-sm">{flash.status}</div> : null}
+                {event.archived ? <div className="rounded-sm border border-accent bg-accent/10 p-4 text-sm"><strong>Archived event.</strong> Staff records and scoring history remain available, but this event can no longer be modified.</div> : null}
+                {flash.status ? <div role="status" className="border border-primary/35 bg-primary/10 p-4 text-sm">{flash.status}</div> : null}
                 {flash.setup_url && flash.setup_invitation ? <SetupInvitationNotice event={event} invitation={{ ...flash.setup_invitation, setup_url: flash.setup_url }}/> : null}
-                {errorText ? <div role="alert" className="border-l-4 border-danger bg-danger-surface p-4 text-sm text-danger">{errorText}</div> : null}
+                {errorText ? <div role="alert" className="border border-danger/35 bg-danger-surface p-4 text-sm text-danger">{errorText}</div> : null}
                 {section === 'assignments' ? <AssignmentsSection staff={staff} event={event} onManage={(person) => setSelectedId(person.id)}/> : section === 'readiness' ? <ReadinessSection readiness={readiness} event={event}/> : <PeopleSection staff={staff} staffSummary={staffSummary} event={event} onManage={(person) => setSelectedId(person.id)}/>}
             </div>
         </main>

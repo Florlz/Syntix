@@ -24,12 +24,12 @@ export default function RosterPlayerList({
     return <section className={`overflow-hidden bg-surface ${emphasis ? 'border-2 border-primary' : 'border border-border'}`} aria-labelledby={`${title.toLowerCase().replaceAll(' ', '-')}-title`}>
         <div className={`flex flex-wrap items-start justify-between gap-4 px-5 py-4 ${members.length ? 'border-b border-border' : ''}`}>
             <div>
-                <div className="flex flex-wrap items-baseline gap-2"><h3 id={`${title.toLowerCase().replaceAll(' ', '-')}-title`} className="font-serif text-xl font-bold text-foreground">{title}</h3>{countLabel ? <span className="text-sm font-semibold text-muted">{countLabel}</span> : null}</div>
+                <div className="flex flex-wrap items-baseline gap-2"><h3 id={`${title.toLowerCase().replaceAll(' ', '-')}-title`} className="text-xl font-bold text-foreground">{title}</h3>{countLabel ? <span className="text-sm font-semibold text-muted">{countLabel}</span> : null}</div>
                 <p className="mt-1 text-sm text-muted">{description}</p>
             </div>
             {action}
         </div>
-        <div className="divide-y divide-[#E6EAE8]">
+        <div className="divide-y divide-border">
             {members.map((participant) => {
                 const role = participant.membership?.role;
                 const id = String(participant.id);

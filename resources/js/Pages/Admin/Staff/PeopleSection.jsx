@@ -43,7 +43,7 @@ function PersonCard({ person, onManage }) {
     return <button type="button" onClick={() => onManage(person)} className="w-full border border-border bg-surface p-5 text-left transition-colors hover:border-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
         <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-                <h3 className="truncate font-serif text-lg font-bold">{person.name}</h3>
+                <h3 className="truncate text-lg font-bold">{person.name}</h3>
                 <p className="mt-1 truncate text-xs text-muted">{person.email}</p>
             </div>
             <span className={`shrink-0 rounded-full px-2 py-1 text-[0.65rem] font-bold uppercase ${person.account_state === 'active' ? 'bg-primary/10 text-primary' : 'bg-danger-surface text-danger'}`}>{person.account_state}</span>
@@ -86,10 +86,10 @@ export default function PeopleSection({ staff = [], staffSummary = {}, event, on
 
     return <section aria-labelledby="people-heading" className="space-y-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">People</p><h2 id="people-heading" className="mt-1 font-serif text-3xl font-bold">Staff access</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Manage identity, event roles, account state, and a quick view of scoring coverage.</p></div>
+            <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">People</p><h2 id="people-heading" className="mt-1 text-3xl font-bold">Staff access</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">Manage identity, event roles, account state, and a quick view of scoring coverage.</p></div>
             {!event.archived ? <a href={route('admin.accounts.create', event.id)} className={action}><AppIcon name="user-plus"/>Invite staff</a> : null}
         </div>
-        {event.archived ? <div className="rounded-xl border border-accent bg-accent/10 p-4 text-sm text-foreground"><strong>Archived event.</strong> Staff records and scoring history remain available, but this event can no longer be modified.</div> : null}
+        {event.archived ? <div className="rounded-sm border border-accent bg-accent/10 p-4 text-sm text-foreground"><strong>Archived event.</strong> Staff records and scoring history remain available, but this event can no longer be modified.</div> : null}
         <Summary summary={staffSummary}/>
         <section aria-label="People filters" className="grid gap-3 border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_12rem]">
             <label className="relative"><span className="sr-only">Search staff</span><AppIcon name="search" className="absolute left-3 top-3 size-5 text-muted"/><input type="search" value={query} onChange={(input) => setQuery(input.target.value)} placeholder="Search name or email" className={`${control} pl-10`}/></label>
@@ -98,6 +98,6 @@ export default function PeopleSection({ staff = [], staffSummary = {}, event, on
             <label><span className="sr-only">Filter by account state</span><select aria-label="Filter by account state" value={account} onChange={(input) => setAccount(input.target.value)} className={control}><option value="">All accounts</option><option value="active">Active</option><option value="disabled">Disabled</option><option value="pending_setup">Pending setup</option></select></label>
         </section>
         <p className="text-sm text-muted">Showing {visible.length} of {staff.length} staff records</p>
-        {visible.length ? <><PersonTable people={visible} onManage={onManage}/><div className="grid gap-4 md:hidden">{visible.map((person) => <PersonCard key={person.id} person={person} onManage={onManage}/>)}</div></> : <div className="rounded-xl border border-dashed border-border bg-surface p-10 text-center text-sm text-muted">No staff match these filters.</div>}
+        {visible.length ? <><PersonTable people={visible} onManage={onManage}/><div className="grid gap-4 md:hidden">{visible.map((person) => <PersonCard key={person.id} person={person} onManage={onManage}/>)}</div></> : <div className="rounded-sm border border-dashed border-border bg-surface p-10 text-center text-sm text-muted">No staff match these filters.</div>}
     </section>;
 }
