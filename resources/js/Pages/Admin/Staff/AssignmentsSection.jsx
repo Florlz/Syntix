@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import { adminStyles } from '@/Support/adminStyles';
 
-const control = 'w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-primary focus:ring-primary';
+const control = adminStyles.field;
 
 function targetLabel(item) {
     return item.label || [item.competition, item.division, item.contest].filter(Boolean).join(' / ') || 'Unlabelled target';
@@ -48,11 +49,11 @@ export default function AssignmentsSection({ staff = [], event, onManage }) {
         <header><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Assignments</p><h2 id="assignments-heading" className="mt-1 font-serif text-3xl font-bold">Assignment coverage</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-muted">See which Judges are assigned to judging panels and where Tabulators have operational responsibility.</p></header>
         {event.archived ? <div className="rounded-xl border border-accent bg-accent/10 p-4 text-sm text-foreground"><strong>Archived event.</strong> Assignment history remains available, but this event can no longer be modified.</div> : null}
         <dl className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border bg-surface p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Judging panels</dt><dd className="mt-1 font-serif text-2xl font-bold">{judgingPanelCount}</dd></div>
-            <div className="rounded-xl border border-border bg-surface p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Tabulator targets</dt><dd className="mt-1 font-serif text-2xl font-bold">{rows.filter((row) => row.role === 'Tabulator').length}</dd></div>
-            <div className="rounded-xl border border-border bg-surface p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Staff needing coverage</dt><dd className="mt-1 font-serif text-2xl font-bold">{new Set(missing.map(({ person }) => person.id)).size}</dd></div>
+            <div className="border border-border bg-surface p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Judging panels</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{judgingPanelCount}</dd></div>
+            <div className="border border-border bg-surface p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Tabulator targets</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{rows.filter((row) => row.role === 'Tabulator').length}</dd></div>
+            <div className="border border-border bg-surface p-4"><dt className="text-xs font-bold uppercase tracking-[0.12em] text-muted">Staff needing coverage</dt><dd className="mt-1 font-condensed text-3xl font-bold text-primary">{new Set(missing.map(({ person }) => person.id)).size}</dd></div>
         </dl>
-        <section aria-label="Assignment filters" className="grid gap-3 rounded-xl border border-border bg-surface p-4 md:grid-cols-[minmax(0,1fr)_12rem_12rem]">
+        <section aria-label="Assignment filters" className="grid gap-3 border border-border bg-surface p-4 md:grid-cols-[minmax(0,1fr)_12rem_12rem]">
             <label><span className="sr-only">Search person or activity</span><input type="search" value={query} onChange={(input) => setQuery(input.target.value)} placeholder="Search person or activity" className={control}/></label>
             <label><span className="sr-only">Filter assignment role</span><select aria-label="Filter assignment role" value={role} onChange={(input) => setRole(input.target.value)} className={control}><option value="">All roles</option><option value="judge">Judges</option><option value="tabulator">Tabulators</option></select></label>
             <label><span className="sr-only">Filter assignment scope</span><select aria-label="Filter assignment scope" value={scope} onChange={(input) => setScope(input.target.value)} className={control}><option value="">All scopes</option><option value="judging_panel">Judging panel</option><option value="division">Division</option><option value="contest">Contest</option></select></label>

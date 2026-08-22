@@ -1,8 +1,9 @@
 import AppIcon from '@/Components/AppIcon';
 import React, { useMemo, useState } from 'react';
+import { adminStyles } from '@/Support/adminStyles';
 
-const control = 'w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-primary focus:ring-primary';
-const action = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50';
+const control = adminStyles.field;
+const action = adminStyles.primaryAction;
 
 function Summary({ summary = {} }) {
     const items = [
@@ -13,10 +14,10 @@ function Summary({ summary = {} }) {
         ['Need assignment', summary.needs_assignment ?? 0],
     ];
 
-    return <dl className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-5">
+    return <dl className="grid gap-px overflow-hidden border border-border bg-border sm:grid-cols-5">
         {items.map(([label, value]) => <div key={label} className="bg-surface px-4 py-4">
             <dt className="text-[0.68rem] font-bold uppercase tracking-[0.12em] text-muted">{label}</dt>
-            <dd className="mt-1 font-serif text-2xl font-bold text-foreground">{value}</dd>
+            <dd className="mt-1 font-condensed text-3xl font-bold tabular-nums text-primary">{value}</dd>
         </div>)}
     </dl>;
 }
@@ -39,7 +40,7 @@ function Coverage({ person, compact = false }) {
 }
 
 function PersonCard({ person, onManage }) {
-    return <button type="button" onClick={() => onManage(person)} className="w-full rounded-xl border border-border bg-surface p-5 text-left shadow-sm transition hover:border-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent">
+    return <button type="button" onClick={() => onManage(person)} className="w-full border border-border bg-surface p-5 text-left transition-colors hover:border-primary focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
         <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
                 <h3 className="truncate font-serif text-lg font-bold">{person.name}</h3>
@@ -56,7 +57,7 @@ function PersonCard({ person, onManage }) {
 }
 
 function PersonTable({ people, onManage }) {
-    return <div className="hidden overflow-hidden rounded-xl border border-border bg-surface md:block">
+    return <div className="hidden overflow-hidden border border-border bg-surface md:block">
         <div className="grid grid-cols-[minmax(15rem,1.4fr)_minmax(8rem,0.7fr)_minmax(9rem,0.9fr)_minmax(12rem,1fr)_auto] gap-4 border-b border-border bg-surface-muted px-5 py-3 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-muted">
             <span>Person</span><span>Roles</span><span>Setup / access</span><span>Scoring coverage</span><span className="sr-only">Action</span>
         </div>
@@ -90,7 +91,7 @@ export default function PeopleSection({ staff = [], staffSummary = {}, event, on
         </div>
         {event.archived ? <div className="rounded-xl border border-accent bg-accent/10 p-4 text-sm text-foreground"><strong>Archived event.</strong> Staff records and scoring history remain available, but this event can no longer be modified.</div> : null}
         <Summary summary={staffSummary}/>
-        <section aria-label="People filters" className="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_12rem]">
+        <section aria-label="People filters" className="grid gap-3 border border-border bg-surface p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_10rem_12rem_12rem]">
             <label className="relative"><span className="sr-only">Search staff</span><AppIcon name="search" className="absolute left-3 top-3 size-5 text-muted"/><input type="search" value={query} onChange={(input) => setQuery(input.target.value)} placeholder="Search name or email" className={`${control} pl-10`}/></label>
             <label><span className="sr-only">Filter by role</span><select aria-label="Filter by role" value={role} onChange={(input) => setRole(input.target.value)} className={control}><option value="">All roles</option><option value="judge">Judges</option><option value="tabulator">Tabulators</option></select></label>
             <label><span className="sr-only">Filter by coverage</span><select aria-label="Filter by coverage" value={coverage} onChange={(input) => setCoverage(input.target.value)} className={control}><option value="">All coverage</option><option value="assigned">Assigned</option><option value="needs_assignment">Needs assignment</option></select></label>

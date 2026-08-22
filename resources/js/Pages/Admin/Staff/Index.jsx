@@ -7,9 +7,10 @@ import PeopleSection from '@/Pages/Admin/Staff/PeopleSection';
 import AssignmentsSection from '@/Pages/Admin/Staff/AssignmentsSection';
 import ReadinessSection from '@/Pages/Admin/Staff/ReadinessSection';
 import StaffDrawer from '@/Pages/Admin/Staff/StaffDrawer';
+import { adminStyles } from '@/Support/adminStyles';
 import { Head, usePage } from '@inertiajs/react';
 
-const action = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50';
+const action = adminStyles.primaryAction;
 
 function SectionNav({ event, section }) {
     const sections = [['people', 'People'], ['assignments', 'Assignments'], ['readiness', 'Scoring Readiness']];
@@ -32,7 +33,7 @@ function SetupInvitationNotice({ event, invitation }) {
         }
     }
 
-    return <section aria-label="New setup invitation" className="rounded-xl border border-accent bg-accent/10 p-4"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">New setup invitation ready</p><h2 className="mt-1 font-serif text-xl font-bold">Private handoff for {invitation.name}</h2><p className="mt-2 text-sm text-muted">Previous unused setup links have been invalidated.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={copySetupLink} className={action}>{copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy private link'}</button><button type="button" disabled={qrState !== 'ready'} onClick={() => window.print()} className="min-h-10 rounded-lg border border-border bg-surface px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50">{printLabel}</button></div></div><p aria-live="polite" className="mt-2 text-xs text-muted">{copyState === 'copied' ? 'Setup link copied.' : copyState === 'error' ? 'Copy failed. Select the private link and copy it manually.' : `Role: ${invitation.role_label}. Expires ${invitation.expires_at ? new Date(invitation.expires_at).toLocaleString() : '24 hours after issue'}.`}</p><label className="mt-4 block"><span className="sr-only">One-time setup link</span><input readOnly value={setupUrl} className="w-full rounded-lg border-border bg-surface text-xs text-foreground"/></label><StaffSetupHandoffCard eventName={event.name} staffName={invitation.name} roleLabel={invitation.role_label} expiresAt={invitation.expires_at} setupUrl={setupUrl} onQrStateChange={setQrState}/></section>;
+    return <section aria-label="New setup invitation" className="border border-accent bg-accent/10 p-4"><div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">New setup invitation ready</p><h2 className="mt-1 text-xl font-bold">Private handoff for {invitation.name}</h2><p className="mt-2 text-sm text-muted">Previous unused setup links have been invalidated.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={copySetupLink} className={action}>{copyState === 'copied' ? 'Copied' : copyState === 'error' ? 'Copy failed' : 'Copy private link'}</button><button type="button" disabled={qrState !== 'ready'} onClick={() => window.print()} className={adminStyles.secondaryAction}>{printLabel}</button></div></div><p aria-live="polite" className="mt-2 text-xs text-muted">{copyState === 'copied' ? 'Setup link copied.' : copyState === 'error' ? 'Copy failed. Select the private link and copy it manually.' : `Role: ${invitation.role_label}. Expires ${invitation.expires_at ? new Date(invitation.expires_at).toLocaleString() : '24 hours after issue'}.`}</p><label className="mt-4 block"><span className="sr-only">One-time setup link</span><input readOnly value={setupUrl} className={`${adminStyles.field} text-xs`}/></label><StaffSetupHandoffCard eventName={event.name} staffName={invitation.name} roleLabel={invitation.role_label} expiresAt={invitation.expires_at} setupUrl={setupUrl} onQrStateChange={setQrState}/></section>;
 }
 
 export default function Index({ event, section = 'people', staff = [], staff_summary: staffSummary = {}, targets = {}, readiness = [] }) {
@@ -43,7 +44,7 @@ export default function Index({ event, section = 'people', staff = [], staff_sum
 
     return <AuthenticatedLayout header={<div><p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">{event.name}</p><h1 className="font-serif text-2xl font-bold">Judges &amp; Tabulators</h1></div>}>
         <Head title={section === 'readiness' ? 'Scoring Readiness' : 'Judges & Tabulators'}/>
-        <main className="min-h-[calc(100vh-4rem)] bg-background p-4 text-foreground sm:p-7 lg:p-8">
+        <main className={adminStyles.page}>
             <div className="mx-auto max-w-[96rem] space-y-6">
                 <SectionNav event={event} section={section}/>
                 {event.archived ? <div className="rounded-xl border border-accent bg-accent/10 p-4 text-sm"><strong>Archived event.</strong> Staff records and scoring history remain available, but this event can no longer be modified.</div> : null}

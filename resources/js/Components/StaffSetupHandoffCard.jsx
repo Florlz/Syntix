@@ -15,12 +15,12 @@ function SetupCard({ eventName, staffName, roleLabel, expiresAt, qrDataUrl, vari
         </header>
         <div className="staff-setup-card-body">
             <div className="staff-setup-card-details">
-                <p className="staff-setup-event-name text-xs font-bold uppercase tracking-[0.14em] text-[#0b536d]">{eventName}</p>
+                <p className="staff-setup-event-name text-xs font-bold uppercase tracking-[0.14em] text-primary">{eventName}</p>
                 <h2 className="staff-setup-staff-name">{staffName}</h2>
                 <p className="staff-setup-role mt-2 text-sm font-bold">{roleLabel}</p>
                 <p className="staff-setup-intro mt-5 text-sm leading-6">Scan the QR code to finish your Syntix account setup.</p>
                 <ol className="staff-setup-steps mt-4 space-y-1 text-sm"><li>1. Scan the QR code</li><li>2. Create your password</li><li>3. Sign in</li></ol>
-                <p className="staff-setup-expiry mt-5 text-xs font-semibold text-[#b42318]">Expires {formatExpiry(expiresAt)} · One use only</p>
+                <p className="staff-setup-expiry mt-5 text-xs font-semibold text-danger">Expires {formatExpiry(expiresAt)} · One use only</p>
             </div>
             <div className="staff-setup-qr-panel">
                 <div className="staff-setup-qr-code"><img src={qrDataUrl} alt="One-time staff setup QR code" className="size-full"/></div>

@@ -18,10 +18,10 @@ const DEFAULT_PREFERENCES = {
     },
 };
 
-const field = 'mt-2 block w-full rounded-lg border-border bg-surface px-3.5 py-2.5 text-sm text-foreground shadow-xs focus:border-primary focus:ring-primary';
-const primaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-xs transition hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
-const secondaryButton = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border bg-surface px-4 py-2 text-sm font-bold text-primary transition hover:border-primary hover:bg-surface-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
-const surface = 'rounded-xl border border-border bg-surface p-5 sm:p-6';
+const field = 'mt-2 block min-h-11 w-full rounded-sm border-border bg-surface px-3.5 py-2.5 text-sm text-foreground focus:border-primary focus:ring-primary';
+const primaryButton = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-primary bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
+const secondaryButton = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-sm border border-border bg-surface px-4 py-2 text-sm font-bold text-primary transition-colors hover:border-primary hover:bg-surface-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-55 motion-reduce:transition-none';
+const surface = 'border border-border bg-surface p-5 sm:p-6';
 
 const SETTINGS_SECTIONS = [
     { id: 'profile', group: 'Account', icon: 'users', title: 'Profile', summary: 'Identity and account status' },
@@ -206,7 +206,7 @@ function PreferencePreview({ textSize, contrast, reduceMotion }) {
 
     return <div aria-label="Accessibility preview" className={`overflow-hidden rounded-lg border ${highContrast ? 'border-foreground bg-foreground text-surface' : 'border-border bg-surface-muted text-foreground'} ${reduceMotion ? '' : 'transition-colors duration-200'}`}>
         <div className="border-b border-current/15 px-4 py-2 text-[0.62rem] font-bold uppercase tracking-[0.13em] opacity-75">Live preview</div>
-        <div className="space-y-2 px-4 py-3" style={{ fontSize }}><p className="font-serif text-lg font-bold">Ready for event day</p><p className="max-w-md text-sm leading-6 opacity-80">This is how text, contrast, and motion choices will feel across the admin dashboard.</p><button type="button" className={`rounded-lg px-3 py-2 text-xs font-bold ${highContrast ? 'bg-surface text-foreground' : 'bg-primary text-primary-foreground'} ${reduceMotion ? '' : 'transition-transform duration-200 hover:-translate-y-0.5'} motion-reduce:transform-none`}>Preview action</button></div>
+        <div className="space-y-2 px-4 py-3" style={{ fontSize }}><p className="text-lg font-bold">Ready for event day</p><p className="max-w-md text-sm leading-6 opacity-80">This is how text, contrast, and motion choices will feel across the admin dashboard.</p><button type="button" className={`rounded-sm border px-3 py-2 text-xs font-bold ${highContrast ? 'border-surface bg-surface text-foreground' : 'border-primary bg-primary text-primary-foreground'} transition-colors`}>Preview action</button></div>
     </div>;
 }
 

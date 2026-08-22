@@ -4,9 +4,10 @@ import { useForm } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import Modal from '@/Components/Modal';
 import SlideOver from '@/Components/SlideOver';
+import { adminStyles } from '@/Support/adminStyles';
 
-const control = 'mt-1 w-full rounded-lg border-border bg-surface text-sm text-foreground focus:border-primary focus:ring-primary';
-const action = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50';
+const control = `mt-1 ${adminStyles.field}`;
+const action = adminStyles.primaryAction;
 
 function ReasonDialog({ request, form, onClose, onSubmit }) {
     if (!request) return null;
