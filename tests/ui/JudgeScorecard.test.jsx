@@ -132,6 +132,44 @@ test('shows required scoring progress and a review submission action', async () 
     expect(screen.getByRole('button', { name: 'Review and submit' })).toBeInTheDocument();
 });
 
+test('opens the first required incomplete criterion in a guided scoring lane', async () => {
+    const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
+    render(<Scorecard scorecard={fixture({
+        values: { 1: { raw_value: '90', deduction: '0', notes: '' }, 2: { raw_value: '', deduction: '0', notes: '' } },
+    })} />);
+
+    expect(screen.getByRole('button', { name: /Score Musicianship/ })).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByRole('group', { name: 'Musicianship' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Tone Quality' })).not.toBeInTheDocument();
+});
+
+test('switches criteria without losing unsaved scores or notes', async () => {
+    const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
+    render(<Scorecard scorecard={fixture({
+        values: { 1: { raw_value: '', deduction: '0', notes: '' }, 2: { raw_value: '', deduction: '0', notes: '' } },
+    })} />);
+
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Tone Quality Score' }), { target: { value: '93' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add notes' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tone Quality notes' }), { target: { value: 'Clean opening' } });
+    fireEvent.click(screen.getByRole('button', { name: /Score Musicianship/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Score Tone Quality/ }));
+
+    expect(screen.getByRole('spinbutton', { name: 'Tone Quality Score' })).toHaveValue(93);
+    expect(screen.getByRole('textbox', { name: 'Tone Quality notes' })).toHaveValue('Clean opening');
+});
+
+test('keeps optional notes collapsed until requested and labels the authoritative total', async () => {
+    const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
+    render(<Scorecard scorecard={fixture({
+        values: { 1: { raw_value: '', deduction: '0', notes: '' }, 2: { raw_value: '', deduction: '0', notes: '' } },
+    })} />);
+
+    expect(screen.queryByRole('textbox', { name: 'Tone Quality notes' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Saved weighted score').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('88.50').length).toBeGreaterThan(0);
+});
+
 test('synchronizes values when fresh scorecard props arrive for a clean form', async () => {
     const { default: Scorecard } = await import('../../resources/js/Pages/Judge/Scorecard');
     const { rerender } = render(<Scorecard scorecard={fixture()} />);
@@ -143,7 +181,7 @@ test('synchronizes values when fresh scorecard props arrive for a clean form', a
     })} />);
 
     expect(screen.getByRole('spinbutton', { name: 'Tone Quality Score' })).toHaveValue(91);
-    expect(screen.getByText('91.00')).toBeInTheDocument();
+    expect(screen.getAllByText('91.00').length).toBeGreaterThan(0);
 });
 
 test('preserves dirty local input when fresher scorecard props arrive', async () => {
@@ -168,6 +206,7 @@ test('renders field errors beside their criterion and top-level errors separatel
 
     render(<Scorecard scorecard={fixture()} />);
 
+    expect(screen.getByRole('button', { name: /Score Musicianship/ })).toHaveAttribute('aria-current', 'step');
     const musicianship = screen.getByRole('group', { name: 'Musicianship' });
     expect(within(musicianship).getByText('Enter a valid Musicianship score.')).toBeInTheDocument();
     expect(within(musicianship).getByRole('spinbutton', { name: 'Musicianship Score' })).toHaveAttribute('aria-invalid', 'true');
