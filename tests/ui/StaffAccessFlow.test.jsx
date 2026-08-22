@@ -130,18 +130,23 @@ test('Judge queue is ordered by schedule with urgent work kept above the timelin
     expect(timelineText.indexOf('Morning event')).toBeLessThan(timelineText.indexOf('Afternoon event'));
 });
 
-test('Tabulator queue combines judged and objective work into one schedule timeline', () => {
+test('Tabulator queue separates urgent work from the schedule without duplicating assignments', () => {
     usePage.mockReturnValue({ props: { auth: { user: { name: 'Tabulator' } }, flash: {} } });
 
     render(<TabulatorIndex
         event={{ id: '1', name: 'SIKLAB 2026' }}
         summary={{ judged: 1, objective: 1 }}
         judged={[{ name: 'Pop Solo', mode: 'judged', competition: 'Pop Solo', division: 'Open', schedule: { starts_at: '2026-11-13T13:00:00+08:00', venue: { name: 'Auditorium' } }, completion: { submitted: 3, expected: 3 }, readiness: { ready: true, next_blocker: null }, href: '/tabulator/1' }]}
-        objective={[{ name: 'Basketball Men', mode: 'objective', competition: 'Basketball', division: 'Men', schedule: { starts_at: '2026-11-13T09:00:00+08:00', venue: { name: 'Gymnasium' } }, state: 'live', state_label: 'Live', href: '/tabulator/2' }]}
+        objective={[{ name: 'Basketball Men', mode: 'objective', competition: 'Basketball', division: 'Men', schedule: { starts_at: '2026-11-13T09:00:00+08:00', venue: { name: 'Gymnasium' } }, state: 'scheduled', state_label: 'Ready', href: '/tabulator/2' }]}
     />);
 
     expect(screen.queryByRole('heading', { name: 'Judged' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Objective' })).not.toBeInTheDocument();
+    expect(screen.getByText('2 assignments')).toBeInTheDocument();
+    expect(screen.getByText('1 judged · 1 objective')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Tabulation summary' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Needs attention' })).toHaveTextContent('Pop Solo');
     const timeline = screen.getByRole('region', { name: "Today's tabulation schedule" });
-    expect(timeline.textContent.indexOf('Basketball Men')).toBeLessThan(timeline.textContent.indexOf('Pop Solo'));
+    expect(timeline).toHaveTextContent('Basketball Men');
+    expect(timeline).not.toHaveTextContent('Pop Solo');
 });
