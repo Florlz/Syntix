@@ -4,11 +4,9 @@ import InputError from '@/Components/InputError';
 import Modal from '@/Components/Modal';
 import Link from '@/Components/PrefetchLink';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { applyTheme } from '@/lib/theme';
 import { Head, useForm, usePage } from '@inertiajs/react';
 
 const DEFAULT_PREFERENCES = {
-    theme: 'system',
     text_size: 'default',
     contrast: 'default',
     reduce_motion: false,
@@ -27,7 +25,6 @@ const surface = 'rounded-xl border border-border bg-surface p-5 sm:p-6';
 
 const SETTINGS_SECTIONS = [
     { id: 'profile', group: 'Account', icon: 'users', title: 'Profile', summary: 'Identity and account status' },
-    { id: 'appearance', group: 'Preferences', icon: 'appearance', title: 'Appearance', summary: 'Theme and color' },
     { id: 'accessibility', group: 'Preferences', icon: 'overview', title: 'Accessibility', summary: 'Display and motion' },
     { id: 'workspace', group: 'Preferences', icon: 'calendar', title: 'Workspace', summary: 'Opening defaults' },
     { id: 'notifications', group: 'Preferences', icon: 'bell', title: 'Notifications', summary: 'Admin activity' },
@@ -77,7 +74,7 @@ function normalizePreferences(value = {}) {
 function StatusMessage({ visible, children, tone = 'success' }) {
     if (!visible) return null;
 
-    return <p role="status" aria-live="polite" className={`text-sm font-semibold ${tone === 'danger' ? 'text-danger' : 'text-emerald-700 dark:text-emerald-300'}`}>{children}</p>;
+    return <p role="status" aria-live="polite" className={`text-sm font-semibold ${tone === 'danger' ? 'text-danger' : 'text-emerald-700'}`}>{children}</p>;
 }
 
 function SettingsSaveBar({ processing, recentlySuccessful, isDirty = true, children = 'Save changes', processingLabel = 'Saving...' }) {
@@ -275,62 +272,6 @@ function PasswordCard() {
     </form>;
 }
 
-const THEME_OPTIONS = [
-    { value: 'light', label: 'Light', detail: 'Bright surfaces for daytime work.', icon: 'sun' },
-    { value: 'dark', label: 'Dark', detail: 'Lower-glare surfaces for dim rooms.', icon: 'moon' },
-    { value: 'system', label: 'System', detail: 'Follow the device preference.', icon: 'monitor' },
-];
-
-function AppearanceCard({ initial }) {
-    const appearance = useForm({ theme: initial.theme });
-
-    useEffect(() => () => applyTheme(initial.theme), [initial.theme]);
-
-    const submit = (event) => {
-        event.preventDefault();
-        appearance.patch(route('settings.preferences.update'), {
-            preserveScroll: true,
-            transform: (data) => ({ theme: data.theme }),
-        });
-    };
-
-    return <form onSubmit={submit} className={`${surface} space-y-6`}>
-        <SettingsSurface title="Theme" description="Choose how Syntix looks on this device.">
-            <fieldset>
-                <legend className="sr-only">Theme</legend>
-                <div role="radiogroup" aria-label="Theme choices" className="grid gap-3 md:grid-cols-3">
-                    {THEME_OPTIONS.map((option) => {
-                        const selected = appearance.data.theme === option.value;
-
-                        return <label key={option.value} className="group relative cursor-pointer">
-                            <input
-                                type="radio"
-                                name="settings-theme"
-                                value={option.value}
-                                checked={selected}
-                                onChange={() => {
-                                    appearance.setData('theme', option.value);
-                                    applyTheme(option.value);
-                                }}
-                                className="peer sr-only"
-                            />
-                            <span className={`flex min-h-32 flex-col justify-between rounded-lg border p-4 transition group-hover:border-primary peer-focus-visible:ring-2 peer-focus-visible:ring-accent ${selected ? 'border-primary bg-primary/10' : 'border-border bg-surface-muted'}`}>
-                                <span className="flex items-center justify-between gap-3">
-                                    <AppIcon name={option.icon} className="size-5 text-primary" />
-                                    <span className={`grid size-5 place-items-center rounded-full border border-border text-primary ${selected ? 'bg-primary text-primary-foreground' : ''}`}><span className={`size-2 rounded-full bg-current ${selected ? 'opacity-100' : 'opacity-0'}`} /></span>
-                                </span>
-                                <span><span className="block text-sm font-bold text-foreground">{option.label}</span><span className="mt-1 block text-xs leading-5 text-muted">{option.detail}</span></span>
-                            </span>
-                        </label>;
-                    })}
-                </div>
-            </fieldset>
-            <p className="mt-4 text-xs leading-5 text-muted">System follows the device preference.</p>
-        </SettingsSurface>
-        <SettingsSaveBar processing={appearance.processing} recentlySuccessful={appearance.recentlySuccessful} isDirty={appearance.isDirty} />
-    </form>;
-}
-
 function NotificationsCard({ initial }) {
     const notifications = useForm({
         approvals: initial.notifications.approvals,
@@ -522,7 +463,6 @@ export default function Settings({ events: passedEvents = [], available_events: 
     const selectedHeadingRef = useRef(null);
     const panelContent = {
         profile: <ProfileCard user={user} globalAdmin={auth.global_admin} mustVerifyEmail={mustVerifyEmail} status={status} />,
-        appearance: <AppearanceCard initial={initial} />,
         accessibility: <AccessibilityCard initial={initial} />,
         workspace: <DashboardPreferencesCard initial={initial} events={events} />,
         notifications: <NotificationsCard initial={initial} />,
@@ -538,7 +478,7 @@ export default function Settings({ events: passedEvents = [], available_events: 
         <main className="min-h-[calc(100vh-4rem)] overflow-x-hidden bg-background p-4 text-foreground sm:p-7 lg:p-8"><div className="mx-auto max-w-5xl">
             <section className="border-b border-border pb-7">
                 <h1 className="font-serif text-3xl font-bold text-foreground">Settings</h1>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-muted">Manage your account, appearance, and preferences.</p>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-muted">Manage your account and event-day preferences.</p>
             </section>
             <SettingsTabs sections={sections} selectedSection={selectedSection} selectSection={selectSection} />
             <div>

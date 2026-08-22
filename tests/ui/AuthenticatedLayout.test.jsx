@@ -14,6 +14,7 @@ vi.mock('@/Components/PrefetchLink', () => ({ default: ({ href, children, method
 
 beforeEach(() => {
     document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = '';
     globalThis.route = (name, params) => {
         if (!name) return { current: (pattern) => pattern === 'admin.sports.*' };
         if (name === 'dashboard') return '/dashboard';
@@ -28,20 +29,16 @@ beforeEach(() => {
     router.visit.mockReset();
 });
 
-test('applies the persisted dark theme to the document root', () => {
+test('ignores legacy theme values while applying accessibility preferences', () => {
+    const storageWrite = vi.spyOn(Storage.prototype, 'setItem');
     render(<AuthenticatedLayout header={<h1>Settings</h1>}><p>Content</p></AuthenticatedLayout>);
-
-    expect(document.documentElement).toHaveClass('dark');
-});
-
-test('cleans the admin theme from the document root when the layout unmounts', () => {
-    const { unmount } = render(<AuthenticatedLayout header={<h1>Settings</h1>}><p>Content</p></AuthenticatedLayout>);
-
-    expect(document.documentElement).toHaveClass('dark');
-    unmount();
 
     expect(document.documentElement).not.toHaveClass('dark');
     expect(document.documentElement.style.colorScheme).toBe('');
+    expect(document.documentElement.dataset.textSize).toBe('default');
+    expect(document.documentElement.dataset.contrast).toBe('default');
+    expect(document.documentElement.dataset.reduceMotion).toBe('false');
+    expect(storageWrite).not.toHaveBeenCalledWith('syntix-theme', expect.anything());
 });
 
 test('activeSection override marks Departments instead of route-derived Sports Directory', () => {

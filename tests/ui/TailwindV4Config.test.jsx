@@ -9,7 +9,8 @@ describe('Tailwind v4 configuration', () => {
     it('uses the CSS-first compiler contract', () => {
         expect(appCss).toContain('@import "tailwindcss";');
         expect(appCss).toContain('@theme inline');
-        expect(appCss).toContain('@custom-variant dark');
+        expect(appCss).not.toContain('@custom-variant dark');
+        expect(appCss).not.toContain('html.dark');
         expect(appCss).toContain('@plugin "@tailwindcss/forms";');
         expect(appCss).toContain('@source "../js";');
         expect(appCss).not.toContain('@tailwind base;');

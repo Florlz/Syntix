@@ -84,9 +84,9 @@ test('renders the complete Global Admin settings navigation', async () => {
 
     render(<Settings events={[]} />);
 
-    expect(screen.getAllByRole('link')).toHaveLength(6);
+    expect(screen.getAllByRole('link')).toHaveLength(5);
     expect(screen.getByRole('link', { name: /Profile/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Appearance/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Appearance/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Accessibility/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Workspace/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Notifications/i })).toBeInTheDocument();
@@ -132,7 +132,7 @@ test('uses a compact settings header instead of the dashboard hero and summary s
     render(<Settings events={[]} />);
 
     expect(screen.getByRole('heading', { name: 'Settings', level: 1 })).toBeInTheDocument();
-    expect(screen.getByText('Manage your account, appearance, and preferences.')).toBeInTheDocument();
+    expect(screen.getByText('Manage your account and event-day preferences.')).toBeInTheDocument();
     expect(screen.queryByText('Make Syntix work for you.')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Current preferences')).not.toBeInTheDocument();
 });
@@ -205,7 +205,7 @@ test('renders the settings navigation with profile selected and applies saved pr
     render(<Settings events={[{ id: 1, name: 'SIKLAB 2026' }, { id: 2, name: 'Freshers Cup' }]} />);
 
     expect(screen.getByRole('navigation', { name: 'Settings sections' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link')).toHaveLength(6);
+    expect(screen.getAllByRole('link')).toHaveLength(5);
     expect(screen.getByRole('link', { name: /Profile/ })).toHaveAttribute('aria-current', 'page');
     expect(document.querySelector('[data-settings-panel="profile"]')).not.toHaveAttribute('hidden');
     expect(screen.getByRole('heading', { name: 'Profile', level: 2 })).toBeInTheDocument();
@@ -223,23 +223,14 @@ test('shows the verification prompt from the shared verification flag', async ()
     expect(screen.getByText('Your email is not verified.')).toBeInTheDocument();
 });
 
-test('theme choices update Appearance state and submit only the theme preference', async () => {
+test('does not expose a theme preference or dark mode control', async () => {
     const { default: Settings } = await import('../../resources/js/Pages/Settings/Index');
 
     render(<Settings events={[]} />);
-    fireEvent.click(screen.getByRole('link', { name: /Appearance/i }));
 
-    const darkTheme = screen.getByRole('radio', { name: /Dark/ });
-    expect(darkTheme).not.toBeChecked();
-    fireEvent.click(darkTheme);
-    expect(darkTheme).toBeChecked();
-    expect(document.documentElement).toHaveClass('dark');
-    expect(document.documentElement.style.colorScheme).toBe('dark');
-
-    fireEvent.submit(darkTheme.closest('form'));
-    const appearanceForm = formWith('theme');
-    const request = appearanceForm.patch.mock.calls.at(-1)[1];
-    expect(request.transform(appearanceForm.data)).toEqual({ theme: 'dark' });
+    expect(screen.queryByRole('link', { name: /Appearance/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: /Dark/i })).not.toBeInTheDocument();
+    expect(formWith('theme')).toBeUndefined();
 });
 
 test('Notifications saves approval activity without changing security alerts', async () => {

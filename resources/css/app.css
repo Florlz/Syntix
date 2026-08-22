@@ -7,6 +7,7 @@
 
 @theme {
     --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+    --font-serif: "Figtree", ui-sans-serif, system-ui, sans-serif;
     --font-condensed: "Barlow Condensed", "Figtree", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -28,123 +29,56 @@
     --color-ring: var(--ring);
 }
 
-@custom-variant dark (&:where(.dark, .dark *));
-
 :root {
     color-scheme: light;
-    --background: #f4f5f2;
-    --foreground: #17212b;
+    --background: #fefefe;
+    --foreground: #001a3f;
     --surface: #ffffff;
-    --surface-muted: #f8faf9;
-    --muted: #68767e;
-    --border: #d8dedc;
-    --primary: #0b536d;
-    --primary-hover: #083f53;
+    --surface-muted: #fafcfc;
+    --muted: #52677f;
+    --border: #bec6db;
+    --primary: #1d86a6;
+    --primary-hover: #166d88;
     --primary-foreground: #ffffff;
-    --accent: #d5a21f;
-    --accent-foreground: #17212b;
-    --danger: #b42318;
-    --danger-surface: #fff1f1;
-    --sidebar: #082944;
-    --ring: #d5a21f;
-}
-
-html.dark {
-    color-scheme: dark;
-    --background: #0d151b;
-    --foreground: #e8eef1;
-    --surface: #121d24;
-    --surface-muted: #17242c;
-    --muted: #9eabb2;
-    --border: #293841;
-    --primary: #66a9bd;
-    --primary-hover: #7bb8c9;
-    --primary-foreground: #071218;
-    --accent: #e0b84c;
-    --accent-foreground: #071218;
-    --danger: #ff8585;
-    --danger-surface: #35191b;
-    --sidebar: #061b2a;
-    --ring: #e0b84c;
+    --accent: #e8aa32;
+    --accent-foreground: #001a3f;
+    --danger: #c83f3f;
+    --danger-surface: #fff2f1;
+    --sidebar: #fefefe;
+    --ring: #1d86a6;
 }
 
 html[data-contrast='high'] {
-    --border: #56666f;
-    --ring: #b17e00;
-}
-
-html.dark[data-contrast='high'] {
-    --foreground: #ffffff;
-    --muted: #d1d9dd;
-    --border: #8c9aa1;
-    --ring: #f4ca4f;
-}
-
-/* Existing Global Admin screens still contain a few legacy utility colors.
- * Keep the dark rollout centralized while those screens move to semantic
- * classes over time. New work should use the token utilities directly. */
-html.dark [class~="bg-white"] {
-    background-color: var(--surface) !important;
-}
-
-html.dark [class~="bg-[#F4F5F2]"],
-html.dark [class~="bg-[#f7f8f7]"] {
-    background-color: var(--background) !important;
-}
-
-html.dark [class~="bg-slate-50"],
-html.dark [class~="bg-[#FAFBF9]"] {
-    background-color: var(--surface-muted) !important;
-}
-
-html.dark [class~="text-[#17212B]"],
-html.dark [class~="text-[#17212b]"],
-html.dark [class~="text-slate-900"] {
-    color: var(--foreground) !important;
-}
-
-html.dark [class~="text-[#68767E]"],
-html.dark [class~="text-slate-500"],
-html.dark [class~="text-slate-600"],
-html.dark [class~="text-slate-700"] {
-    color: var(--muted) !important;
-}
-
-html.dark [class~="text-[#0B536D]"],
-html.dark [class~="text-[#0b536d]"],
-html.dark [class~="text-[#E7C865]"],
-html.dark [class~="text-[#ffe197]"] {
-    color: var(--primary) !important;
-}
-
-html.dark [class~="bg-[#0B536D]"],
-html.dark [class~="bg-[#0b536d]"] {
-    background-color: var(--primary) !important;
-    color: var(--primary-foreground) !important;
-}
-
-html.dark [class~="bg-[#0B2E4F]"],
-html.dark [class~="bg-[#0b2e4f]"] {
-    background-color: var(--sidebar) !important;
-}
-
-html.dark [class~="bg-[#D5A21F]"] {
-    background-color: var(--accent) !important;
-    color: var(--accent-foreground) !important;
-}
-
-html.dark [class~="border-[#D8DEDC]"],
-html.dark [class~="border-[#DDE2E0]"],
-html.dark [class~="border-[#E6EAE8]"],
-html.dark [class~="border-slate-100"],
-html.dark [class~="border-slate-200"],
-html.dark [class~="border-slate-300"] {
-    border-color: var(--border) !important;
+    --foreground: #000e28;
+    --muted: #31465d;
+    --border: #56677f;
+    --primary: #00627b;
+    --primary-hover: #004d61;
+    --ring: #001a3f;
 }
 
 body {
     background-color: var(--background);
     color: var(--foreground);
+}
+
+::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+}
+
+html {
+    scrollbar-color: var(--primary) var(--surface-muted);
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+    caret-color: var(--primary);
+}
+
+a {
+    text-underline-offset: 0.2em;
 }
 
 /* Account preferences are applied to the document by AuthenticatedLayout. */
